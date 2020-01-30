@@ -1,4 +1,6 @@
-# OnlineJudge 2.0
+# OnlineJudge Backend
+
+### 본 프로젝트는 저지 시스템 백엔드 컨테이너 (oj-backend) 내 파일들을 관리하기 위한 프로젝트입니다.
 
 [![Python](https://img.shields.io/badge/python-3.6.2-blue.svg?style=flat-square)](https://www.python.org/downloads/release/python-362/)
 [![Django](https://img.shields.io/badge/django-1.11.4-blue.svg?style=flat-square)](https://www.djangoproject.com/)
@@ -6,8 +8,6 @@
 [![Build Status](https://travis-ci.org/QingdaoU/OnlineJudge.svg?branch=master)](https://travis-ci.org/QingdaoU/OnlineJudge)
 
 > #### An onlinejudge system based on Python and Vue. [Demo](https://qduoj.com)
-
-[中文文档](README-CN.md)
 
 ## Overview
 
