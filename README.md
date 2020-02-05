@@ -83,3 +83,7 @@ Modern browsers(chrome, firefox) and Internet Explorer 10+.
 ## License
 
 [MIT](http://opensource.org/licenses/MIT)
+
+## 개발 가이드
+
+### 데이터베이스는 백엔드 코드 각 app(account, contest 등..)폴더 내 models.py 파일로 관리됩니다.
