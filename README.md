@@ -42,7 +42,7 @@ Follow me:  [https://github.com/QingdaoU/OnlineJudgeDeploy/tree/2.0](https://git
 
     - 따라서 oj-postgres 컨테이너 내 데이터베이스에 대한 직접 수정은 금합니다.
 
-- 
+- README 수정 중.. 개발과 관련된 사항은 전민건, 박준홍 연구생에게 문의합니다.
 
 ## Screenshots
 
