@@ -36,6 +36,14 @@ Follow me:  [https://github.com/QingdaoU/OnlineJudgeDeploy/tree/2.0](https://git
 
 [http://docs.onlinejudge.me/](http://docs.onlinejudge.me/)
 
+## 개발 가이드
+
+- **데이터베이스는 백엔드 코드 각 app(account, contest 등..)폴더 내 models.py 파일로 관리됩니다.**
+
+    - 따라서 oj-postgres 컨테이너 내 데이터베이스에 대한 직접 수정은 금합니다.
+
+- 
+
 ## Screenshots
 
 ### Frontend:
@@ -84,6 +92,4 @@ Modern browsers(chrome, firefox) and Internet Explorer 10+.
 
 [MIT](http://opensource.org/licenses/MIT)
 
-## 개발 가이드
 
-### 데이터베이스는 백엔드 코드 각 app(account, contest 등..)폴더 내 models.py 파일로 관리됩니다.
