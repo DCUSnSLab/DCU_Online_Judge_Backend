@@ -9,12 +9,14 @@ from utils.models import RichTextField
 class Lecture(models.Model):
     title = models.TextField()
     description = RichTextField()
-    created_by_id = models.ForeignKey(User, on_delete = models.CASCADE)
+    created_by = models.ForeignKey(User, on_delete = models.CASCADE) #외래키 사용 시 뒤에 자동으로 _id가 붙는다.
     status = models.BooleanField()
 
     class Meta:
         db_table = "lecture"
 
 class signup_class(models.Model):
-    lecture_id = models.ForeignKey(Lecture, on_delete = models.CASCADE)
-    user_id = models.ForeignKey(User, on_delete = models.CASCADE)
+    lecture = models.ForeignKey(Lecture, on_delete = models.CASCADE)
+    user = models.ForeignKey(User, on_delete = models.CASCADE)
+
+
