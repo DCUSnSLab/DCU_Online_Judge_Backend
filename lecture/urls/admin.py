@@ -2,7 +2,7 @@ from django.conf.urls import url
 
 from django.contrib import admin
 
-from .views import LectureAPI
+from ..views.admin import LectureAPI
 
 urlpatterns = [
     url(r"^lecture/?$", LectureAPI.as_view(), name="lecture_admin_api"),
