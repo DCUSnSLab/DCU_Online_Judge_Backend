@@ -16,7 +16,11 @@ urlpatterns = [
     #path("api/admin", include("contest.urls.admin")),
     url(r"^api/", include("submission.urls.oj")),
     url(r"^api/admin/", include("submission.urls.admin")),
-    url(r"^api/admin/", include("lecture.urls")),
-    #path('api/admin', include("lecture.urls")),
+
+    #강의 페이지 추가를 위해 임의로 추가한 부분
+    url(r"^api/", include("lecture.urls.oj")),
+    url(r"^api/admin/", include("lecture.urls.admin")),
+    ###########################################
+
     url(r"^api/admin/", include("utils.urls")),
 ]
