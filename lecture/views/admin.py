@@ -24,12 +24,13 @@ class LectureAPI(APIView):
         return self.success(LectureAdminSerializer(lecture).data)
 
     #def put(self, request):
+    @validate_serializer(EditLectureSerializer)
     def put(self, request):
         data = request.data
         try:
             lecture = Lecture.objects.get(id=data.pop("id"))
             ensure_created_by(lecture, request.user)
-        except LectureDoesNotExist:
+        except Lecture.DoesNotExist:
             return self.error("no lecture exist")
 
         for k, v in data.items():
