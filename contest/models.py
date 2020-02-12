@@ -5,6 +5,7 @@ from utils.models import JSONField
 
 from utils.constants import ContestStatus, ContestType
 from account.models import User
+from lecture.models import Lecture
 from utils.models import RichTextField
 
 
@@ -24,6 +25,8 @@ class Contest(models.Model):
     # 是否可见 false的话相当于删除
     visible = models.BooleanField(default=True)
     allowed_ip_ranges = JSONField(default=list)
+
+    assigned_lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE, default=1)
 
     @property
     def status(self):
