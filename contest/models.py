@@ -26,7 +26,7 @@ class Contest(models.Model):
     visible = models.BooleanField(default=True)
     allowed_ip_ranges = JSONField(default=list)
 
-    assigned_lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE, default=1)
+    assigned_lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE, null=True)
 
     @property
     def status(self):
