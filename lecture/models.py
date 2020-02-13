@@ -18,5 +18,4 @@ class Lecture(models.Model):
 class signup_class(models.Model):
     lecture = models.ForeignKey(Lecture, on_delete = models.CASCADE)
     user = models.ForeignKey(User, on_delete = models.CASCADE)
-
-
+    status = models.BooleanField(default=False)
