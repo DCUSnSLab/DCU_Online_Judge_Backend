@@ -11,7 +11,7 @@ class Lecture(models.Model):
     description = RichTextField()
     created_by = models.ForeignKey(User, on_delete = models.CASCADE) #외래키 사용 시 뒤에 자동으로 _id가 붙는다.
     status = models.BooleanField()
-
+    password = models.TextField(null=True)
     class Meta:
         db_table = "lecture"
 
