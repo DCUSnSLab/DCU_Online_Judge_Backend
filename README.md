@@ -2,13 +2,6 @@
 
 ### 본 프로젝트는 저지 시스템 백엔드 컨테이너 (oj-backend) 내 파일들을 관리하기 위한 프로젝트입니다.
 
-[![Python](https://img.shields.io/badge/python-3.6.2-blue.svg?style=flat-square)](https://www.python.org/downloads/release/python-362/)
-[![Django](https://img.shields.io/badge/django-1.11.4-blue.svg?style=flat-square)](https://www.djangoproject.com/)
-[![Django Rest Framework](https://img.shields.io/badge/django_rest_framework-3.4.0-blue.svg?style=flat-square)](http://www.django-rest-framework.org/)
-[![Build Status](https://travis-ci.org/QingdaoU/OnlineJudge.svg?branch=master)](https://travis-ci.org/QingdaoU/OnlineJudge)
-
-> #### An onlinejudge system based on Python and Vue. [Demo](https://qduoj.com)
-
 ## Overview
 
 + Based on Docker; One-click deployment
@@ -30,7 +23,7 @@ Main modules are available below:
 
 ## Installation
 
-Follow me:  [https://github.com/QingdaoU/OnlineJudgeDeploy/tree/2.0](https://github.com/QingdaoU/OnlineJudgeDeploy/tree/2.0)
+[https://github.com/QingdaoU/OnlineJudgeDeploy/tree/2.0](https://github.com/QingdaoU/OnlineJudgeDeploy/tree/2.0)
 
 ## Documents
 
@@ -55,8 +48,6 @@ Follow me:  [https://github.com/QingdaoU/OnlineJudgeDeploy/tree/2.0](https://git
 ![statistic-info](https://user-images.githubusercontent.com/20637881/33372508-40a0c6ce-d539-11e7-8d5e-024541b76750.png)
 
 ![contest-list](https://user-images.githubusercontent.com/20637881/33372509-40d880dc-d539-11e7-9eba-1f08dcb6b9a0.png)
-
-You can control the menu and chart status in rankings.
 
 ![acm-rankings](https://user-images.githubusercontent.com/20637881/33372510-41117f68-d539-11e7-9947-70e60bad3cf2.png)
 
