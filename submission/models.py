@@ -42,7 +42,7 @@ class Submission(models.Model):
     ip = models.TextField(null=True)
     
     # submit 시 수강과목이 존재하는 경우 수강과목의  id값을 추가한다.
-    lecture_id = models.ForeignKey(Lecture, null=True, on_delete=models.CASCADE)
+    lecture = models.ForeignKey(Lecture, null=True, on_delete=models.CASCADE)
 
     def check_user_permission(self, user, check_share=True):
         if self.user_id == user.id or user.is_super_admin() or user.can_mgmt_all_problem() or self.problem.created_by_id == user.id:
