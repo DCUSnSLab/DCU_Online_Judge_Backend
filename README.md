@@ -78,16 +78,6 @@ You can control the menu and chart status in rankings.
 
 ![create-contest](https://user-images.githubusercontent.com/20637881/33372514-428ab922-d539-11e7-8f68-da55dedf3ad3.png)
 
-## Browser Support
-
-Modern browsers(chrome, firefox) and Internet Explorer 10+.
-
-## Thanks
-
-+ I'd appreciate a star if you find this helpful.
-+ Thanks to everyone that contributes to this project.
-+ Special thanks to [heb1c](https://github.com/hebicheng), who has given us a lot of suggestions.
-
 ## License
 
 [MIT](http://opensource.org/licenses/MIT)
