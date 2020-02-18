@@ -9,6 +9,7 @@ class CreateSubmissionSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=1024 * 1024)
     contest_id = serializers.IntegerField(required=False)
     captcha = serializers.CharField(required=False)
+    lecture_id = serializers.IntegerField(required=False)
 
 
 class ShareSubmissionSerializer(serializers.Serializer):

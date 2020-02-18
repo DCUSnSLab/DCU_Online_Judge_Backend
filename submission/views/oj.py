@@ -77,7 +77,9 @@ class SubmissionAPI(APIView):
                                                code=data["code"],
                                                problem_id=problem.id,
                                                ip=request.session["ip"],
-                                               contest_id=data.get("contest_id"))
+                                               contest_id=data.get("contest_id"),
+#                                               lecture_id=data.get("lecture_id")
+                                               lecture_id=data.get("lecture_id"))
         # use this for debug
         # JudgeDispatcher(submission.id, problem.id).judge()
         judge_task.send(submission.id, problem.id)
