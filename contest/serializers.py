@@ -4,7 +4,7 @@ from .models import Contest, ContestAnnouncement, ContestRuleType
 from .models import ACMContestRank, OIContestRank
 
 
-class CreateConetestSeriaizer(serializers.Serializer):
+class CreateContestSeriaizer(serializers.Serializer):
     title = serializers.CharField(max_length=128)
     description = serializers.CharField()
     start_time = serializers.DateTimeField()
@@ -14,10 +14,10 @@ class CreateConetestSeriaizer(serializers.Serializer):
     visible = serializers.BooleanField()
     real_time_rank = serializers.BooleanField()
     allowed_ip_ranges = serializers.ListField(child=serializers.CharField(max_length=32), allow_empty=True)
-    assigned_lecture_id = serializers.IntegerField()
+    lecture_id = serializers.IntegerField()
 
 
-class EditConetestSeriaizer(serializers.Serializer):
+class EditContestSeriaizer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField(max_length=128)
     description = serializers.CharField()
@@ -27,8 +27,7 @@ class EditConetestSeriaizer(serializers.Serializer):
     visible = serializers.BooleanField()
     real_time_rank = serializers.BooleanField()
     allowed_ip_ranges = serializers.ListField(child=serializers.CharField(max_length=32))
-    assigned_lecture_id = serializers.IntegerField()
-
+    lecture_id = serializers.IntegerField()
 
 class ContestAdminSerializer(serializers.ModelSerializer):
     created_by = UsernameSerializer()
@@ -108,3 +107,7 @@ class ACMContesHelperSerializer(serializers.Serializer):
     problem_id = serializers.CharField()
     rank_id = serializers.IntegerField()
     checked = serializers.BooleanField()
+
+class AddLectureContestSerializer(serializers.Serializer):
+    lecture_id = serializers.IntegerField()
+    contest_id = serializers.IntegerField()
