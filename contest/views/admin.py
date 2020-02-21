@@ -87,6 +87,7 @@ class ContestAPI(APIView):
         keyword = request.GET.get("keyword")
         if keyword:
             contests = contests.filter(title__contains=keyword)
+
         return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
 
