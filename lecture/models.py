@@ -12,6 +12,7 @@ class Lecture(models.Model):
     created_by = models.ForeignKey(User, on_delete = models.CASCADE) #외래키 사용 시 뒤에 자동으로 _id가 붙는다.
     status = models.BooleanField()
     password = models.TextField()
+    isapply = models.BooleanField(default=False)
     class Meta:
         db_table = "lecture"
 
