@@ -3,7 +3,7 @@ from utils.shortcuts import get_env
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'HOST': get_env("POSTGRES_HOST", "oj-postgres"),
+        'HOST': get_env("POSTGRES_HOST", "localhost"),
         'PORT': get_env("POSTGRES_PORT", "5432"),
         'NAME': get_env("POSTGRES_DB"),
         'USER': get_env("POSTGRES_USER"),

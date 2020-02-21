@@ -14,15 +14,17 @@ from utils.cache import cache
 from utils.constants import CacheKey
 from utils.shortcuts import rand_str
 from utils.tasks import delete_files
+from problem.models import Problem
+from lecture.models import Lecture
 from ..models import Contest, ContestAnnouncement, ACMContestRank
 from ..serializers import (ContestAnnouncementSerializer, ContestAdminSerializer,
-                           CreateConetestSeriaizer, CreateContestAnnouncementSerializer,
-                           EditConetestSeriaizer, EditContestAnnouncementSerializer,
-                           ACMContesHelperSerializer, )
+                           CreateContestSeriaizer, CreateContestAnnouncementSerializer,
+                           EditContestSeriaizer, EditContestAnnouncementSerializer,
+                           ACMContesHelperSerializer, AddLectureContestSerializer,)
 
 
 class ContestAPI(APIView):
-    @validate_serializer(CreateConetestSeriaizer)
+    @validate_serializer(CreateContestSeriaizer)
     def post(self, request):
         data = request.data
         data["start_time"] = dateutil.parser.parse(data["start_time"])
@@ -40,7 +42,7 @@ class ContestAPI(APIView):
         contest = Contest.objects.create(**data)
         return self.success(ContestAdminSerializer(contest).data)
 
-    @validate_serializer(EditConetestSeriaizer)
+    @validate_serializer(EditContestSeriaizer)
     def put(self, request):
         data = request.data
         try:
@@ -239,3 +241,19 @@ class DownloadContestSubmissions(APIView):
         resp["Content-Type"] = "application/zip"
         resp["Content-Disposition"] = f"attachment;filename={os.path.basename(zip_path)}"
         return resp
+
+class AddLectureContestAPI(APIView):
+    @validate_serializer(AddLectureContestSerializer)
+    def post(self, request):
+        data = request.data
+        try:
+            contest = Contest.objects.get(id=data["contest_id"])
+            lecture = Lecture.objects.get(id=data["lecture_id"])
+        except (Contest.DoesNotExist):
+            return self.error("Contest does not exist")
+
+        print(lecture.id)
+        contest.lecture_id = lecture
+        contest.save()
+
+        return self.success()
