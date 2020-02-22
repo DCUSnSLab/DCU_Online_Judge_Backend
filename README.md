@@ -34,8 +34,8 @@ Main modules are available below:
 - **데이터베이스는 백엔드 코드 각 app(account, contest 등..)폴더 내 models.py 파일로 관리됩니다.**
 
     - 따라서 oj-postgres 컨테이너 내 데이터베이스에 대한 직접 수정은 금합니다.
-
-- README 수정 중.. 개발과 관련된 사항은 전민건, 박준홍 연구생에게 문의합니다.
+ㅈ
+    - manage.py 파일이 존재하는 경로
 
 ## Screenshots
 
