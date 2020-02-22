@@ -13,6 +13,7 @@ class Lecture(models.Model):
     status = models.BooleanField()
     password = models.TextField()
     isapply = models.BooleanField(default=False)
+    isallow = models.BooleanField(default=False)
     class Meta:
         db_table = "lecture"
 
