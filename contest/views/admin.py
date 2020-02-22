@@ -90,6 +90,55 @@ class ContestAPI(APIView):
 
         return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
+class LectureContestAPI(APIView):
+    def get(self, request):
+        print("Lecture Contest API Start")
+        contest_id = request.GET.get("contest_id")
+        lecture_id = request.GET.get("lecture_id")
+        user = request.user
+        if not lecture_id:
+            return self.error("Lecture id is required")
+        try:
+            lecture = Lecture.objects.get(id=lecture_id)
+            ensure_created_by(lecture, user)
+        except Contest.DoesNotExist:
+            return self.error("Contest does not exist")
+        contests = Contest.objects.filter(lecture=lecture).order_by("-create_time")
+
+        if user.is_admin():
+            contests = contests.filter(lecture__created_by=user)
+        keyword = request.GET.get("keyword")
+        if keyword:
+            contests = contests.filter(title__contains=keyword)
+
+        for cc in contests:
+            print(cc.title)
+        # problem_id = request.GET.get("id")
+        # contest_id = request.GET.get("contest_id")
+        # user = request.user
+        # if problem_id:
+        #     try:
+        #         problem = Problem.objects.get(id=problem_id)
+        #         ensure_created_by(problem.contest, user)
+        #     except Problem.DoesNotExist:
+        #         return self.error("Problem does not exist")
+        #     return self.success(ProblemAdminSerializer(problem).data)
+        #
+        # if not contest_id:
+        #     return self.error("Contest id is required")
+        # try:
+        #     contest = Contest.objects.get(id=contest_id)
+        #     ensure_created_by(contest, user)
+        # except Contest.DoesNotExist:
+        #     return self.error("Contest does not exist")
+        # problems = Problem.objects.filter(contest=contest).order_by("-create_time")
+        # if user.is_admin():
+        #     problems = problems.filter(contest__created_by=user)
+        # keyword = request.GET.get("keyword")
+        # if keyword:
+        #     problems = problems.filter(title__contains=keyword)
+        # return self.success(self.paginate_data(request, problems, ProblemAdminSerializer))
+        return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
 class ContestAnnouncementAPI(APIView):
     @validate_serializer(CreateContestAnnouncementSerializer)
@@ -254,7 +303,8 @@ class AddLectureContestAPI(APIView):
             return self.error("Contest does not exist")
 
         print(lecture.id)
-        contest.lecture_id = lecture
+        contest.pk = None
+        contest.lecture = lecture
         contest.save()
 
         return self.success()

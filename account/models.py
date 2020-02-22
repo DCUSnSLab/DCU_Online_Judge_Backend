@@ -27,6 +27,9 @@ class User(AbstractBaseUser):
     username = models.TextField(unique=True)
     email = models.TextField(null=True)
     create_time = models.DateTimeField(auto_now_add=True, null=True)
+    # for Student
+    is_student = models.BooleanField(default=False)
+    student_id = models.IntegerField(default=0)
     # One of UserType
     admin_type = models.TextField(default=AdminType.REGULAR_USER)
     problem_permission = models.TextField(default=ProblemPermission.NONE)
@@ -46,6 +49,9 @@ class User(AbstractBaseUser):
     REQUIRED_FIELDS = []
 
     objects = UserManager()
+
+    def is_student(self):
+        return self.admin_type == AdminType.STUDENT
 
     def is_admin(self):
         return self.admin_type == AdminType.ADMIN

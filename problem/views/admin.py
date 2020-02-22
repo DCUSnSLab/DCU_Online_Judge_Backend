@@ -346,6 +346,7 @@ class ContestProblemAPI(ProblemBase):
         return self.success(ProblemAdminSerializer(problem).data)
 
     def get(self, request):
+        print("Called Problem List")
         problem_id = request.GET.get("id")
         contest_id = request.GET.get("contest_id")
         user = request.user

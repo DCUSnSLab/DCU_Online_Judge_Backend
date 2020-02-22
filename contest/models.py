@@ -24,7 +24,7 @@ class Contest(models.Model):
     # 是否可见 false的话相当于删除
     visible = models.BooleanField(default=True)
     allowed_ip_ranges = JSONField(default=list)
-    lecture_id = models.ForeignKey(Lecture, null=True, on_delete=models.CASCADE)
+    lecture = models.ForeignKey(Lecture, null=True, on_delete=models.CASCADE)
 
     @property
     def status(self):
