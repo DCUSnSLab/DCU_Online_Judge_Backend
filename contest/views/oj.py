@@ -9,6 +9,7 @@ from problem.models import Problem
 from utils.api import APIView, validate_serializer
 from utils.constants import CacheKey
 from utils.shortcuts import datetime2str, check_is_id
+from lecture.views.oj import LectureUtil
 from account.models import AdminType
 from account.decorators import login_required, check_contest_permission
 
@@ -34,21 +35,33 @@ class ContestAnnouncementListAPI(APIView):
 
 class ContestAPI(APIView):
     def get(self, request):
+        print('insert contest')
         id = request.GET.get("id")
+
         if not id or not check_is_id(id):
             return self.error("Invalid parameter, id is required")
         try:
             contest = Contest.objects.get(id=id, visible=True)
         except Contest.DoesNotExist:
             return self.error("Contest does not exist")
+
+        LU = LectureUtil()
+        lecsign = LU.getSignupList(request.user.id, lid=contest.lecture)
+        if len(lecsign) != 0:
+            print("Lecture allow : ", lecsign[0].isallow)
+            contest.visible = True
+        else:
+            contest.visible = False
         data = ContestSerializer(contest).data
         data["now"] = datetime2str(now())
         return self.success(data)
 
-
 class ContestListAPI(APIView):
     def get(self, request):
-        contests = Contest.objects.select_related("created_by").filter(visible=True)
+        # contests = Contest.objects.get(lecture=request.get('lecture_id'))
+        # return self.success(self.paginate_data(request, contests, ContestSerializer))
+        lectureid = request.GET.get('lectureid')
+        contests = Contest.objects.select_related("created_by").filter(visible=True, lecture=lectureid)
         keyword = request.GET.get("keyword")
         rule_type = request.GET.get("rule_type")
         status = request.GET.get("status")
