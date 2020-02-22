@@ -27,7 +27,8 @@ class LectureListAPI(APIView):
             lectures = lectures.filter(title__contains=keyword)
 
         print(request.user.id)
-        applylist = getSignupList(request.user.id)
+        LU = LectureUtil()
+        applylist = LU.getSignupList(request.user.id)
 
         if not applylist is None:
             for al in applylist:
@@ -36,6 +37,7 @@ class LectureListAPI(APIView):
                 for ll in lectures:
                     if al.lecture_id == ll.id:
                         ll.isapply = True
+                        ll.isallow = al.isallow
         else:
             print("None Apply")
 
@@ -49,8 +51,9 @@ class LectureApplyAPI(APIView):
     def post(self, request):
         retv = -1
         data = request.data
+        LU = LectureUtil()
         if data.get("lecture_id"):
-            if not getSignupList(lid=data.get("lecture_id"), uid=request.user.id):
+            if not LU.getSignupList(lid=data.get("lecture_id"), uid=request.user.id):
                 appy = signup_class.objects.create(lecture_id=data.get("lecture_id"),
                                                    user_id=request.user.id,
                                                    status=False)
@@ -61,19 +64,20 @@ class LectureApplyAPI(APIView):
 
         return self.success(retv)
 
-def getSignupList(uid, lid=None):
-    retv = None
-    lec = None
-    try:
-        if lid is None:
-            print("LID IS NONE user ID", uid)
-            lec = signup_class.objects.filter(user_id=uid)
-            print(lec)
-        else:
-            print("LID IS NOT NONE user ID", uid)
-            lec = signup_class.objects.filter(lecture_id=lid, user_id=uid)
-        retv = lec
-    except signup_class.DoesNotExist:
+class LectureUtil:
+    def getSignupList(self, uid, lid=None):
         retv = None
-        print("NOT EXIST", lec)
-    return retv
+        lec = None
+        try:
+            if lid is None:
+                print("LID IS NONE user ID", uid)
+                lec = signup_class.objects.filter(user_id=uid)
+                print(lec)
+            else:
+                print("LID IS NOT NONE user ID", uid)
+                lec = signup_class.objects.filter(lecture_id=lid, user_id=uid)
+            retv = lec
+        except signup_class.DoesNotExist:
+            retv = None
+            print("NOT EXIST", lec)
+        return retv
