@@ -1,6 +1,6 @@
 from utils.api import UsernameSerializer, serializers
 
-from .models import Lecture
+from .models import Lecture, signup_class
 
 
 class CreateLectureSerializer(serializers.Serializer):
@@ -25,7 +25,13 @@ class LectureAdminSerializer(serializers.ModelSerializer):
 
 
 class LectureSerializer(LectureAdminSerializer):
+
     class Meta:
         model = Lecture
         fields = "__all__"
 
+class SignupClassSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = signup_class
+        fields = "__all__"

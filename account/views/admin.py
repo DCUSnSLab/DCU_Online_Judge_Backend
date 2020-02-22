@@ -10,12 +10,13 @@ from django.contrib.auth.hashers import make_password
 from submission.models import Submission
 from utils.api import APIView, validate_serializer
 from utils.shortcuts import rand_str
+from lecture.models import Lecture, signup_class
 
 from ..decorators import super_admin_required
 from ..models import AdminType, ProblemPermission, User, UserProfile
 from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserSerializer
 from ..serializers import ImportUserSeralizer
-
+from lecture.serializers import SignupClassSerializer
 
 class UserAdminAPI(APIView):
     @validate_serializer(ImportUserSeralizer)
@@ -101,6 +102,34 @@ class UserAdminAPI(APIView):
 
     @super_admin_required
     def get(self, request):
+        """
+        수강과목이 있는 학생 목록을 가져오기 위한 기능
+        """
+        lecture_id = request.GET.get("lectureid")
+        if lecture_id:
+            try:
+                #signupclass = signup_class.objects.get(lecture_id=lecture_id)
+                user = User.objects.all()
+                signupclasses = signup_class.objects.filter(lecture_id=lecture_id)
+
+            except signup_class.DoesNotExist:
+                return self.error("수강중인 학생이 없습니다.")
+
+            users = [] # 사용자 id 값들을 저장하기 위한 list
+            for signupclass in signupclasses:
+                users.append(signupclass.user_id) # lecture_id를 가진 사용자 id를 lecture_signup_class 테이블에서 가져와 저장한다.
+
+            if (users): # 사용자 id가 하나라도 있는 경우,
+                q1 = user.filter(id=users[0]) # 1번째 사용자 id를 바탕으로 User 테이블에서 값을 조회하고
+
+                for user_id in users: # lecture_signup_class 테이블에서 조회된 사용자 id 수 만큼
+                    q1 = q1 | user.filter(id=user_id) # User 테이블에서 사용자를 조회하고 Queryset을 merge한다.
+            else:
+                return self.error("수강중인 학생이 없습니다.") # 사용자 id가 없는 경우, 다음 오류 문구를 출력한다.
+
+            return self.success(self.paginate_data(request, q1, UserAdminSerializer))
+
+            #return self.success(SignupClassSerializer(signupclass).data)
         """
         User list api / Get user by id
         """
