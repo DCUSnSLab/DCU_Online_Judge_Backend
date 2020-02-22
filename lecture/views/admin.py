@@ -12,7 +12,7 @@ from utils.cache import cache
 from utils.constants import CacheKey
 from utils.shortcuts import rand_str
 from utils.tasks import delete_files
-from ..models import Lecture
+from ..models import Lecture, signup_class
 from ..serializers import (CreateLectureSerializer, EditLectureSerializer, LectureAdminSerializer, LectureSerializer, )
 
 class LectureAPI(APIView):
