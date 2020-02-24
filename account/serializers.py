@@ -3,6 +3,7 @@ from django import forms
 from utils.api import serializers, UsernameSerializer
 
 from .models import AdminType, ProblemPermission, User, UserProfile
+from lecture.models import signup_class
 
 
 class UserLoginSerializer(serializers.Serializer):
@@ -49,16 +50,12 @@ class ImportUserSeralizer(serializers.Serializer):
 
 
 class UserAdminSerializer(serializers.ModelSerializer):
-    real_name = serializers.SerializerMethodField()
-
     class Meta:
         model = User
-        fields = ["id", "username", "email", "admin_type", "problem_permission", "real_name",
-                  "create_time", "last_login", "two_factor_auth", "open_api", "is_disabled", "student_id", "isstudent"]
+        fields = "__all__"
 
     def get_real_name(self, obj):
         return obj.userprofile.real_name
-
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -66,6 +63,14 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "email", "admin_type", "problem_permission",
                   "create_time", "last_login", "two_factor_auth", "open_api", "is_disabled"]
 
+######################################################
+class SignupSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    # lecture = LectureSerializer()
+
+    class Meta:
+        model = signup_class
+        fields = "__all__"
 
 class UserProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer()

@@ -56,3 +56,16 @@ class LectureAPI(APIView):
         if keyword:
             lectures = lectures.filter(title__contains=keyword)
         return self.success(self.paginate_data(request, lectures, LectureAdminSerializer))
+
+class AdminLectureApplyAPI(APIView):
+    def post(self, request):
+        data = request.data
+
+        if data.get("lecture_id") and data.get("user_id"):
+            appy = signup_class.objects.get(lecture_id=data.get("lecture_id"), user_id=data.get("user_id"))
+            print(appy)
+            appy.isallow = True
+            appy.save()
+            print("modified")
+
+        return self.success()
