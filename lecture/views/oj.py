@@ -30,7 +30,7 @@ class LectureListAPI(APIView):
         LU = LectureUtil()
         applylist = LU.getSignupList(request.user.id)
 
-        if not applylist is None:
+        if not (applylist is None):
             for al in applylist:
                 print(al.lecture_id, al.user_id)
                 #change is apply
@@ -68,13 +68,14 @@ class LectureUtil:
     def getSignupList(self, uid, lid=None):
         retv = None
         lec = None
+        print("LectureUtil lid = ",lid)
         try:
             if lid is None:
                 print("LID IS NONE user ID", uid)
                 lec = signup_class.objects.filter(user_id=uid)
                 print(lec)
             else:
-                print("LID IS NOT NONE user ID", uid)
+                print("LID IS NOT NONE user ID", uid, "lid=",lid)
                 lec = signup_class.objects.filter(lecture_id=lid, user_id=uid)
             retv = lec
         except signup_class.DoesNotExist:

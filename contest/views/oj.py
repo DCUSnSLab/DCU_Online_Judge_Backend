@@ -46,12 +46,16 @@ class ContestAPI(APIView):
             return self.error("Contest does not exist")
 
         LU = LectureUtil()
-
-        lecsign = LU.getSignupList(request.user.id, lid=contest.lecture)
-        if not contest.lecture or (not contest.lecture and len(lecsign) != 0):
+        #print("lid = ",contest.lecture_id)
+        lecsign = LU.getSignupList(request.user.id, lid=contest.lecture_id)
+        #print("lid = ", contest.lecture)
+        if not contest.lecture:
+            contest.visible = True
+        elif contest.lecture and len(lecsign) != 0 and lecsign[0].isallow:
             #print("Lecture allow : ", lecsign[0].isallow)
             contest.visible = True
         else:
+         #   print("no contest lecture")
             contest.visible = False
         data = ContestSerializer(contest).data
         data["now"] = datetime2str(now())
