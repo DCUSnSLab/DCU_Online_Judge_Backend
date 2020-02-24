@@ -57,6 +57,8 @@ class LectureAPI(APIView):
             lectures = lectures.filter(title__contains=keyword)
         return self.success(self.paginate_data(request, lectures, LectureAdminSerializer))
 
+
+
 class AdminLectureApplyAPI(APIView):
     def post(self, request):
         data = request.data
