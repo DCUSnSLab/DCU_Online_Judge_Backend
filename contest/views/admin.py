@@ -90,6 +90,13 @@ class ContestAPI(APIView):
 
         return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
+    def delete(self, request):
+        id = request.GET.get("id")
+        if not id:
+            return self.error("Invalid Parameter, id is required")
+        Contest.objects.filter(id=id).delete()
+        return self.success()
+
 class LectureContestAPI(APIView):
     def get(self, request):
         print("Lecture Contest API Start")
