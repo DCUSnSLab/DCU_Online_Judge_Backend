@@ -119,8 +119,6 @@ class ContestProblemAPI(APIView):
 
 class ProblemResponsibility(APIView):
     def get(self, request):
-        print("ProblemCheck")
-        print("Problem pid=", request.GET.get("problem_id"), "cid=",request.GET.get('contest_id'))
         if not request.GET.get("problem_id"):
             return self.error("Parameter error, problem_id is required")
 
@@ -130,15 +128,9 @@ class ProblemResponsibility(APIView):
                 if contests.lecture:
                     try:
                         signups = signup_class.objects.get(lecture=contests.lecture, user=request.user.id, isallow=True)
-                        print("Contest has Lecture : ",signups.lecture, ", ", signups.user, ", ", signups.isallow)
-
                     except signup_class.DoesNotExist:
                         print("Incorrect path")
                         return self.success(False)
-                        return self.error("Incorrect Path, user is not allowed")
-
             except Contest.DoesNotExist:
                 return self.error("Parameter error, Contest is required")
-
-
         return self.success(True)
