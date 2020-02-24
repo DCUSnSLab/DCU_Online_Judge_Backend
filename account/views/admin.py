@@ -15,7 +15,7 @@ from lecture.models import Lecture, signup_class
 from ..decorators import super_admin_required
 from ..models import AdminType, ProblemPermission, User, UserProfile
 from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserSerializer
-from ..serializers import ImportUserSeralizer
+from ..serializers import ImportUserSeralizer, SignupSerializer
 from lecture.serializers import SignupClassSerializer
 
 class UserAdminAPI(APIView):
@@ -105,8 +105,12 @@ class UserAdminAPI(APIView):
         """
         수강과목이 있는 학생 목록을 가져오기 위한 기능
         """
+
+        user_id = request.GET.get("id")
+
         lecture_id = request.GET.get("lectureid")
-        if lecture_id:
+
+        if lecture_id: # 특정 수강과목을 수강중인 학생 리스트업 하는 경우
             try:
                 #signupclass = signup_class.objects.get(lecture_id=lecture_id)
                 user = User.objects.all()
@@ -115,25 +119,18 @@ class UserAdminAPI(APIView):
             except signup_class.DoesNotExist:
                 return self.error("수강중인 학생이 없습니다.")
 
-            users = [] # 사용자 id 값들을 저장하기 위한 list
-            for signupclass in signupclasses:
-                users.append(signupclass.user_id) # lecture_id를 가진 사용자 id를 lecture_signup_class 테이블에서 가져와 저장한다.
-
-            if (users): # 사용자 id가 하나라도 있는 경우,
-                q1 = user.filter(id=users[0]) # 1번째 사용자 id를 바탕으로 User 테이블에서 값을 조회하고
-
-                for user_id in users: # lecture_signup_class 테이블에서 조회된 사용자 id 수 만큼
-                    q1 = q1 | user.filter(id=user_id) # User 테이블에서 사용자를 조회하고 Queryset을 merge한다.
-            else:
-                return self.error("수강중인 학생이 없습니다.") # 사용자 id가 없는 경우, 다음 오류 문구를 출력한다.
-
-            return self.success(self.paginate_data(request, q1, UserAdminSerializer))
+            ulist = signup_class.objects.select_related('lecture')
+            ulist = ulist.filter(lecture_id=lecture_id)
+            for uu in ulist:
+                print(uu.user_id, uu.lecture_id, uu.user.username)
+            #return self.success()
+            return self.success(self.paginate_data(request, ulist, SignupSerializer))
 
             #return self.success(SignupClassSerializer(signupclass).data)
         """
         User list api / Get user by id
         """
-        user_id = request.GET.get("id")
+
         if user_id:
             try:
                 user = User.objects.get(id=user_id)
