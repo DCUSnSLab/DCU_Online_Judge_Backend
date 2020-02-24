@@ -3,6 +3,8 @@ from django.db.models import Q, Count
 from utils.api import APIView
 from account.decorators import check_contest_permission
 from ..models import ProblemTag, Problem, ProblemRuleType
+from contest.models import Contest
+from lecture.models import signup_class
 from ..serializers import ProblemSerializer, TagSerializer, ProblemSafeSerializer
 from contest.models import ContestRuleType
 
@@ -114,3 +116,29 @@ class ContestProblemAPI(APIView):
         else:
             data = ProblemSafeSerializer(contest_problems, many=True).data
         return self.success(data)
+
+class ProblemResponsibility(APIView):
+    def get(self, request):
+        print("ProblemCheck")
+        print("Problem pid=", request.GET.get("problem_id"), "cid=",request.GET.get('contest_id'))
+        if not request.GET.get("problem_id"):
+            return self.error("Parameter error, problem_id is required")
+
+        if request.GET.get("contest_id"):
+            try:
+                contests = Contest.objects.get(id=request.GET.get("contest_id"))
+                if contests.lecture:
+                    try:
+                        signups = signup_class.objects.get(lecture=contests.lecture, user=request.user.id, isallow=True)
+                        print("Contest has Lecture : ",signups.lecture, ", ", signups.user, ", ", signups.isallow)
+
+                    except signup_class.DoesNotExist:
+                        print("Incorrect path")
+                        return self.success(False)
+                        return self.error("Incorrect Path, user is not allowed")
+
+            except Contest.DoesNotExist:
+                return self.error("Parameter error, Contest is required")
+
+
+        return self.success(True)
