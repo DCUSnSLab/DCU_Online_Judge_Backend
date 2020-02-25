@@ -26,7 +26,7 @@ class LectureListAPI(APIView):
         if keyword:
             lectures = lectures.filter(title__contains=keyword)
 
-        print(request.user.id)
+        #print(request.user.id)
         LU = LectureUtil()
         applylist = LU.getSignupList(request.user.id)
 
