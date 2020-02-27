@@ -72,6 +72,7 @@ class SignupSerializer(serializers.ModelSerializer):
     totalProblem = serializers.IntegerField() # 시리얼라이저에 변수 명, 데이터형 명시하여 값을 전달할 수 있음
     solveProblem = serializers.IntegerField()
     totalScore = serializers.IntegerField()
+    maxScore = serializers.IntegerField()
     avgScore = serializers.IntegerField()
     # lecture = LectureSerializer()
 
