@@ -4,6 +4,8 @@ from utils.api import serializers, UsernameSerializer
 
 from .models import AdminType, ProblemPermission, User, UserProfile
 from lecture.models import signup_class
+from contest.models import Contest
+from lecture.serializers import LectureSerializer
 
 
 class UserLoginSerializer(serializers.Serializer):
@@ -66,6 +68,11 @@ class UserSerializer(serializers.ModelSerializer):
 ######################################################
 class SignupSerializer(serializers.ModelSerializer):
     user = UserSerializer()
+    lecture = LectureSerializer()
+    totalProblem = serializers.IntegerField() # 시리얼라이저에 변수 명, 데이터형 명시하여 값을 전달할 수 있음
+    solveProblem = serializers.IntegerField()
+    totalScore = serializers.IntegerField()
+    avgScore = serializers.IntegerField()
     # lecture = LectureSerializer()
 
     class Meta:
