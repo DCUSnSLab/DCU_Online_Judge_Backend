@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import xlsxwriter
 
 from django.db import transaction, IntegrityError
@@ -11,6 +12,8 @@ from submission.models import Submission
 from utils.api import APIView, validate_serializer
 from utils.shortcuts import rand_str
 from lecture.models import Lecture, signup_class
+from contest.models import Contest
+from problem.models import Problem
 
 from ..decorators import super_admin_required
 from ..models import AdminType, ProblemPermission, User, UserProfile
@@ -112,21 +115,76 @@ class UserAdminAPI(APIView):
 
         if lecture_id: # 특정 수강과목을 수강중인 학생 리스트업 하는 경우
             try:
-                #signupclass = signup_class.objects.get(lecture_id=lecture_id)
-                user = User.objects.all()
-                signupclasses = signup_class.objects.filter(lecture_id=lecture_id)
+                ulist = signup_class.objects.select_related('lecture') # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
 
             except signup_class.DoesNotExist:
                 return self.error("수강중인 학생이 없습니다.")
 
-            ulist = signup_class.objects.select_related('lecture')
-            ulist = ulist.filter(lecture_id=lecture_id)
+            contestlist = Contest.objects.select_related('lecture')  # 데이터베이스의 Contest들을 가져온다
+            lecturecontest = contestlist.filter(lecture_id=lecture_id)  # 가져온 Contest 중 해당하는 lecture_id를 가진 Contest만 저장한다.
+
+            ulist = ulist.filter(lecture_id=lecture_id)  # 사용자 목록(lecture_signup_class)에서 해당 lecture_id를 가진 사용자를 추려낸다.
             for uu in ulist:
-                print(uu.user_id, uu.lecture_id, uu.user.username)
+                # print(uu.lecture.description)  # 해당 출력문을 봤을 때, lecture_signup_class테이블이 1단계, lecture 테이블은 2단계에 있는 듯?
+
+                problemSum = 0 # 문제 총 갯수
+                problemSolved = 0 # 해결한 문제 갯수
+                scoreSum = 0 # 점수 총 합
+                scoreMax = 0 # 현재 수강과목의 최대 점수
+                problemAvg = 0 # 점수 평균 scoreSum / problemSolved
+
+                for contest in lecturecontest:
+                    Problemscore = 0
+
+                    problemlist = Problem.objects.select_related('contest')
+                    problemlist = problemlist.filter(contest_id=contest.id) # 전체 문제 중 각 lecturecontes 목록의 contest_id를 가지고 있는 문제를 모두 저장한다.
+
+                    for problem in problemlist:
+                        problemtotalScore = 0
+                        problemsubmit = Submission.objects.select_related('problem')
+                        submitlist = problemsubmit.filter(user_id=uu.user_id, contest_id=contest.id, problem_id=problem.id)
+
+                        testlist = signup_class.objects.select_related('lecture').select_related(
+                            'lecture__created_by')  # lecture_signup_class 1단계, lecture 2단계,
+                        submissionlist = Submission.objects.select_related('user')
+                        submissionlist = submissionlist.filter(user_id=uu.user_id, problem_id=problem.id)
+
+                        for submit in submitlist:
+                            # print("Submission print test",submit.info)
+                            Json = submit.info
+                            print(Json)
+                            if Json: # 해당 사용자의 submit 이력이 있는 경우 (Submission에 사용자의 id값이 포함된 값이 있는 경우)
+                                for jsondata in Json['data']: # result의 값이 0인 테스트 케이스들의 점수만 합한다. 각 문제의 최대 점수는 problem의 total_score 컬럼에 명시되어 있다.
+                                    if jsondata['result'] == 0:
+                                        problemtotalScore = problemtotalScore + jsondata['score']
+
+                                    #if jsondata['score'] > TopScore : # 저장된 점수 중 더 큰 점수값이 있는 경우
+                                    #    TopScore = jsondata['score'] # 해당 값을 TopScore에 저장한다.
+
+                        Problemscore = Problemscore + problemtotalScore # 문제 별 총 점수 : 각 문제에 대해 제출한 결과 중 최고점수 모음
+                        scoreMax = scoreMax + problem.total_score
+
+                    problemSum = problemSum + problemlist.count() #
+
+
+                print("문제 총 갯수 :",problemSum)
+                print("문제 해결 갯수 :", problemSolved)
+                print("총점 :", scoreSum)
+                print("최대 총점 :", scoreMax)
+                print("평균 :", problemAvg)
+
+                if problemSolved != 0: # problemSolved가 0이 아닌 경우에면 평균값을 구하는 연산 수행       *0으로 나누면 오류 발생
+                    problemAvg = scoreSum / problemSolved
+
+                uu.totalProblem = problemSum
+                uu.solveProblem = problemSolved
+                uu.totalScore = scoreSum
+                uu.avgScore = problemAvg
+
             #return self.success()
+
             return self.success(self.paginate_data(request, ulist, SignupSerializer))
 
-            #return self.success(SignupClassSerializer(signupclass).data)
         """
         User list api / Get user by id
         """

@@ -5,6 +5,7 @@ from utils.models import JSONField
 from problem.models import Problem
 from contest.models import Contest
 from lecture.models import Lecture
+from account.models import User
 
 from utils.shortcuts import rand_str
 
@@ -28,7 +29,8 @@ class Submission(models.Model):
     contest = models.ForeignKey(Contest, null=True, on_delete=models.CASCADE)
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
     create_time = models.DateTimeField(auto_now_add=True)
-    user_id = models.IntegerField(db_index=True)
+    #user_id = models.IntegerField(db_index=True)
+    user = models.ForeignKey(User, db_index=True, on_delete=models.CASCADE)
     username = models.TextField()
     code = models.TextField()
     result = models.IntegerField(db_index=True, default=JudgeStatus.PENDING)
