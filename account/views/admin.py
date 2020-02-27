@@ -179,6 +179,7 @@ class UserAdminAPI(APIView):
                 uu.totalProblem = problemSum
                 uu.solveProblem = problemSolved
                 uu.totalScore = scoreSum
+                uu.maxScore = scoreMax
                 uu.avgScore = problemAvg
 
             #return self.success()
