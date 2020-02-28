@@ -141,6 +141,7 @@ class UserAdminAPI(APIView):
 
                     for problem in problemlist:
                         problemtotalScore = 0
+                        problemPassed = True
                         problemsubmit = Submission.objects.select_related('problem')
                         submitlist = problemsubmit.filter(user_id=uu.user_id, contest_id=contest.id, problem_id=problem.id)
 
@@ -152,29 +153,36 @@ class UserAdminAPI(APIView):
                         for submit in submitlist:
                             # print("Submission print test",submit.info)
                             Json = submit.info
-                            print(Json)
+                            print("json print test",Json)
                             if Json: # 해당 사용자의 submit 이력이 있는 경우 (Submission에 사용자의 id값이 포함된 값이 있는 경우)
                                 for jsondata in Json['data']: # result의 값이 0인 테스트 케이스들의 점수만 합한다. 각 문제의 최대 점수는 problem의 total_score 컬럼에 명시되어 있다.
                                     if jsondata['result'] == 0:
                                         problemtotalScore = problemtotalScore + jsondata['score']
+                                    else:
+                                        problemPassed = False # 테스트 케이스 중 하나라도 통과하지 못했다면, False로 초기화한다.
 
                                     #if jsondata['score'] > TopScore : # 저장된 점수 중 더 큰 점수값이 있는 경우
                                     #    TopScore = jsondata['score'] # 해당 값을 TopScore에 저장한다.
 
-                        Problemscore = Problemscore + problemtotalScore # 문제 별 총 점수 : 각 문제에 대해 제출한 결과 중 최고점수 모음
-                        scoreMax = scoreMax + problem.total_score
+                        print("problemtotalScore :",problemtotalScore)
+                        Problemscore = Problemscore + problemtotalScore # 문제 별 총 점수 : 각 문제에 대해 제출한 결과 중 result가 0인(Success) 값들의 총 합을 더함
+                        scoreMax = scoreMax + problem.total_score # Contest에 포함된 각 문제의 최대 점수를 더하여 scoreMax에 저장한다
+                        if problemtotalScore != problem.total_score: # 총 점수 != 최대 점수인 경우
+                            print("해결 못한 문제임")
+                        elif problemPassed == True: # 모든 테스트 케이스를 통과한 경우,
+                            problemSolved = problemSolved + 1 # 해결한 문제로 판단하고 값을 1 증가시킨다.
 
-                    problemSum = problemSum + problemlist.count() #
+                    scoreSum = scoreSum + Problemscore
+                    problemSum = problemSum + problemlist.count() # 각 Contest의 하위 문제가 몇개인지 카운트한다.
 
+                if problemSolved != 0: # problemSolved가 0이 아닌 경우에면 평균값을 구하는 연산 수행       *0으로 나누면 오류 발생
+                    problemAvg = scoreSum / problemSolved
 
                 print("문제 총 갯수 :",problemSum)
                 print("문제 해결 갯수 :", problemSolved)
                 print("총점 :", scoreSum)
                 print("최대 총점 :", scoreMax)
                 print("평균 :", problemAvg)
-
-                if problemSolved != 0: # problemSolved가 0이 아닌 경우에면 평균값을 구하는 연산 수행       *0으로 나누면 오류 발생
-                    problemAvg = scoreSum / problemSolved
 
                 uu.totalProblem = problemSum
                 uu.solveProblem = problemSolved
