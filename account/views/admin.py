@@ -126,6 +126,7 @@ class UserAdminAPI(APIView):
             ulist = ulist.filter(lecture_id=lecture_id)  # 사용자 목록(lecture_signup_class)에서 해당 lecture_id를 가진 사용자를 추려낸다.
             for uu in ulist:
                 # print(uu.lecture.description)  # 해당 출력문을 봤을 때, lecture_signup_class테이블이 1단계, lecture 테이블은 2단계에 있는 듯?
+                print("사용자명 :",uu.user.username, "###############################")
 
                 problemSum = 0 # 문제 총 갯수
                 problemSolved = 0 # 해결한 문제 갯수
@@ -139,39 +140,53 @@ class UserAdminAPI(APIView):
                     problemlist = Problem.objects.select_related('contest')
                     problemlist = problemlist.filter(contest_id=contest.id) # 전체 문제 중 각 lecturecontes 목록의 contest_id를 가지고 있는 문제를 모두 저장한다.
 
+                    print("문제 채점 시작 #################")
+
                     for problem in problemlist:
+                        
                         problemtotalScore = 0
                         problemPassed = True
                         problemsubmit = Submission.objects.select_related('problem')
+
                         submitlist = problemsubmit.filter(user_id=uu.user_id, contest_id=contest.id, problem_id=problem.id)
 
-                        testlist = signup_class.objects.select_related('lecture').select_related(
-                            'lecture__created_by')  # lecture_signup_class 1단계, lecture 2단계,
-                        submissionlist = Submission.objects.select_related('user')
-                        submissionlist = submissionlist.filter(user_id=uu.user_id, problem_id=problem.id)
-
+                        print("제출 이력 확인")
                         for submit in submitlist:
                             # print("Submission print test",submit.info)
                             Json = submit.info
-                            print("json print test",Json)
+                            print("제출 정보 출력",Json)
                             if Json: # 해당 사용자의 submit 이력이 있는 경우 (Submission에 사용자의 id값이 포함된 값이 있는 경우)
+                                print("json valid")
                                 for jsondata in Json['data']: # result의 값이 0인 테스트 케이스들의 점수만 합한다. 각 문제의 최대 점수는 problem의 total_score 컬럼에 명시되어 있다.
                                     if jsondata['result'] == 0:
                                         problemtotalScore = problemtotalScore + jsondata['score']
                                     else:
                                         problemPassed = False # 테스트 케이스 중 하나라도 통과하지 못했다면, False로 초기화한다.
 
-                                    #if jsondata['score'] > TopScore : # 저장된 점수 중 더 큰 점수값이 있는 경우
-                                    #    TopScore = jsondata['score'] # 해당 값을 TopScore에 저장한다.
+                            if not Json:
+                                print("Json Not")
+                                problemPassed = False
+
+                        if not submitlist:
+                            print("Not")
+                            problemPassed = False
 
                         print("problemtotalScore :",problemtotalScore)
                         Problemscore = Problemscore + problemtotalScore # 문제 별 총 점수 : 각 문제에 대해 제출한 결과 중 result가 0인(Success) 값들의 총 합을 더함
                         scoreMax = scoreMax + problem.total_score # Contest에 포함된 각 문제의 최대 점수를 더하여 scoreMax에 저장한다
-                        if problemtotalScore != problem.total_score: # 총 점수 != 최대 점수인 경우
-                            print("해결 못한 문제임")
-                        elif problemPassed == True: # 모든 테스트 케이스를 통과한 경우,
+
+                        if problem.total_score == problemtotalScore:
+                            problemSolved = True
+
+                        if problemPassed == True: # 모든 테스트 케이스를 통과한 경우,
+                            print("해결 한 문제")
                             problemSolved = problemSolved + 1 # 해결한 문제로 판단하고 값을 1 증가시킨다.
 
+                        print("문제 해결 갯수",problemSolved)
+                        print()
+
+                    print("문제 채점 끝 #################")
+                    
                     scoreSum = scoreSum + Problemscore
                     problemSum = problemSum + problemlist.count() # 각 Contest의 하위 문제가 몇개인지 카운트한다.
 
