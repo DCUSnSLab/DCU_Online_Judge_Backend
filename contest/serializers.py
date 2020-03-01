@@ -33,7 +33,7 @@ class ContestAdminSerializer(serializers.ModelSerializer):
     created_by = UsernameSerializer()
     status = serializers.CharField()
     contest_type = serializers.CharField()
-    lecture_title = serializers.CharField()
+    lecture_title = serializers.CharField(allow_blank=True, allow_null=True)
 
     class Meta:
         model = Contest
