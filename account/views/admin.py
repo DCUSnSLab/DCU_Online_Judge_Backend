@@ -126,7 +126,7 @@ class UserAdminAPI(APIView):
             ulist = ulist.filter(lecture_id=lecture_id)  # 사용자 목록(lecture_signup_class)에서 해당 lecture_id를 가진 사용자를 추려낸다.
             for uu in ulist:
                 # print(uu.lecture.description)  # 해당 출력문을 봤을 때, lecture_signup_class테이블이 1단계, lecture 테이블은 2단계에 있는 듯?
-                print("사용자명 :",uu.user.username, "###############################")
+                print("사용자명 : ",uu.user.username, " ###############################")
 
                 problemSum = 0 # 문제 총 갯수
                 problemSolved = 0 # 해결한 문제 갯수
@@ -134,67 +134,95 @@ class UserAdminAPI(APIView):
                 scoreMax = 0 # 현재 수강과목의 최대 점수
                 problemAvg = 0 # 점수 평균 scoreSum / problemSolved
 
+                problemtotalScore = 0
+
                 for contest in lecturecontest:
                     Problemscore = 0
 
                     problemlist = Problem.objects.select_related('contest')
                     problemlist = problemlist.filter(contest_id=contest.id) # 전체 문제 중 각 lecturecontes 목록의 contest_id를 가지고 있는 문제를 모두 저장한다.
 
-                    print("문제 채점 시작 #################")
-
                     for problem in problemlist:
-                        
-                        problemtotalScore = 0
-                        problemPassed = True
+                        print()
+                        print("문제",problem.title,"시작")
+                        print()
+
+                        problemPassed = False
                         problemsubmit = Submission.objects.select_related('problem')
 
                         submitlist = problemsubmit.filter(user_id=uu.user_id, contest_id=contest.id, problem_id=problem.id)
 
-                        print("제출 이력 확인")
+                        submitMaxScore = 0 # 각 문제별 최고점을 저장하기 위한 변수
+
                         for submit in submitlist:
-                            # print("Submission print test",submit.info)
+                            print()
+                            print("문제별 제출이력 확인")
+                            print()
+                            problemtotalScore = 0
+
                             Json = submit.info
-                            print("제출 정보 출력",Json)
+
                             if Json: # 해당 사용자의 submit 이력이 있는 경우 (Submission에 사용자의 id값이 포함된 값이 있는 경우)
-                                print("json valid")
+                                print()
+                                print("제출 정보 출력", Json)
+                                print()
                                 for jsondata in Json['data']: # result의 값이 0인 테스트 케이스들의 점수만 합한다. 각 문제의 최대 점수는 problem의 total_score 컬럼에 명시되어 있다.
                                     if jsondata['result'] == 0:
-                                        problemtotalScore = problemtotalScore + jsondata['score']
-                                    else:
-                                        problemPassed = False # 테스트 케이스 중 하나라도 통과하지 못했다면, False로 초기화한다.
+                                        problemtotalScore = problemtotalScore + jsondata['score'] # 한 문제에 대한 제출 내에서 점수의 총 합을 구한다.
+                                    '''else:
+                                        problemPassed = False # 테스트 케이스 중 하나라도 통과하지 못했다면, False로 초기화한다.'''
+                            
+                            if problemtotalScore > submitMaxScore: # 해당 제출의 점수가 현재 문제에서의 최고점인 경우,
+                                submitMaxScore = problemtotalScore # 최고점을 해당 값으로 변경한다.
 
-                            if not Json:
-                                print("Json Not")
-                                problemPassed = False
+                            '''if not Json: # 서버로부터 Json 값 리턴에 실패하여 값이 없는 경우
+                                print()
+                                print("info 컬럼에 값이 없습니다.")
+                                print()
+                                problemPassed = False # 실패한 문제로 간주한다.
 
-                        if not submitlist:
-                            print("Not")
-                            problemPassed = False
+                        if not submitlist: # Json 값이 비어있는 경우
+                            print()
+                            print("info 컬럼의 Json 값이 비어 있습니다.")
+                            print()
+                            problemPassed = False # 마찬가지로 실패로 간주한다.'''
 
-                        print("problemtotalScore :",problemtotalScore)
-                        Problemscore = Problemscore + problemtotalScore # 문제 별 총 점수 : 각 문제에 대해 제출한 결과 중 result가 0인(Success) 값들의 총 합을 더함
-                        scoreMax = scoreMax + problem.total_score # Contest에 포함된 각 문제의 최대 점수를 더하여 scoreMax에 저장한다
+                        Problemscore = Problemscore + submitMaxScore  # 실습, 과제, 대회에 포함된 각 문제에 대해 제출한 결과 중 최고점들을 더한다.
 
-                        if problem.total_score == problemtotalScore:
-                            problemSolved = True
-
-                        if problemPassed == True: # 모든 테스트 케이스를 통과한 경우,
-                            print("해결 한 문제")
-                            problemSolved = problemSolved + 1 # 해결한 문제로 판단하고 값을 1 증가시킨다.
-
-                        print("문제 해결 갯수",problemSolved)
+                        print()
+                        print(contest.title, "의 현재 총 점수", Problemscore)
                         print()
 
-                    print("문제 채점 끝 #################")
-                    
-                    scoreSum = scoreSum + Problemscore
+                        scoreMax = scoreMax + problem.total_score # Contest에 포함된 각 문제의 최대 점수를 더하여 scoreMax에 저장한다
+
+                        print()
+                        print(problem.title, "의 최대 점수", problem.total_score)
+                        print()
+
+                        print()
+                        print(contest.title, "의 현재 최대 점수", scoreMax)
+                        print()
+
+                        if problem.total_score == submitMaxScore and submitMaxScore != 0: # 모든 테스트 케이스를 통과한 경우,
+                            problemSolved = problemSolved + 1 # 해결한 문제로 판단하고 값을 1 증가시킨다.
+                            print()
+                            print("문제 해결")
+                            print()
+
+                        print()
+                        print("문제 해결 갯수",int(problemSolved))
+                        print()
+
+
                     problemSum = problemSum + problemlist.count() # 각 Contest의 하위 문제가 몇개인지 카운트한다.
+
+                    scoreSum = scoreSum + Problemscore
 
                 if problemSolved != 0: # problemSolved가 0이 아닌 경우에면 평균값을 구하는 연산 수행       *0으로 나누면 오류 발생
                     problemAvg = scoreSum / problemSolved
 
                 print("문제 총 갯수 :",problemSum)
-                print("문제 해결 갯수 :", problemSolved)
+                print("문제 해결 갯수 :", int(problemSolved))
                 print("총점 :", scoreSum)
                 print("최대 총점 :", scoreMax)
                 print("평균 :", problemAvg)
