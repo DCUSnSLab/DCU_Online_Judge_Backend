@@ -88,6 +88,16 @@ class ContestAPI(APIView):
         if keyword:
             contests = contests.filter(title__contains=keyword)
 
+        for contest in contests:
+            try:
+                lecture_title = Lecture.objects.get(contest=contest.id)
+                contest.lecture_title = lecture_title.title
+                print("수강과목 타이틀 :", lecture_title.title)
+                print("수강과목 타이틀 :", contest.lecture_title)
+            except:
+                contest.lecture_title = None
+                print("해당 id값을 가진 수강과목이 없음.")
+
         return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
     def delete(self, request):

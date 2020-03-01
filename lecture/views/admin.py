@@ -48,7 +48,7 @@ class LectureAPI(APIView):
             except Lecture.DoesNotExist:
                 return self.error("no lecture exist")
 
-        lectures = Lecture.objects.all()
+        lectures = Lecture.objects.all().order_by("-id")
         if request.user.is_admin():
             lectures = lectures.filter(created_by=request.user)
 
