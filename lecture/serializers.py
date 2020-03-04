@@ -31,7 +31,7 @@ class LectureSerializer(LectureAdminSerializer):
         fields = "__all__"
 
 class SignupClassSerializer(serializers.ModelSerializer):
-
+    lecture = LectureSerializer()
     class Meta:
         model = signup_class
         fields = "__all__"

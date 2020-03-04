@@ -3,7 +3,7 @@ from utils.shortcuts import datetime2str, check_is_id
 from utils.api import APIView
 
 from ..models import Lecture, signup_class
-from ..serializers import LectureSerializer
+from ..serializers import LectureSerializer, SignupClassSerializer
 
 class LectureAPI(APIView):
     def get(self, request):
@@ -20,49 +20,58 @@ class LectureAPI(APIView):
 
 class LectureListAPI(APIView):
     def get(self, request):
-        lectures = Lecture.objects.select_related("created_by")
+        print("LectureListAPI Called")
         keyword = request.GET.get("keyword")
-        status = request.GET.get("status")
+
+        try:
+            lectures = Lecture.objects.all()
+        except:
+            return self.error("no lecture exist")
+
         if keyword:
             lectures = lectures.filter(title__contains=keyword)
+            return self.success(self.paginate_data(request, lectures, LectureSerializer))
 
-        #print(request.user.id)
-        LU = LectureUtil()
-        applylist = LU.getSignupList(request.user.id)
+        signuplist = signup_class.objects.select_related("lecture").order_by("-id")
 
-        if not (applylist is None):
-            for al in applylist:
-                print(al.lecture_id, al.user_id)
-                #change is apply
-                for ll in lectures:
-                    if al.lecture_id == ll.id:
-                        ll.isapply = True
-                        ll.isallow = al.isallow
-        else:
-            print("None Apply")
+        signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
+        signuplist = signuplist.exclude(isallow=True)
 
-		#if status:
-		#	cur = now()
-		#	if status == LectureStatus.LECTURE_OPEN:
-		#		lectures = 
-        return self.success(self.paginate_data(request, lectures, LectureSerializer))
+        return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
+
+class TakingLectureListAPI(APIView):
+    def get(self, request):
+        print("TakingLectureListAPI Called")
+        keyword = request.GET.get("keyword")
+
+        try:
+            lectures = Lecture.objects.all()
+        except:
+            return self.error("no lecture exist")
+
+        if keyword:
+            lectures = lectures.filter(title__contains=keyword)
+            return self.success(self.paginate_data(request, lectures, LectureSerializer))
+
+        signuplist = signup_class.objects.select_related("lecture").order_by("-id")
+
+        signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
+        signuplist = signuplist.exclude(isallow=False)
+
+        return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
 
 class LectureApplyAPI(APIView):
     def post(self, request):
-        retv = -1
+        print("LectureApplyAPI Called")
         data = request.data
-        LU = LectureUtil()
-        if data.get("lecture_id"):
-            if not LU.getSignupList(lid=data.get("lecture_id"), uid=request.user.id):
-                appy = signup_class.objects.create(lecture_id=data.get("lecture_id"),
-                                                   user_id=request.user.id,
-                                                   status=False)
-                print("created")
-                retv = 1
-            else:
-                retv = -1
+        lecture_id = data.get("lecture_id")
+        user_id = data.get("user_id")
+        print(data)
+        if lecture_id and user_id:
+            signup = signup_class.objects.get(lecture=lecture_id, user=user_id)
+            print(signup)
 
-        return self.success(retv)
+        return self.success()
 
 class LectureUtil:
     def getSignupList(self, uid, lid=None):
