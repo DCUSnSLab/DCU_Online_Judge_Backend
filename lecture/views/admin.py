@@ -57,7 +57,14 @@ class LectureAPI(APIView):
             lectures = lectures.filter(title__contains=keyword)
         return self.success(self.paginate_data(request, lectures, LectureAdminSerializer))
 
+    def delete(self, request):
+        lecture_id = request.GET.get("id")
+        if lecture_id:
+            print("test")
+            Lecture.objects.filter(id=lecture_id).delete()
+            return self.success()
 
+        return self.error("Invalid Parameter, id is required")
 
 class AdminLectureApplyAPI(APIView):
     def post(self, request):

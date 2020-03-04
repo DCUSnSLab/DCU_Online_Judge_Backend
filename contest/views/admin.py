@@ -72,6 +72,14 @@ class ContestAPI(APIView):
 
     def get(self, request):
         contest_id = request.GET.get("id")
+        contest_year = request.GET.get("year")
+
+        if contest_year: # contest_year가 존재하는 경우 (Add From Public Contest 페이지 Dropdown 값)
+            contests = Contest.objects.all().order_by("-create_time")
+            if int(contest_year) > 2000: # 년도 값이 유효한 경우, (기본값인 0이 아닌 경우)
+                contests = contests.filter(create_time__year=contest_year) # 페이지로부터 년도에 관련된 값을 전달받은 경우, 해당 년도에 해당하는 contest들만 리턴한다.
+            return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
+
         if contest_id:
             try:
                 contest = Contest.objects.get(id=contest_id)
@@ -81,22 +89,30 @@ class ContestAPI(APIView):
                 return self.error("Contest does not exist")
 
         contests = Contest.objects.all().order_by("-create_time")
-        if request.user.is_admin():
-            contests = contests.filter(created_by=request.user)
+        # if request.user.is_admin(): # 요청자가 admin이 아닌 경우, 본인이 생성한 실습, 과제, 대회만 출력하게 하는 부분
+        #    contests = contests.filter(created_by=request.user)
 
         keyword = request.GET.get("keyword")
         if keyword:
             contests = contests.filter(title__contains=keyword)
 
+        del_list = []
+
         for contest in contests:
-            try:
-                lecture_title = Lecture.objects.get(contest=contest.id)
-                contest.lecture_title = lecture_title.title
-                print("수강과목 타이틀 :", lecture_title.title)
-                print("수강과목 타이틀 :", contest.lecture_title)
-            except:
-                contest.lecture_title = None
-                print("해당 id값을 가진 수강과목이 없음.")
+            if contest.lecture == None: # 수강과목 id가 없는 경우
+                del_list.append(contest.id) # 별도의 list에 수강과목 id가 없는 강의의 id를 추가한다.
+
+        for idx in del_list: # 이후 해당 리스트에 존재하는 id들을
+            contests = contests.exclude(id=idx) # contests 쿼리셋에서 제외한다.
+
+        for contest in contests: # 수강과목이 존재하는 강의는 출력하지 않습니다.
+            lecture_title = Lecture.objects.get(contest=contest.id)
+            contest.lecture_title = lecture_title.title
+            # print("수강과목 타이틀 :", lecture_title.title)
+            # print("수강과목 타이틀 :", contest.lecture_title)
+
+
+
 
         return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
