@@ -2,6 +2,7 @@ from django.utils.timezone import now
 from utils.shortcuts import datetime2str, check_is_id
 from utils.api import APIView
 
+from account.models import User
 from ..models import Lecture, signup_class
 from ..serializers import LectureSerializer, SignupClassSerializer
 
@@ -25,6 +26,7 @@ class LectureListAPI(APIView):
 
         try:
             lectures = Lecture.objects.all()
+            takinglectures = Lecture.objects.prefetch_related("signup_class_set").exclude(signup_class__user=request.user.id, signup_class__isallow=True)
         except:
             return self.error("no lecture exist")
 
@@ -32,12 +34,23 @@ class LectureListAPI(APIView):
             lectures = lectures.filter(title__contains=keyword)
             return self.success(self.paginate_data(request, lectures, LectureSerializer))
 
-        signuplist = signup_class.objects.select_related("lecture").order_by("-id")
+        '''signuplist = signup_class.objects.select_related("lecture").order_by("-id")
 
         signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
-        signuplist = signuplist.exclude(isallow=True)
+        signuplist = signuplist.exclude(isallow=True)'''
 
-        return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
+        lectures = lectures.filter(status=True)
+
+        for lecture in takinglectures:
+            print(lecture.title)
+
+        final = lectures & takinglectures
+
+        for lecture in final:
+            print(lecture.title)
+
+        # return self.success(self.paginate_data(request, lectures, LectureSerializer))
+        return self.success(self.paginate_data(request, final, LectureSerializer))
 
 class TakingLectureListAPI(APIView):
     def get(self, request):
@@ -67,9 +80,10 @@ class LectureApplyAPI(APIView):
         lecture_id = data.get("lecture_id")
         user_id = data.get("user_id")
         print(data)
+        lecture = Lecture.objects.get(id=lecture_id)
+        user = User.objects.get(id=user_id)
         if lecture_id and user_id:
-            signup = signup_class.objects.get(lecture=lecture_id, user=user_id)
-            print(signup)
+            signup_class.objects.create(lecture=lecture, user=user, status=False)
 
         return self.success()
 

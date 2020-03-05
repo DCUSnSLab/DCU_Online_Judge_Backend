@@ -81,10 +81,11 @@ class AdminLectureApplyAPI(APIView):
 
     def delete(self, request):
         user_id = request.GET.get("id")
+        lecture_id = request.GET.get("lectureid")
         print(user_id)
         if user_id:
             print("test")
-            signup_class.objects.filter(user_id=user_id).delete()
+            signup_class.objects.get(user_id=user_id, lecture=lecture_id).delete()
             return self.success()
 
         return self.error("Invalid Parameter, id is required")
