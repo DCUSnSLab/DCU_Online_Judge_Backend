@@ -21,8 +21,10 @@ class UsernameOrEmailCheckSerializer(serializers.Serializer):
 
 class UserRegisterSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=32)
+    realname = serializers.CharField(max_length=32)
     password = serializers.CharField(min_length=6)
     email = serializers.EmailField(max_length=64)
+    schoolssn = serializers.CharField(max_length=32)
     captcha = serializers.CharField()
 
 
@@ -62,7 +64,7 @@ class UserAdminSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "email", "admin_type", "problem_permission",
+        fields = ["id", "realname", "schoolssn", "username", "email", "admin_type", "problem_permission",
                   "create_time", "last_login", "two_factor_auth", "open_api", "is_disabled"]
 
 ######################################################
