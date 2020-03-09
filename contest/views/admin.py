@@ -26,7 +26,9 @@ from ..serializers import (ContestAnnouncementSerializer, ContestAdminSerializer
 class ContestAPI(APIView):
     @validate_serializer(CreateContestSeriaizer)
     def post(self, request):
+        print("ContestAPI post")
         data = request.data
+        print(data)
         data["start_time"] = dateutil.parser.parse(data["start_time"])
         data["end_time"] = dateutil.parser.parse(data["end_time"])
         data["created_by"] = request.user
@@ -44,7 +46,9 @@ class ContestAPI(APIView):
 
     @validate_serializer(EditContestSeriaizer)
     def put(self, request):
+        print("ContestAPI put")
         data = request.data
+        print(data)
         try:
             contest = Contest.objects.get(id=data.pop("id"))
             ensure_created_by(contest, request.user)
@@ -102,12 +106,15 @@ class ContestAPI(APIView):
             if contest.lecture == None: # 수강과목 id가 없는 경우
                 del_list.append(contest.id) # 별도의 list에 수강과목 id가 없는 강의의 id를 추가한다.
 
-        for idx in del_list: # 이후 해당 리스트에 존재하는 id들을
-            contests = contests.exclude(id=idx) # contests 쿼리셋에서 제외한다.
+        # for idx in del_list: # 이후 해당 리스트에 존재하는 id들을
+        #     contests = contests.exclude(id=idx) # contests 쿼리셋에서 제외한다.
 
         for contest in contests: # 수강과목이 존재하는 강의는 출력하지 않습니다.
-            lecture_title = Lecture.objects.get(contest=contest.id)
-            contest.lecture_title = lecture_title.title
+            try:
+                lecture_title = Lecture.objects.get(contest=contest.id)
+                contest.lecture_title = lecture_title.title
+            except:
+                print("no lecture")
             # print("수강과목 타이틀 :", lecture_title.title)
             # print("수강과목 타이틀 :", contest.lecture_title)
 
