@@ -26,7 +26,8 @@ class LectureListAPI(APIView):
 
         try:
             lectures = Lecture.objects.all()
-            takinglectures = Lecture.objects.prefetch_related("signup_class_set").exclude(signup_class__user=request.user.id, signup_class__isallow=True)
+            takinglectures = Lecture.objects.prefetch_related("signup_class_set").exclude(signup_class__user=request.user.id)
+            takinglectures = takinglectures.exclude(status=False)
         except:
             return self.error("no lecture exist")
 
@@ -43,7 +44,10 @@ class LectureListAPI(APIView):
         lectures = lectures.exclude(created_by=request.user.id)
 
         for lecture in takinglectures:
-            print(lecture.title)
+            print("taking",lecture.title)
+
+        for lecture in lectures:
+            print("all",lecture.title)
 
         final = lectures & takinglectures
 
@@ -59,18 +63,11 @@ class TakingLectureListAPI(APIView):
         keyword = request.GET.get("keyword")
 
         try:
-            lectures = Lecture.objects.all()
+            signuplist = signup_class.objects.select_related("lecture").order_by("-id")
         except:
             return self.error("no lecture exist")
 
-        if keyword:
-            lectures = lectures.filter(title__contains=keyword)
-            return self.success(self.paginate_data(request, lectures, LectureSerializer))
-
-        signuplist = signup_class.objects.select_related("lecture").order_by("-id")
-
         signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
-        signuplist = signuplist.exclude(isallow=False)
 
         return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
 
