@@ -21,6 +21,8 @@ class LectureAPI(APIView):
         data = request.data
         data["created_by"] = request.user
         lecture = Lecture.objects.create(**data)
+        signup_class.objects.create(lecture=lecture, user=request.user, status=False, isallow=True) # 수강 과목 생성 시, 본인이 생성한 수강과목에 대해 별도의 수강신청 없이 접근할 수 있도록
+        # lecture_signup_class 테이블에 값을 생성한다.
         return self.success(LectureAdminSerializer(lecture).data)
 
     #def put(self, request):
