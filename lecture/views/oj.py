@@ -39,7 +39,8 @@ class LectureListAPI(APIView):
         signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
         signuplist = signuplist.exclude(isallow=True)'''
 
-        lectures = lectures.filter(status=True)
+        lectures = lectures.exclude(status=False)
+        lectures = lectures.exclude(created_by=request.user.id)
 
         for lecture in takinglectures:
             print(lecture.title)
