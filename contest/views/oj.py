@@ -35,7 +35,7 @@ class ContestAnnouncementListAPI(APIView):
 
 class ContestAPI(APIView):
     def get(self, request):
-        print('insert contest')
+        #print('insert contest')
         id = request.GET.get("id")
 
         if not id or not check_is_id(id):

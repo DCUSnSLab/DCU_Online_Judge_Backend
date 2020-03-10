@@ -115,7 +115,7 @@ class UserAdminAPI(APIView):
 
         if lecture_id: # 특정 수강과목을 수강중인 학생 리스트업 하는 경우
             try:
-                ulist = signup_class.objects.select_related('lecture') # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
+                ulist = signup_class.objects.select_related('lecture').order_by("realname") # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
 
             except signup_class.DoesNotExist:
                 return self.error("수강중인 학생이 없습니다.")
@@ -123,10 +123,22 @@ class UserAdminAPI(APIView):
             contestlist = Contest.objects.select_related('lecture')  # 데이터베이스의 Contest들을 가져온다
             lecturecontest = contestlist.filter(lecture_id=lecture_id)  # 가져온 Contest 중 해당하는 lecture_id를 가진 Contest만 저장한다.
 
+            lecture = Lecture.objects.select_related('created_by')
+            lecture = lecture.filter(id=lecture_id)
+
+            uname = ""
+            for ll in lecture:
+                uname = ll.created_by
+
             ulist = ulist.filter(lecture_id=lecture_id)  # 사용자 목록(lecture_signup_class)에서 해당 lecture_id를 가진 사용자를 추려낸다.
+            ulist = ulist.exclude(user=uname)
+
+
             for uu in ulist:
-                # print(uu.lecture.description)  # 해당 출력문을 봤을 때, lecture_signup_class테이블이 1단계, lecture 테이블은 2단계에 있는 듯?
-                print("사용자명 : ",uu.user.username, " ###############################")
+                # #print(uu.lecture.description)  # 해당 출력문을 봤을 때, lecture_signup_class테이블이 1단계, lecture 테이블은 2단계에 있는 듯?
+
+                if uu.user is not None:
+                    print("사용자명 : ",uu.user.username, " ###############################")
 
                 problemSum = 0 # 문제 총 갯수
                 problemSolved = 0 # 해결한 문제 갯수
@@ -143,9 +155,9 @@ class UserAdminAPI(APIView):
                     problemlist = problemlist.filter(contest_id=contest.id) # 전체 문제 중 각 lecturecontes 목록의 contest_id를 가지고 있는 문제를 모두 저장한다.
 
                     for problem in problemlist:
-                        print()
-                        print("문제",problem.title,"시작")
-                        print()
+                        #print()
+                        #print("문제",problem.title,"시작")
+                        #print()
 
                         problemPassed = False
                         problemsubmit = Submission.objects.select_related('problem')
@@ -155,17 +167,17 @@ class UserAdminAPI(APIView):
                         submitMaxScore = 0 # 각 문제별 최고점을 저장하기 위한 변수
 
                         for submit in submitlist:
-                            print()
-                            print("문제별 제출이력 확인")
-                            print()
+                            #print()
+                            #print("문제별 제출이력 확인")
+                            #print()
                             problemtotalScore = 0
 
                             Json = submit.info
 
                             if Json: # 해당 사용자의 submit 이력이 있는 경우 (Submission에 사용자의 id값이 포함된 값이 있는 경우)
-                                print()
-                                print("제출 정보 출력", Json)
-                                print()
+                                #print()
+                                #print("제출 정보 출력", Json)
+                                #print()
                                 for jsondata in Json['data']: # result의 값이 0인 테스트 케이스들의 점수만 합한다. 각 문제의 최대 점수는 problem의 total_score 컬럼에 명시되어 있다.
                                     if jsondata['result'] == 0:
                                         problemtotalScore = problemtotalScore + jsondata['score'] # 한 문제에 대한 제출 내에서 점수의 총 합을 구한다.
@@ -176,7 +188,7 @@ class UserAdminAPI(APIView):
                                 submitMaxScore = problemtotalScore # 최고점을 해당 값으로 변경한다.
 
                             '''if not Json: # 서버로부터 Json 값 리턴에 실패하여 값이 없는 경우
-                                print()
+                                #print()
                                 print("info 컬럼에 값이 없습니다.")
                                 print()
                                 problemPassed = False # 실패한 문제로 간주한다.
@@ -189,29 +201,29 @@ class UserAdminAPI(APIView):
 
                         Problemscore = Problemscore + submitMaxScore  # 실습, 과제, 대회에 포함된 각 문제에 대해 제출한 결과 중 최고점들을 더한다.
 
-                        print()
-                        print(contest.title, "의 현재 총 점수", Problemscore)
-                        print()
+                        #print()
+                        #print(contest.title, "의 현재 총 점수", Problemscore)
+                        #print()
 
                         scoreMax = scoreMax + problem.total_score # Contest에 포함된 각 문제의 최대 점수를 더하여 scoreMax에 저장한다
 
-                        print()
-                        print(problem.title, "의 최대 점수", problem.total_score)
-                        print()
+                        #print()
+                        #print(problem.title, "의 최대 점수", problem.total_score)
+                        #print()
 
-                        print()
-                        print(contest.title, "의 현재 최대 점수", scoreMax)
-                        print()
+                        #print()
+                        #print(contest.title, "의 현재 최대 점수", scoreMax)
+                        #print()
 
                         if problem.total_score == submitMaxScore and submitMaxScore != 0: # 모든 테스트 케이스를 통과한 경우,
                             problemSolved = problemSolved + 1 # 해결한 문제로 판단하고 값을 1 증가시킨다.
-                            print()
-                            print("문제 해결")
-                            print()
+                            #print()
+                            #print("문제 해결")
+                            #print()
 
-                        print()
-                        print("문제 해결 갯수",int(problemSolved))
-                        print()
+                        #print()
+                        #print("문제 해결 갯수",int(problemSolved))
+                        #print()
 
 
                     problemSum = problemSum + problemlist.count() # 각 Contest의 하위 문제가 몇개인지 카운트한다.
@@ -221,11 +233,11 @@ class UserAdminAPI(APIView):
                 if problemSolved != 0: # problemSolved가 0이 아닌 경우에면 평균값을 구하는 연산 수행       *0으로 나누면 오류 발생
                     problemAvg = scoreSum / problemSum
 
-                print("문제 총 갯수 :",problemSum)
-                print("문제 해결 갯수 :", int(problemSolved))
-                print("총점 :", scoreSum)
-                print("최대 총점 :", scoreMax)
-                print("평균 :", problemAvg)
+                #print("문제 총 갯수 :",problemSum)
+                #print("문제 해결 갯수 :", int(problemSolved))
+                #print("총점 :", scoreSum)
+                #print("최대 총점 :", scoreMax)
+                #print("평균 :", problemAvg)
 
                 uu.totalProblem = problemSum
                 uu.solveProblem = problemSolved
@@ -260,6 +272,8 @@ class UserAdminAPI(APIView):
     # @super_admin_required
     def delete(self, request):
         id = request.GET.get("id")
+        if id is None:
+            print("Test")
         if not id:
             return self.error("Invalid Parameter, id is required")
         ids = id.split(",")
