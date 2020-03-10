@@ -77,13 +77,22 @@ class LectureApplyAPI(APIView):
         data = request.data
         lecture_id = data.get("lecture_id")
         user_id = data.get("user_id")
+        realname = data.get("user_realname")
+        schoolssn = data.get("user_schoolssn")
         print(data)
         lecture = Lecture.objects.get(id=lecture_id)
         user = User.objects.get(id=user_id)
-        if lecture_id and user_id:
-            signup_class.objects.create(lecture=lecture, user=user, status=False)
+        try:
+            su = signup_class.objects.get(lecture=lecture, realname=realname, schoolssn=schoolssn)
+            su.user = user
+            su.isallow = True
+            su.save()
+            return self.success()
+        except signup_class.DoesNotExist:
+            if lecture_id and user_id:
+                signup_class.objects.create(lecture=lecture, user=user, status=False)
 
-        return self.success()
+            return self.success()
 
 class LectureUtil:
     def getSignupList(self, uid, lid=None):

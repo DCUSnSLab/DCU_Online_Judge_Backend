@@ -76,7 +76,6 @@ class SignupSerializer(serializers.ModelSerializer):
     totalScore = serializers.IntegerField()
     maxScore = serializers.IntegerField()
     avgScore = serializers.IntegerField()
-    # lecture = LectureSerializer()
 
     class Meta:
         model = signup_class

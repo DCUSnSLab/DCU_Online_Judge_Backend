@@ -62,7 +62,7 @@ class LectureAPI(APIView):
     def delete(self, request):
         lecture_id = request.GET.get("id")
         if lecture_id:
-            print("test")
+            #print("test")
             Lecture.objects.filter(id=lecture_id).delete()
             return self.success()
 
@@ -74,20 +74,34 @@ class AdminLectureApplyAPI(APIView):
 
         if data.get("lecture_id") and data.get("user_id"):
             appy = signup_class.objects.get(lecture_id=data.get("lecture_id"), user_id=data.get("user_id"))
-            print(appy)
+            #print(appy)
             appy.isallow = True
             appy.save()
-            print("modified")
+            #print("modified")
 
         return self.success()
 
     def delete(self, request):
         user_id = request.GET.get("id")
         lecture_id = request.GET.get("lectureid")
-        print(user_id)
+        #print(user_id)
         if user_id:
             print("test")
             signup_class.objects.get(user_id=user_id, lecture=lecture_id).delete()
             return self.success()
 
         return self.error("Invalid Parameter, id is required")
+
+class WaitStudentAddAPI(APIView):
+    def post(self, request):
+        data = request.data
+        print(type(data))
+        lecture_id = data["users"][0][1]
+        print("test",lecture_id)
+        for user in data["users"]:
+            if user[0] != -1:
+                print(user[0])
+                print(user[1])
+                signup_class.objects.create(lecture_id=lecture_id, user_id=None, isallow=False, realname=user[1], schoolssn=user[0])
+
+        return self.success()
