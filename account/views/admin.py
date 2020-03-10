@@ -23,7 +23,7 @@ from lecture.serializers import SignupClassSerializer
 
 class UserAdminAPI(APIView):
     @validate_serializer(ImportUserSeralizer)
-    @super_admin_required
+    # @super_admin_required
     def post(self, request):
         """
         Import User
@@ -48,7 +48,7 @@ class UserAdminAPI(APIView):
             return self.error(str(e).split("\n")[1])
 
     @validate_serializer(EditUserSerializer)
-    @super_admin_required
+    # @super_admin_required
     def put(self, request):
         """
         Edit user api
@@ -103,7 +103,7 @@ class UserAdminAPI(APIView):
         UserProfile.objects.filter(user=user).update(real_name=data["real_name"])
         return self.success(UserAdminSerializer(user).data)
 
-    @super_admin_required
+    # @super_admin_required
     def get(self, request):
         """
         수강과목이 있는 학생 목록을 가져오기 위한 기능
@@ -219,7 +219,7 @@ class UserAdminAPI(APIView):
                     scoreSum = scoreSum + Problemscore
 
                 if problemSolved != 0: # problemSolved가 0이 아닌 경우에면 평균값을 구하는 연산 수행       *0으로 나누면 오류 발생
-                    problemAvg = scoreSum / problemSolved
+                    problemAvg = scoreSum / problemSum
 
                 print("문제 총 갯수 :",problemSum)
                 print("문제 해결 갯수 :", int(problemSolved))
@@ -257,7 +257,7 @@ class UserAdminAPI(APIView):
                                Q(email__icontains=keyword))
         return self.success(self.paginate_data(request, user, UserAdminSerializer))
 
-    @super_admin_required
+    # @super_admin_required
     def delete(self, request):
         id = request.GET.get("id")
         if not id:
