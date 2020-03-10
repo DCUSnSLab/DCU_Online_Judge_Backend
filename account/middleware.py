@@ -43,7 +43,7 @@ class AdminRoleRequiredMiddleware(MiddlewareMixin):
 
 class LogSqlMiddleware(MiddlewareMixin):
     def process_response(self, request, response):
-        print("\033[94m", "#" * 30, "\033[0m")
+        #print("\033[94m", "#" * 30, "\033[0m")
         time_threshold = 0.03
         for query in connection.queries:
             if float(query["time"]) > time_threshold:

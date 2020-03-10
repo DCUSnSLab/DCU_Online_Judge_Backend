@@ -26,9 +26,9 @@ from ..serializers import (ContestAnnouncementSerializer, ContestAdminSerializer
 class ContestAPI(APIView):
     @validate_serializer(CreateContestSeriaizer)
     def post(self, request):
-        print("ContestAPI post")
+        #print("ContestAPI post")
         data = request.data
-        print(data)
+        #print(data)
         data["start_time"] = dateutil.parser.parse(data["start_time"])
         data["end_time"] = dateutil.parser.parse(data["end_time"])
         data["created_by"] = request.user
@@ -46,9 +46,9 @@ class ContestAPI(APIView):
 
     @validate_serializer(EditContestSeriaizer)
     def put(self, request):
-        print("ContestAPI put")
+        #print("ContestAPI put")
         data = request.data
-        print(data)
+        #print(data)
         try:
             contest = Contest.objects.get(id=data.pop("id"))
             ensure_created_by(contest, request.user)
@@ -132,7 +132,7 @@ class ContestAPI(APIView):
 
 class LectureContestAPI(APIView):
     def get(self, request):
-        print("Lecture Contest API Start")
+        #print("Lecture Contest API Start")
         contest_id = request.GET.get("contest_id")
         lecture_id = request.GET.get("lecture_id")
         user = request.user
@@ -346,5 +346,38 @@ class AddLectureContestAPI(APIView):
         contest.pk = None
         contest.lecture = lecture
         contest.save()
+
+        return self.success()
+
+class AddLectureContestAPI(APIView):
+    @validate_serializer(AddLectureContestSerializer)
+    def post(self, request):
+        data = request.data
+        try:
+            contest = Contest.objects.get(id=data["contest_id"])
+            lecture = Lecture.objects.get(id=data["lecture_id"])
+        except (Contest.DoesNotExist):
+            return self.error("Contest does not exist")
+
+        problems = Problem.objects.filter(contest=contest)
+
+        print(lecture.id)
+        contest.pk = None
+        contest.lecture = lecture
+        contest.save()
+
+        for problem in problems:
+            print(problem.title)
+
+            tags = problem.tags.all()
+            problem.pk = None
+            problem.contest = contest
+            problem.is_public = True
+            problem.visible = True
+            problem._id = str(lecture.id)+"_"+problem._id
+            problem.submission_number = problem.accepted_number = 0
+            problem.statistic_info = {}
+            problem.save()
+            problem.tags.set(tags)
 
         return self.success()

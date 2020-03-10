@@ -19,6 +19,8 @@ class Lecture(models.Model):
 
 class signup_class(models.Model):
     lecture = models.ForeignKey(Lecture, on_delete = models.CASCADE)
-    user = models.ForeignKey(User, on_delete = models.CASCADE)
+    user = models.ForeignKey(User, on_delete = models.CASCADE, null=True)
     status = models.BooleanField(default=False)
     isallow = models.BooleanField(default=False)
+    realname = models.TextField(default=None, null=True)
+    schoolssn = models.IntegerField(default=None, null=True)
