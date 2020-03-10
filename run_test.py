@@ -14,10 +14,10 @@ for opt, arg in opts:
     if opt in ["-m", "--module"]:
         test_module = arg
 
-print("Coverage: {cov}".format(cov=is_coverage))
-print("Module: {mod}".format(mod=(test_module if test_module else "All")))
+#print("Coverage: {cov}".format(cov=is_coverage))
+#print("Module: {mod}".format(mod=(test_module if test_module else "All")))
 
-print("running flake8...")
+#print("running flake8...")
 if os.system("flake8 --statistics ."):
     exit()
 
