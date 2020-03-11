@@ -197,14 +197,32 @@ class UsernameOrEmailCheck(APIView):
         # True means already exist.
         result = {
             "username": False,
-            "email": False
+            "email": False,
+            "schoolssn": False
         }
         if data.get("username"):
             result["username"] = User.objects.filter(username=data["username"].lower()).exists()
         if data.get("email"):
             result["email"] = User.objects.filter(email=data["email"].lower()).exists()
+        if data.get("schoolssn"):
+            result["schoolssn"] = User.objects.filter(username=data["schoolssn"]).exists()
+
         return self.success(result)
 
+class SchoolssnCheck(APIView):
+    @validate_serializer(UsernameOrEmailCheckSerializer)
+    def post(self, request):
+        """
+        check schoolssn is duplicate
+        """
+        data = request.data
+        # True means already exist.
+        result = {
+            "schoolssn": False
+        }
+        if data.get("schoolssn"):
+            result["schoolssn"] = User.objects.filter(username=data["username"].lower()).exists()
+        return self.success(result)
 
 class UserRegisterAPI(APIView):
     @validate_serializer(UserRegisterSerializer)
@@ -225,6 +243,8 @@ class UserRegisterAPI(APIView):
             return self.error("Username already exists")
         if User.objects.filter(email=data["email"]).exists():
             return self.error("Email already exists")
+        if User.objects.filter(schoolssn=data["schoolssn"]).exists():
+            return self.error("학번/교직번호가 이미 있습니다.")
         #print(data["realname"])
         user = User.objects.create(username=data["username"], email=data["email"], schoolssn=data["schoolssn"], realname=data["realname"])
         user.set_password(data["password"])
