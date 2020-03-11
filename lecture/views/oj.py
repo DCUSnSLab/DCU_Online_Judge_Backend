@@ -22,6 +22,10 @@ class LectureAPI(APIView):
 class LectureListAPI(APIView):
     def get(self, request):
         print("LectureListAPI Called")
+
+        if not request.user.is_authenticated:
+            return self.error("로그인 후 사용 가능합니다.")
+
         keyword = request.GET.get("keyword")
 
         try:
@@ -60,6 +64,10 @@ class LectureListAPI(APIView):
 class TakingLectureListAPI(APIView):
     def get(self, request):
         print("TakingLectureListAPI Called")
+
+        if not request.user.is_authenticated:
+            return self.error("로그인 후 사용 가능합니다.")
+
         keyword = request.GET.get("keyword")
 
         try:
