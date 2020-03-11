@@ -8,6 +8,8 @@ class CreateLectureSerializer(serializers.Serializer):
     description = serializers.CharField()
     status = serializers.BooleanField()
     password = serializers.CharField(allow_blank=True, max_length=32)
+    year = serializers.IntegerField()
+    semester = serializers.IntegerField()
 
 class EditLectureSerializer(serializers.Serializer):
     id = serializers.IntegerField()
@@ -15,6 +17,8 @@ class EditLectureSerializer(serializers.Serializer):
     description = serializers.CharField()
     status = serializers.BooleanField()
     password = serializers.CharField(allow_blank=True, max_length=32)
+    year = serializers.IntegerField()
+    semester = serializers.IntegerField()
 
 class LectureAdminSerializer(serializers.ModelSerializer):
     created_by = UsernameSerializer()
