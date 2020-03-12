@@ -4,6 +4,7 @@ from rest_framework import serializers
 class UsernameSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
+    realname = serializers.CharField()
     real_name = serializers.SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
