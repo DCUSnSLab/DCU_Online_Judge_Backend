@@ -26,3 +26,5 @@ class signup_class(models.Model):
     isallow = models.BooleanField(default=False)
     realname = models.TextField(default=None, null=True)
     schoolssn = models.IntegerField(default=None, null=True)
+    score = models.TextField(null=True)
+    etc = models.TextField(null=True)
