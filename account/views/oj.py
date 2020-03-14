@@ -27,6 +27,7 @@ from ..serializers import (TwoFactorAuthCodeSerializer, UserProfileSerializer,
                            EditUserProfileSerializer, ImageUploadForm)
 from ..tasks import send_email_async
 
+from lecture.models import signup_class
 
 class UserProfileAPI(APIView):
     @method_decorator(ensure_csrf_cookie)
@@ -247,6 +248,20 @@ class UserRegisterAPI(APIView):
             return self.error("학번/교직번호가 이미 있습니다.")
         #print(data["realname"])
         user = User.objects.create(username=data["username"], email=data["email"], schoolssn=data["schoolssn"], realname=data["realname"])
+
+        """
+        2020-03-14 현재 수강신청 자동화 기능 개선
+        lecture_signup_class에서 동일한 학번을 가진 값이 있는지 필터를 통해 구해오고,
+        있는 경우, 해당 값들의 isallow를 전부 True로 수정한다.
+        """
+        try:
+            signup_list = signup_class.objects.filter(schoolssn=data["schoolssn"])
+            for signup in signup_list:
+                signup.isallow = True
+                signup.save()
+        except:
+            print("no matching singup_class")
+
         user.set_password(data["password"])
         user.save()
         UserProfile.objects.create(user=user)
