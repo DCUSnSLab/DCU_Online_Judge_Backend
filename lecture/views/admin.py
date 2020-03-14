@@ -15,6 +15,8 @@ from utils.tasks import delete_files
 from ..models import Lecture, signup_class
 from ..serializers import (CreateLectureSerializer, EditLectureSerializer, LectureAdminSerializer, LectureSerializer, )
 
+from account.models import User
+
 class LectureAPI(APIView):
     @validate_serializer(CreateLectureSerializer)
     def post(self, request):
@@ -82,12 +84,12 @@ class AdminLectureApplyAPI(APIView):
         return self.success()
 
     def delete(self, request):
-        user_id = request.GET.get("id")
+        schoolssn = request.GET.get("schoolssn")
         lecture_id = request.GET.get("lectureid")
         #print(user_id)
-        if user_id:
+        if schoolssn:
             print("test")
-            signup_class.objects.get(user_id=user_id, lecture=lecture_id).delete()
+            signup_class.objects.filter(schoolssn=schoolssn, lecture=lecture_id).delete()
             return self.success()
 
         return self.error("Invalid Parameter, id is required")
@@ -103,5 +105,17 @@ class WaitStudentAddAPI(APIView):
                 print(user[0])
                 print(user[1])
                 signup_class.objects.create(lecture_id=lecture_id, user_id=None, isallow=False, realname=user[1], schoolssn=user[0])
+                # 기존 회원가입한 사용자 중, 등록한 학번과 동일한 학번을 가진 사용자를 가져온다.
+                print(user[0])
+                try:
+                    user = User.objects.get(schoolssn=user[0])
+                    signuplist = signup_class.objects.filter(schoolssn=user[0], user_id=user.id)
+                    for signup in signuplist:
+                        signup.isallow = True
+                        signup.save()
+                except:
+                    print("no matching user")
+
+
 
         return self.success()
