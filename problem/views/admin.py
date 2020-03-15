@@ -315,7 +315,7 @@ class ContestProblemAPI(ProblemBase):
             contest = Contest.objects.get(id=data.pop("contest_id"))
             ensure_created_by(contest, request.user)
         except Contest.DoesNotExist:
-            return self.error("Contest does not exist")
+            return self.error("Contest does not exist 1")
 
         if data["rule_type"] != contest.rule_type:
             return self.error("Invalid rule type")
@@ -350,6 +350,7 @@ class ContestProblemAPI(ProblemBase):
         problem_id = request.GET.get("id")
         contest_id = request.GET.get("contest_id")
         user = request.user
+        print(user)
         if problem_id:
             try:
                 problem = Problem.objects.get(id=problem_id)
@@ -357,17 +358,17 @@ class ContestProblemAPI(ProblemBase):
             except Problem.DoesNotExist:
                 return self.error("Problem does not exist")
             return self.success(ProblemAdminSerializer(problem).data)
-
         if not contest_id:
             return self.error("Contest id is required")
         try:
             contest = Contest.objects.get(id=contest_id)
-            ensure_created_by(contest, user)
+            # ensure_created_by(contest, user) # 요청자와 contest 생성자가 동일한지 검증하는 코드이다.
+            print(contest)
         except Contest.DoesNotExist:
-            return self.error("Contest does not exist")
+            return self.error("Contest does not exist 2")
         problems = Problem.objects.filter(contest=contest).order_by("-create_time")
-        if user.is_admin():
-            problems = problems.filter(contest__created_by=user)
+        # if user.is_admin(): # 위 코드와 마찬가지로 관리자 계정 유무를 확인하는 코드
+        #     problems = problems.filter(contest__created_by=user)
         keyword = request.GET.get("keyword")
         if keyword:
             problems = problems.filter(title__contains=keyword)
@@ -382,7 +383,7 @@ class ContestProblemAPI(ProblemBase):
             contest = Contest.objects.get(id=data.pop("contest_id"))
             ensure_created_by(contest, user)
         except Contest.DoesNotExist:
-            return self.error("Contest does not exist")
+            return self.error("Contest does not exist 3")
 
         if data["rule_type"] != contest.rule_type:
             return self.error("Invalid rule type")

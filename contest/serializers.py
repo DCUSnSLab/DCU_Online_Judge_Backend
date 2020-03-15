@@ -27,7 +27,7 @@ class EditContestSeriaizer(serializers.Serializer):
     visible = serializers.BooleanField()
     real_time_rank = serializers.BooleanField()
     allowed_ip_ranges = serializers.ListField(child=serializers.CharField(max_length=32))
-    lecture_id = serializers.IntegerField(allow_null=True)
+    # lecture_id = serializers.IntegerField(allow_null=True)
 
 class ContestAdminSerializer(serializers.ModelSerializer):
     created_by = UsernameSerializer()
