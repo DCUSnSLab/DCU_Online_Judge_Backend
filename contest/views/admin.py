@@ -53,7 +53,7 @@ class ContestAPI(APIView):
             contest = Contest.objects.get(id=data.pop("id"))
             ensure_created_by(contest, request.user)
         except Contest.DoesNotExist:
-            return self.error("Contest does not exist")
+            return self.error("Contest does not exist 10")
         data["start_time"] = dateutil.parser.parse(data["start_time"])
         data["end_time"] = dateutil.parser.parse(data["end_time"])
         if data["end_time"] <= data["start_time"]:
@@ -90,7 +90,7 @@ class ContestAPI(APIView):
                 ensure_created_by(contest, request.user)
                 return self.success(ContestAdminSerializer(contest).data)
             except Contest.DoesNotExist:
-                return self.error("Contest does not exist")
+                return self.error("Contest does not exist 9")
 
         contests = Contest.objects.all().order_by("-create_time")
         # if request.user.is_admin(): # 요청자가 admin이 아닌 경우, 본인이 생성한 실습, 과제, 대회만 출력하게 하는 부분
@@ -142,7 +142,7 @@ class LectureContestAPI(APIView):
             lecture = Lecture.objects.get(id=lecture_id)
             ensure_created_by(lecture, user)
         except Contest.DoesNotExist:
-            return self.error("Contest does not exist")
+            return self.error("Contest does not exist 8")
         contests = Contest.objects.filter(lecture=lecture).order_by("-create_time")
 
         if user.is_admin():
@@ -193,7 +193,7 @@ class ContestAnnouncementAPI(APIView):
             data["contest"] = contest
             data["created_by"] = request.user
         except Contest.DoesNotExist:
-            return self.error("Contest does not exist")
+            return self.error("Contest does not exist 7")
         announcement = ContestAnnouncement.objects.create(**data)
         return self.success(ContestAnnouncementSerializer(announcement).data)
 
@@ -322,7 +322,7 @@ class DownloadContestSubmissions(APIView):
             contest = Contest.objects.get(id=contest_id)
             ensure_created_by(contest, request.user)
         except Contest.DoesNotExist:
-            return self.error("Contest does not exist")
+            return self.error("Contest does not exist 6")
 
         exclude_admin = request.GET.get("exclude_admin") == "1"
         zip_path = self._dump_submissions(contest, exclude_admin)
@@ -340,7 +340,7 @@ class AddLectureContestAPI(APIView):
             contest = Contest.objects.get(id=data["contest_id"])
             lecture = Lecture.objects.get(id=data["lecture_id"])
         except (Contest.DoesNotExist):
-            return self.error("Contest does not exist")
+            return self.error("Contest does not exist 5")
 
         print(lecture.id)
         contest.pk = None
@@ -357,7 +357,7 @@ class AddLectureContestAPI(APIView):
             contest = Contest.objects.get(id=data["contest_id"])
             lecture = Lecture.objects.get(id=data["lecture_id"])
         except (Contest.DoesNotExist):
-            return self.error("Contest does not exist")
+            return self.error("Contest does not exist 4")
 
         problems = Problem.objects.filter(contest=contest)
 
