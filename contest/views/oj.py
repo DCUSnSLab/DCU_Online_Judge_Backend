@@ -43,7 +43,7 @@ class ContestAPI(APIView):
         try:
             contest = Contest.objects.get(id=id, visible=True)
         except Contest.DoesNotExist:
-            return self.error("Contest does not exist")
+            return self.error("Contest does not exist 12")
 
         LU = LectureUtil()
         #print("lid = ",contest.lecture_id)
@@ -93,7 +93,7 @@ class ContestPasswordVerifyAPI(APIView):
         try:
             contest = Contest.objects.get(id=data["contest_id"], visible=True, password__isnull=False)
         except Contest.DoesNotExist:
-            return self.error("Contest does not exist")
+            return self.error("Contest does not exist 11")
         if contest.password != data["password"]:
             return self.error("Wrong password")
 
