@@ -224,7 +224,7 @@ class ProblemAPI(ProblemBase):
             problem.tags.add(tag)
         return self.success(ProblemAdminSerializer(problem).data)
 
-    @problem_permission_required
+    # @problem_permission_required
     def get(self, request):
         problem_id = request.GET.get("id")
         rule_type = request.GET.get("rule_type")
@@ -232,11 +232,12 @@ class ProblemAPI(ProblemBase):
         if problem_id:
             try:
                 problem = Problem.objects.get(id=problem_id)
-                ensure_created_by(problem, request.user)
+                # ensure_created_by(problem, request.user)
                 return self.success(ProblemAdminSerializer(problem).data)
             except Problem.DoesNotExist:
                 return self.error("Problem does not exist")
 
+        print("test 2")
         problems = Problem.objects.filter(contest_id__isnull=True).order_by("-create_time")
         if rule_type:
             if rule_type not in ProblemRuleType.choices():
@@ -245,10 +246,11 @@ class ProblemAPI(ProblemBase):
                 problems = problems.filter(rule_type=rule_type)
 
         keyword = request.GET.get("keyword", "").strip()
+        print("test 3")
         if keyword:
             problems = problems.filter(Q(title__icontains=keyword) | Q(_id__icontains=keyword))
-        if not user.can_mgmt_all_problem():
-            problems = problems.filter(created_by=user)
+        # if not user.can_mgmt_all_problem(): # 20200316 권한 별 문제 출력 결과가 상이하여 일시적으로 비활성화 하였음
+        #     problems = problems.filter(created_by=user)
         return self.success(self.paginate_data(request, problems, ProblemAdminSerializer))
 
     @problem_permission_required
