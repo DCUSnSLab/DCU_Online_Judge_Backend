@@ -26,9 +26,8 @@ from ..serializers import (ContestAnnouncementSerializer, ContestAdminSerializer
 class ContestAPI(APIView):
     @validate_serializer(CreateContestSeriaizer)
     def post(self, request):
-        #print("ContestAPI post")
+        print("ContestAPI post")
         data = request.data
-        #print(data)
         data["start_time"] = dateutil.parser.parse(data["start_time"])
         data["end_time"] = dateutil.parser.parse(data["end_time"])
         data["created_by"] = request.user
@@ -46,7 +45,7 @@ class ContestAPI(APIView):
 
     @validate_serializer(EditContestSeriaizer)
     def put(self, request):
-        #print("ContestAPI put")
+        print("ContestAPI put")
         data = request.data
         #print(data)
         try:
@@ -75,6 +74,7 @@ class ContestAPI(APIView):
         return self.success(ContestAdminSerializer(contest).data)
 
     def get(self, request):
+        print("ContestAPI get")
         contest_id = request.GET.get("id")
         contest_year = request.GET.get("year")
 
@@ -84,6 +84,7 @@ class ContestAPI(APIView):
                 contests = contests.filter(create_time__year=contest_year) # 페이지로부터 년도에 관련된 값을 전달받은 경우, 해당 년도에 해당하는 contest들만 리턴한다.
             return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
+        print("test")
         if contest_id:
             try:
                 contest = Contest.objects.get(id=contest_id)
@@ -92,6 +93,7 @@ class ContestAPI(APIView):
             except Contest.DoesNotExist:
                 return self.error("Contest does not exist 9")
 
+        print("test")
         contests = Contest.objects.all().order_by("-create_time")
         # if request.user.is_admin(): # 요청자가 admin이 아닌 경우, 본인이 생성한 실습, 과제, 대회만 출력하게 하는 부분
         #    contests = contests.filter(created_by=request.user)
@@ -361,8 +363,9 @@ class AddLectureContestAPI(APIView):
 
         problems = Problem.objects.filter(contest=contest)
 
-        print(lecture.id)
+        print("Contest 만든 사람 :",contest.created_by)
         contest.pk = None
+        contest.created_by = lecture.created_by
         contest.lecture = lecture
         contest.save()
 
@@ -371,6 +374,7 @@ class AddLectureContestAPI(APIView):
 
             tags = problem.tags.all()
             problem.pk = None
+            problem.created_by = contest.created_by
             problem.contest = contest
             problem.is_public = True
             problem.visible = True
