@@ -196,6 +196,8 @@ class UsernameOrEmailCheck(APIView):
         """
         data = request.data
         # True means already exist.
+        
+        print("Test")
         result = {
             "username": False,
             "email": False,
@@ -206,12 +208,8 @@ class UsernameOrEmailCheck(APIView):
             result["username"] = User.objects.filter(username=data["username"].lower()).exists()
         if data.get("email"):
             result["email"] = User.objects.filter(email=data["email"].lower()).exists()
-        print("학번 2 : ",data.get("schoolssn"))
-        print("길이 : ",len(str(data.get("schoolssn"))))
-        if len(str(data.get("schoolssn"))) < 5:
-            result["schoolssn_valid"] = True
         if data.get("schoolssn"):
-            result["schoolssn"] = User.objects.filter(username=data["schoolssn"]).exists()
+            result["schoolssn"] = User.objects.filter(schoolssn=data["schoolssn"]).exists()
 
         return self.success(result)
 
