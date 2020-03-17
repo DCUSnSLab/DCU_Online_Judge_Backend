@@ -1,4 +1,5 @@
 from django.utils.timezone import now
+from django.db.models import Count
 from utils.shortcuts import datetime2str, check_is_id
 from utils.api import APIView
 
@@ -26,12 +27,18 @@ class LectureListAPI(APIView):
         if not request.user.is_authenticated:
             return self.error("로그인 후 사용 가능합니다.")
 
+        if not request.user.is_admin(): # 관리자 계정의 개설 과목 출력
+            print("관리자입니다.")
+            try:
+                lectures = Lecture.objects.all().order_by("title")
+                return self.success(self.paginate_data(request, lectures, LectureSerializer))
+            except:
+                return self.error("no lecture exist")
+
         keyword = request.GET.get("keyword")
 
         try:
-            lectures = Lecture.objects.all()
-            takinglectures = Lecture.objects.prefetch_related("signup_class_set").exclude(signup_class__user=request.user.id)
-            takinglectures = takinglectures.exclude(status=False)
+            lectures = Lecture.objects.prefetch_related("signup_class_set__user").order_by('title').exclude(signup_class__user=request.user)
         except:
             return self.error("no lecture exist")
 
@@ -39,27 +46,8 @@ class LectureListAPI(APIView):
             lectures = lectures.filter(title__contains=keyword)
             return self.success(self.paginate_data(request, lectures, LectureSerializer))
 
-        '''signuplist = signup_class.objects.select_related("lecture").order_by("-id")
-
-        signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
-        signuplist = signuplist.exclude(isallow=True)'''
-
-        lectures = lectures.exclude(status=False)
-        lectures = lectures.exclude(created_by=request.user.id)
-
-        for lecture in takinglectures:
-            print("taking",lecture.title)
-
-        for lecture in lectures:
-            print("all",lecture.title)
-
-        final = lectures & takinglectures
-
-        for lecture in final:
-            print(lecture.title)
-
         # return self.success(self.paginate_data(request, lectures, LectureSerializer))
-        return self.success(self.paginate_data(request, final, LectureSerializer))
+        return self.success(self.paginate_data(request, lectures, LectureSerializer))
 
 class TakingLectureListAPI(APIView):
     def get(self, request):
@@ -68,10 +56,22 @@ class TakingLectureListAPI(APIView):
         if not request.user.is_authenticated:
             return self.error("로그인 후 사용 가능합니다.")
 
-        keyword = request.GET.get("keyword")
+        if not request.user.is_admin():
+            print("관리자입니다.")
+            try:
+                signuplist = signup_class.objects.select_related("lecture").order_by('lecture').distinct('lecture_id')
+
+                for signup in signuplist:
+                    print("Test ",signup.lecture.title, signup.lecture.id)
+                    signup.isallow = True
+
+                return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
+            except:
+                print(self.error())
+                return self.error("no lecture exist")
 
         try:
-            signuplist = signup_class.objects.select_related("lecture").order_by("-id")
+            signuplist = signup_class.objects.select_related("lecture").order_by("lecture__title")
         except:
             return self.error("no lecture exist")
 
@@ -101,7 +101,7 @@ class LectureApplyAPI(APIView):
             return self.success()
         except signup_class.DoesNotExist:
             if lecture_id and user_id:
-                signup_class.objects.create(lecture=lecture, user=user, status=False)
+                signup_class.objects.create(lecture=lecture, user=user, realname=realname, schoolssn=schoolssn, status=False)
 
             return self.success()
 

@@ -55,8 +55,10 @@ class ContestAPI(APIView):
             #print("Lecture allow : ", lecsign[0].isallow)
             contest.visible = True
         else:
-         #   print("no contest lecture")
-            contest.visible = False
+            if not request.user.is_admin():
+                contest.visible = True
+            else:
+                contest.visible = False
         data = ContestSerializer(contest).data
         data["now"] = datetime2str(now())
         return self.success(data)

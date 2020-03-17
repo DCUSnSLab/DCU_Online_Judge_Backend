@@ -237,7 +237,6 @@ class ProblemAPI(ProblemBase):
             except Problem.DoesNotExist:
                 return self.error("Problem does not exist")
 
-        print("test 2")
         problems = Problem.objects.filter(contest_id__isnull=True).order_by("-create_time")
         if rule_type:
             if rule_type not in ProblemRuleType.choices():
@@ -246,7 +245,6 @@ class ProblemAPI(ProblemBase):
                 problems = problems.filter(rule_type=rule_type)
 
         keyword = request.GET.get("keyword", "").strip()
-        print("test 3")
         if keyword:
             problems = problems.filter(Q(title__icontains=keyword) | Q(_id__icontains=keyword))
         # if not user.can_mgmt_all_problem(): # 20200316 권한 별 문제 출력 결과가 상이하여 일시적으로 비활성화 하였음
