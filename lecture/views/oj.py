@@ -75,7 +75,7 @@ class TakingLectureListAPI(APIView):
         except:
             return self.error("no lecture exist")
 
-        signuplist = signuplist.filter(schoolssn=request.user.schoolssn, lecture__status=True)
+        signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
 
         for signup in signuplist:
             print(signup.lecture.created_by.realname)

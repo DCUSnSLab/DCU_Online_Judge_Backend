@@ -254,9 +254,14 @@ class UserRegisterAPI(APIView):
         lecture_signup_class에서 동일한 학번을 가진 값이 있는지 필터를 통해 구해오고,
         있는 경우, 해당 값들의 isallow를 전부 True로 수정한다.
         """
+        print("학번",data["schoolssn"])
         try:
+            print("try")
             signup_list = signup_class.objects.filter(schoolssn=data["schoolssn"])
+            print(signup_list)
+            print(user)
             for signup in signup_list:
+                signup.user = user
                 signup.isallow = True
                 signup.save()
         except:

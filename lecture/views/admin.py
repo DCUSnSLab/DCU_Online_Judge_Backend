@@ -110,6 +110,7 @@ class WaitStudentAddAPI(APIView):
                     user = User.objects.get(schoolssn=user[0])
                     signuplist = signup_class.objects.filter(schoolssn=user.schoolssn, lecture_id=lecture_id)
                     for signup in signuplist:
+                        signup.user = user
                         signup.isallow = True
                         signup.save()
                 except:
