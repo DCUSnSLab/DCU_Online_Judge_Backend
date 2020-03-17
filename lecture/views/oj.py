@@ -27,7 +27,7 @@ class LectureListAPI(APIView):
         if not request.user.is_authenticated:
             return self.error("로그인 후 사용 가능합니다.")
 
-        if request.user.is_admin(): # 관리자 계정의 개설 과목 출력
+        if request.user.is_super_admin(): # 관리자 계정의 개설 과목 출력
             print("관리자입니다.")
             try:
                 lectures = Lecture.objects.all().order_by("title")
@@ -56,7 +56,11 @@ class TakingLectureListAPI(APIView):
         if not request.user.is_authenticated:
             return self.error("로그인 후 사용 가능합니다.")
 
-        if request.user.is_admin():
+        # print(request.user)
+        # print(request.user.is_admin_role())
+        # print(request.user.is_super_admin()) 관리자 권한 검사의 경우 해당 함수로 검증하여야 함.
+
+        if request.user.is_super_admin():
             print("관리자입니다.")
             try:
                 signuplist = signup_class.objects.select_related("lecture").order_by('lecture').distinct('lecture_id')
