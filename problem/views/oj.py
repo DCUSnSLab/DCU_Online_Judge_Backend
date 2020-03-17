@@ -126,11 +126,12 @@ class ProblemResponsibility(APIView):
             try:
                 contests = Contest.objects.get(id=request.GET.get("contest_id"))
                 if contests.lecture:
-                    try:
-                        signups = signup_class.objects.get(lecture=contests.lecture, user=request.user.id, isallow=True)
-                    except signup_class.DoesNotExist:
-                        print("Incorrect path")
-                        return self.success(False)
+                    if request.user.is_admin():
+                        try:
+                            signups = signup_class.objects.get(lecture=contests.lecture, user=request.user.id, isallow=True)
+                        except signup_class.DoesNotExist:
+                            print("Incorrect path")
+                            return self.success(False)
             except Contest.DoesNotExist:
                 return self.error("Parameter error, Contest is required")
         return self.success(True)
