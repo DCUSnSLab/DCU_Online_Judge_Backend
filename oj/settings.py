@@ -42,6 +42,7 @@ if production_env:
 
 
 LOCAL_APPS = [
+	'heartbeat',
     'account',
     'announcement',
     'conf',
