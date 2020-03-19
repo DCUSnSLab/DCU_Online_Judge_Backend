@@ -21,7 +21,6 @@ class Contest(models.Model):
     create_time = models.DateTimeField(auto_now_add=True)
     last_update_time = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    # 是否可见 false的话相当于删除
     visible = models.BooleanField(default=True)
     allowed_ip_ranges = JSONField(default=list)
     lecture = models.ForeignKey(Lecture, blank=True, null=True, on_delete=models.CASCADE, default=None)
