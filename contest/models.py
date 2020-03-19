@@ -1,4 +1,4 @@
-from utils.constants import ContestRuleType  # noqa
+from utils.constants import ContestRuleType, LectureContestType  # noqa
 from django.db import models
 from django.utils.timezone import now
 from utils.models import JSONField
@@ -15,13 +15,13 @@ class Contest(models.Model):
     real_time_rank = models.BooleanField()
     password = models.TextField(null=True)
     # enum of ContestRuleType
+    lecture_contest_type = models.TextField(default="실습")
     rule_type = models.TextField()
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     create_time = models.DateTimeField(auto_now_add=True)
     last_update_time = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    # 是否可见 false的话相当于删除
     visible = models.BooleanField(default=True)
     allowed_ip_ranges = JSONField(default=list)
     lecture = models.ForeignKey(Lecture, blank=True, null=True, on_delete=models.CASCADE, default=None)
