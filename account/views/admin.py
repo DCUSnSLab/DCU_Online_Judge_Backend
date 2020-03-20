@@ -20,6 +20,9 @@ from ..models import AdminType, ProblemPermission, User, UserProfile
 from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserSerializer
 from ..serializers import ImportUserSeralizer, SignupSerializer
 from lecture.serializers import SignupClassSerializer
+from django.db.models import Max
+from django.db.models import F
+from account.views.stdResult import ResContest, ResProblem, ResLecture, SubmitLecture, SubmitContest, SubmitProblem
 
 class UserAdminAPI(APIView):
     @validate_serializer(ImportUserSeralizer)
@@ -115,137 +118,47 @@ class UserAdminAPI(APIView):
 
         if lecture_id: # 특정 수강과목을 수강중인 학생 리스트업 하는 경우
             try:
-                ulist = signup_class.objects.select_related('lecture').order_by("realname") # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
+                ulist = signup_class.objects.filter(lecture=lecture_id).select_related('lecture').order_by("realname") # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
 
             except signup_class.DoesNotExist:
                 return self.error("수강중인 학생이 없습니다.")
 
-            contestlist = Contest.objects.select_related('lecture')  # 데이터베이스의 Contest들을 가져온다
-            lecturecontest = contestlist.filter(lecture_id=lecture_id)  # 가져온 Contest 중 해당하는 lecture_id를 가진 Contest만 저장한다.
 
-            lecture = Lecture.objects.select_related('created_by')
-            lecture = lecture.filter(id=lecture_id)
+            #collect lecture info
+            plist = Problem.objects.filter(contest__lecture=lecture_id).prefetch_related('contest')
 
-            uname = ""
-            for ll in lecture:
-                uname = ll.created_by
+            #input Problem Structure in Lecture
+            LectureInfo = ResLecture()
+            for p in plist:
+                LectureInfo.addProblem(p)
+                #print(p,p.title,p.contest)
 
-            ulist = ulist.filter(lecture_id=lecture_id)  # 사용자 목록(lecture_signup_class)에서 해당 lecture_id를 가진 사용자를 추려낸다.
-            ulist = ulist.exclude(user=uname)
+            #get Submission
+            sublist = Submission.objects.filter(lecture=lecture_id)
 
+            for us in ulist:
 
-            for uu in ulist:
-                # #print(uu.lecture.description)  # 해당 출력문을 봤을 때, lecture_signup_class테이블이 1단계, lecture 테이블은 2단계에 있는 듯?
+                if us.user is not None:
 
-                if uu.user is not None:
-                    print("사용자명 : ",uu.user.username, " ###############################")
+                    #get data from db
+                    ldates = sublist.filter(user=us.user).values('contest','problem').annotate(latest_created_at=Max('create_time'))
+                    sdata = sublist.filter(create_time__in=ldates.values('latest_created_at')).order_by('-create_time')
 
-                problemSum = 0 # 문제 총 갯수
-                problemSolved = 0 # 해결한 문제 갯수
-                scoreSum = 0 # 점수 총 합
-                scoreMax = 0 # 현재 수강과목의 최대 점수
-                problemAvg = 0 # 점수 평균 scoreSum / problemSolved
+                    student = SubmitLecture(us, LectureInfo)
 
-                problemtotalScore = 0
+                    for submit in sdata:
+                        student.addSubmission(submit)
 
-                for contest in lecturecontest:
-                    Problemscore = 0
+                    us.solveProblem = student.passedProblems
+                    us.totalScore = student.totalscore
+                    us.avgScore = student.average
+                else:
+                    us.solveProblem = 0
+                    us.totalScore = 0
+                    us.avgScore = 0
 
-                    problemlist = Problem.objects.select_related('contest')
-                    problemlist = problemlist.filter(contest_id=contest.id) # 전체 문제 중 각 lecturecontes 목록의 contest_id를 가지고 있는 문제를 모두 저장한다.
-
-                    for problem in problemlist:
-                        #print()
-                        #print("문제",problem.title,"시작")
-                        #print()
-
-                        problemPassed = False
-                        problemsubmit = Submission.objects.select_related('problem')
-
-                        submitlist = problemsubmit.filter(user_id=uu.user_id, contest_id=contest.id, problem_id=problem.id)
-
-                        submitMaxScore = 0 # 각 문제별 최고점을 저장하기 위한 변수
-
-                        for submit in submitlist:
-                            #print()
-                            #print("문제별 제출이력 확인")
-                            #print()
-                            problemtotalScore = 0
-
-                            Json = submit.info
-
-                            if Json: # 해당 사용자의 submit 이력이 있는 경우 (Submission에 사용자의 id값이 포함된 값이 있는 경우)
-                                #print()
-                                #print("제출 정보 출력", Json)
-                                #print()
-                                for jsondata in Json['data']: # result의 값이 0인 테스트 케이스들의 점수만 합한다. 각 문제의 최대 점수는 problem의 total_score 컬럼에 명시되어 있다.
-                                    if jsondata['result'] == 0:
-                                        problemtotalScore = problemtotalScore + jsondata['score'] # 한 문제에 대한 제출 내에서 점수의 총 합을 구한다.
-                                    '''else:
-                                        problemPassed = False # 테스트 케이스 중 하나라도 통과하지 못했다면, False로 초기화한다.'''
-                            
-                            if problemtotalScore > submitMaxScore: # 해당 제출의 점수가 현재 문제에서의 최고점인 경우,
-                                submitMaxScore = problemtotalScore # 최고점을 해당 값으로 변경한다.
-
-                            '''if not Json: # 서버로부터 Json 값 리턴에 실패하여 값이 없는 경우
-                                #print()
-                                print("info 컬럼에 값이 없습니다.")
-                                print()
-                                problemPassed = False # 실패한 문제로 간주한다.
-
-                        if not submitlist: # Json 값이 비어있는 경우
-                            print()
-                            print("info 컬럼의 Json 값이 비어 있습니다.")
-                            print()
-                            problemPassed = False # 마찬가지로 실패로 간주한다.'''
-
-                        Problemscore = Problemscore + submitMaxScore  # 실습, 과제, 대회에 포함된 각 문제에 대해 제출한 결과 중 최고점들을 더한다.
-
-                        #print()
-                        #print(contest.title, "의 현재 총 점수", Problemscore)
-                        #print()
-
-                        scoreMax = scoreMax + problem.total_score # Contest에 포함된 각 문제의 최대 점수를 더하여 scoreMax에 저장한다
-
-                        #print()
-                        #print(problem.title, "의 최대 점수", problem.total_score)
-                        #print()
-
-                        #print()
-                        #print(contest.title, "의 현재 최대 점수", scoreMax)
-                        #print()
-
-                        if problem.total_score == submitMaxScore and submitMaxScore != 0: # 모든 테스트 케이스를 통과한 경우,
-                            problemSolved = problemSolved + 1 # 해결한 문제로 판단하고 값을 1 증가시킨다.
-                            #print()
-                            #print("문제 해결")
-                            #print()
-
-                        #print()
-                        #print("문제 해결 갯수",int(problemSolved))
-                        #print()
-
-
-                    problemSum = problemSum + problemlist.count() # 각 Contest의 하위 문제가 몇개인지 카운트한다.
-
-                    scoreSum = scoreSum + Problemscore
-
-                if problemSolved != 0: # problemSolved가 0이 아닌 경우에면 평균값을 구하는 연산 수행       *0으로 나누면 오류 발생
-                    problemAvg = scoreSum / problemSum
-
-                #print("문제 총 갯수 :",problemSum)
-                #print("문제 해결 갯수 :", int(problemSolved))
-                #print("총점 :", scoreSum)
-                #print("최대 총점 :", scoreMax)
-                #print("평균 :", problemAvg)
-
-                uu.totalProblem = problemSum
-                uu.solveProblem = problemSolved
-                uu.totalScore = scoreSum
-                uu.maxScore = scoreMax
-                uu.avgScore = problemAvg
-
-            #return self.success()
+                us.totalProblem = LectureInfo.numofProblems
+                us.maxScore = LectureInfo.totalscore
 
             return self.success(self.paginate_data(request, ulist, SignupSerializer))
 
