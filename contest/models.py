@@ -1,4 +1,4 @@
-from utils.constants import ContestRuleType  # noqa
+from utils.constants import ContestRuleType, LectureContestType  # noqa
 from django.db import models
 from django.utils.timezone import now
 from utils.models import JSONField
@@ -15,6 +15,7 @@ class Contest(models.Model):
     real_time_rank = models.BooleanField()
     password = models.TextField(null=True)
     # enum of ContestRuleType
+    lecture_contest_type = models.TextField(default="실습")
     rule_type = models.TextField()
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()

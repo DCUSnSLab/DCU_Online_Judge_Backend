@@ -1,6 +1,6 @@
 from utils.api import UsernameSerializer, serializers
 
-from .models import Contest, ContestAnnouncement, ContestRuleType
+from .models import Contest, ContestAnnouncement, ContestRuleType, LectureContestType
 from .models import ACMContestRank, OIContestRank
 
 
@@ -9,6 +9,7 @@ class CreateContestSeriaizer(serializers.Serializer):
     description = serializers.CharField()
     start_time = serializers.DateTimeField()
     end_time = serializers.DateTimeField()
+    lecture_contest_type = serializers.ChoiceField(choices=[LectureContestType.Training, LectureContestType.Assignment, LectureContestType.Competition])
     rule_type = serializers.ChoiceField(choices=[ContestRuleType.ACM, ContestRuleType.OI])
     password = serializers.CharField(allow_blank=True, max_length=32)
     visible = serializers.BooleanField()
