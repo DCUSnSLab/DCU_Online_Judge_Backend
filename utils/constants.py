@@ -9,6 +9,10 @@ class ContestType:
     PUBLIC_CONTEST = "Public"
     PASSWORD_PROTECTED_CONTEST = "Password Protected"
 
+class LectureContestType:
+    Training = "실습"
+    Assignment = "과제"
+    Competition = "대회"
 
 class ContestStatus:
     CONTEST_NOT_START = "1"
