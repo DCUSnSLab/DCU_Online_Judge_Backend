@@ -4,6 +4,8 @@ from django.contrib.auth.models import Permission
 from django.core.cache import cache
 from django.conf import settings
 import logging
+#!/usr/bin/env python
+import psutil
 
 logger = logging.getLogger("django.heartbeat")
 
@@ -11,10 +13,22 @@ class HeartBeatView(generics.GenericAPIView):
     permission_classes = (permissions.AllowAny,)
 
     def get(self, request, format=None):
+        print("test2")
         output_data = {}
 
         output_status = status.HTTP_200_OK
         res = 'ok'
+
+        # gives a single float value
+        cpu = psutil.cpu_percent()
+        print('cpu:',cpu)
+        # gives an object with many fields
+        print('memory:',psutil.virtual_memory())
+        # you can convert that object to a dictionary
+        #dict(psutil.virtual_memory()._asdict())
+
+        output_data['cpu_percent'] = str(cpu)
+        output_data['memory'] = str(psutil.virtual_memory())
         try:
             Permission.objects.get(id = 1) #django permission. Should be always available
             cache.set('test', 1)
@@ -39,6 +53,8 @@ class HeartBeatView(generics.GenericAPIView):
 
         output_data['heartbeat'] = res
 
+        print(output_data)
+
         return Response(output_data, status = output_status)
 
 
@@ -47,6 +63,8 @@ class StaticHeartbeatView(generics.GenericAPIView):
 
     def get(self, request, format=None):
         output_data = {}
+        print("test")
+
 
         output_status = status.HTTP_200_OK
         output_data['heartbeat'] = 'ok'
