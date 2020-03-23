@@ -37,7 +37,7 @@ class ResContest:
         self.myContest = contest
 
     def addProblem(self, prob):
-        print("add Problem cid:",self.id,"pid:",prob.id)
+        #print("add Problem cid:",self.id,"pid:",prob.id)
         inprob = ResProblem(prob)
         self.totalScore += inprob.score
         self.numofProblems += 1
@@ -71,6 +71,7 @@ class SubmitLecture:
     totalProblems = 0
     submittedProblems = 0
     passedProblems = 0
+    progress = 0;
 
     LectureInfo = None
 
@@ -100,6 +101,7 @@ class SubmitLecture:
 
         if self.totalProblems != 0:
             self.average = self.totalscore / self.totalProblems
+            self.progress = self.submittedProblems / self.totalProblems * 100
 
 
 class SubmitContest:
