@@ -149,13 +149,17 @@ class UserAdminAPI(APIView):
                     for submit in sdata:
                         student.addSubmission(submit)
 
+                    us.tryProblem = student.submittedProblems
                     us.solveProblem = student.passedProblems
                     us.totalScore = student.totalscore
                     us.avgScore = student.average
+                    us.progress = student.progress
                 else:
+                    us.tryProblem = 0
                     us.solveProblem = 0
                     us.totalScore = 0
                     us.avgScore = 0
+                    us.progress = 0
 
                 us.totalProblem = LectureInfo.numofProblems
                 us.maxScore = LectureInfo.totalscore
