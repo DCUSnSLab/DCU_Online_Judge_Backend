@@ -28,9 +28,14 @@ class ContestAPI(APIView):
     def post(self, request):
         print("ContestAPI post")
         data = request.data
+        print(data)
         data["start_time"] = dateutil.parser.parse(data["start_time"])
         data["end_time"] = dateutil.parser.parse(data["end_time"])
-        data["created_by"] = request.user
+        if data["lecture_id"] is None: # 해당 Contest가 개설과목에 소속되지 않은 경우
+            data["created_by"] = request.user # 요청한 사용자의 id를 created_by에 넣는다.
+        else: # 특정 개설과목 하위 목록에서 Create를 통해 Contest를 생성한 경우,
+            lecture = Lecture.objects.get(id=data["lecture_id"]) 
+            data["created_by"] = lecture.created_by # 해당 개설과목을 생성한 사용자의 user id를 추가한다.
         if data["end_time"] <= data["start_time"]:
             return self.error("Start time must occur earlier than end time")
         if data.get("password") and data["password"] == "":
