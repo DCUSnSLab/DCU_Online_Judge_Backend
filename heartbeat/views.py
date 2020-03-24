@@ -1,11 +1,19 @@
+import hashlib
+from options.options import SysOptions
+
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from django.contrib.auth.models import Permission
 from django.core.cache import cache
 from django.conf import settings
+from conf.models import JudgeServer
+from django.db.utils import OperationalError
+from redis.exceptions import ConnectionError
+
+from datetime import datetime, timedelta
 import logging
-#!/usr/bin/env python
 import psutil
+#!/usr/bin/env python
 
 logger = logging.getLogger("django.heartbeat")
 
@@ -28,7 +36,24 @@ class HeartBeatView(generics.GenericAPIView):
         #dict(psutil.virtual_memory()._asdict())
 
         output_data['cpu_percent'] = str(cpu)
-        output_data['memory'] = str(psutil.virtual_memory())
+        output_data['memory'] = str(psutil.virtual_memory().percent)
+        output_data['postgres'] = True
+        output_data['redis'] = True
+        output_data['judge_server'] = True
+
+        now = datetime.now()
+        output_data['current_time'] = str(now)
+
+        try: # 저지 서버의 마지막 heartbeat를 확인한다.
+            servers = JudgeServer.objects.all()
+            print(servers[0].last_heartbeat)
+            if (str(now) - servers[0].last_heartbeat).seconds > 10:
+                output_data['judge_server'] = False
+        except:
+            print("judge-server Not Exist")
+            output_data['judge_server'] = False
+
+
         try:
             Permission.objects.get(id = 1) #django permission. Should be always available
             cache.set('test', 1)
@@ -45,11 +70,27 @@ class HeartBeatView(generics.GenericAPIView):
             if extra_values:
                 for k, v in extra_values.iteritems():
                     output_data[k] = v()
-
-        except Exception:
-            logger.exception("Heartbeat Exception")
+        except OperationalError:
+            print("DB Error")
             output_status = status.HTTP_500_INTERNAL_SERVER_ERROR
             res = 'failed'
+            output_data['heartbeat'] = res
+            output_data['postgres'] = False
+            return Response(output_data, status=output_status)
+
+        except ConnectionError:
+            print("redis Error")
+            output_status = status.HTTP_500_INTERNAL_SERVER_ERROR
+            res = 'failed'
+            output_data['heartbeat'] = res
+            output_data['redis'] = False
+            return Response(output_data, status=output_status)
+
+#        except Exception as e:
+#            print(e)
+#            logger.exception("Heartbeat Exception")
+#            output_status = status.HTTP_500_INTERNAL_SERVER_ERROR
+#            res = 'failed'
 
         output_data['heartbeat'] = res
 
