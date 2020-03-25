@@ -9,6 +9,7 @@ from django.conf import settings
 from conf.models import JudgeServer
 from django.db.utils import OperationalError
 from redis.exceptions import ConnectionError
+from utils.api import APIView
 
 from datetime import datetime, timedelta
 import logging
@@ -17,7 +18,7 @@ import psutil
 
 logger = logging.getLogger("django.heartbeat")
 
-class HeartBeatView(generics.GenericAPIView):
+class HeartBeatView(APIView):
     permission_classes = (permissions.AllowAny,)
 
     def get(self, request, format=None):
@@ -76,7 +77,8 @@ class HeartBeatView(generics.GenericAPIView):
             res = 'failed'
             output_data['heartbeat'] = res
             output_data['postgres'] = False
-            return Response(output_data, status=output_status)
+            #return Response(output_data, status=output_status)
+            return self.success(output_data)
 
         except ConnectionError:
             print("redis Error")
@@ -84,7 +86,8 @@ class HeartBeatView(generics.GenericAPIView):
             res = 'failed'
             output_data['heartbeat'] = res
             output_data['redis'] = False
-            return Response(output_data, status=output_status)
+            #return Response(output_data, status=output_status)
+            return self.success(output_data)
 
 #        except Exception as e:
 #            print(e)
@@ -96,7 +99,8 @@ class HeartBeatView(generics.GenericAPIView):
 
         print(output_data)
 
-        return Response(output_data, status = output_status)
+        #return Response(output_data, status = output_status)
+        return self.success(output_data)
 
 
 class StaticHeartbeatView(generics.GenericAPIView):

@@ -108,7 +108,11 @@ class APIView(View):
         return self.error(err=f"invalid-{key}", msg=msg)
 
     def server_error(self):
-        return self.error(err="server-error", msg="server error")
+        self.server_error("")
+
+    def server_error(self, data):
+        return self.error(err=data, msg="server error")
+
 
     def paginate_data(self, request, query_set, object_serializer=None):
         """
@@ -154,7 +158,7 @@ class APIView(View):
             return self.error(**ret)
         except Exception as e:
             logger.exception(e)
-            return self.server_error()
+            return self.server_error(e)
 
 
 class CSRFExemptAPIView(APIView):
