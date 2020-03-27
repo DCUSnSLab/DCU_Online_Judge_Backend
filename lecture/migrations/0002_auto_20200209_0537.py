@@ -10,9 +10,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RenameField(
-            model_name='lecture',
-            old_name='created_by_id',
-            new_name='created_by',
-        ),
     ]
