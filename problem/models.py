@@ -1,6 +1,7 @@
 from django.db import models
 from utils.models import JSONField
 
+from lecture.models import Lecture
 from account.models import User
 from contest.models import Contest
 from utils.models import RichTextField
@@ -94,3 +95,18 @@ class Problem(models.Model):
     def add_ac_number(self):
         self.accepted_number = models.F("accepted_number") + 1
         self.save(update_fields=["accepted_number"])
+
+class Plag_Summary(models.Model):
+    lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE)
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
+    problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    summary = JSONField(default=list)
+
+class Plag_Result(models.Model):
+    lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE)
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
+    problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    plag_summary = models.ForeignKey(Plag_Summary, on_delete=models.CASCADE)
+    result = JSONField(default=list)
