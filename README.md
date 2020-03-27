@@ -41,7 +41,6 @@ pip install psutil
 - **데이터베이스는 백엔드 코드 각 app(account, contest 등..)폴더 내 models.py 파일로 관리됩니다.**
 
     - 따라서 oj-postgres 컨테이너 내 데이터베이스에 대한 직접 수정은 금합니다.
-ㅈ
     - manage.py 파일이 존재하는 경로
 
 ## Screenshots
