@@ -24,9 +24,13 @@ Main modules are available below:
 ## Dependency
 
 heartbeat 앱 동작을 위해 백엔드 컨테이너에 아래 라이브러리들의 설치가 필요함
+
 `apk add gcc`
+
 `apk add linux-headers`
+
 `apk add musl-dev`
+
 `pip install psutil`
 
 ## Installation
