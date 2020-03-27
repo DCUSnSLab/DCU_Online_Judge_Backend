@@ -10,9 +10,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='lecture',
-            name='password',
-            field=models.TextField(null=True),
-        ),
     ]

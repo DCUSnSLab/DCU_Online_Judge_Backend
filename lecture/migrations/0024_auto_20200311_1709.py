@@ -10,16 +10,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='lecture',
-            name='semester',
-            field=models.IntegerField(default=0),
-            preserve_default=False,
-        ),
-        migrations.AddField(
-            model_name='lecture',
-            name='year',
-            field=models.IntegerField(default=0),
-            preserve_default=False,
-        ),
     ]

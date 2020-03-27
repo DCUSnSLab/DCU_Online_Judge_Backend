@@ -10,9 +10,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='signup_class',
-            name='status',
-            field=models.BooleanField(default=False),
-        ),
     ]
