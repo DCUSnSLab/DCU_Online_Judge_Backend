@@ -21,6 +21,13 @@ Main modules are available below:
 + Judger Sandbox(Seccomp): [https://github.com/QingdaoU/Judger](https://github.com/QingdaoU/Judger)
 + JudgeServer(A wrapper for Judger): [https://github.com/QingdaoU/JudgeServer](https://github.com/QingdaoU/JudgeServer)
 
+## Dependency
+
+apk add gcc
+apk add linux-headers
+apk add musl-dev
+pip install psutil
+
 ## Installation
 
 [https://github.com/QingdaoU/OnlineJudgeDeploy/tree/2.0](https://github.com/QingdaoU/OnlineJudgeDeploy/tree/2.0)
