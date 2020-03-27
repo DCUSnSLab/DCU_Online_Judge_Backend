@@ -10,9 +10,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='lecture',
-            name='isapply',
-            field=models.BooleanField(default=False),
-        ),
     ]

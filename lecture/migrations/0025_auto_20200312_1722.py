@@ -10,14 +10,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='signup_class',
-            name='etc',
-            field=models.TextField(null=True),
-        ),
-        migrations.AddField(
-            model_name='signup_class',
-            name='score',
-            field=models.TextField(null=True),
-        ),
     ]

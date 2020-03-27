@@ -10,11 +10,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RenameField(
-            model_name='signup_class',
-            old_name='apply_user',
-            new_name='isallow',
-        ),
         migrations.AddField(
             model_name='lecture',
             name='isapply',

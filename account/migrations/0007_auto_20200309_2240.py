@@ -10,18 +10,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RenameField(
-            model_name='user',
-            old_name='student_id',
-            new_name='schoolssn',
-        ),
         migrations.RemoveField(
             model_name='user',
             name='isstudent',
-        ),
-        migrations.AddField(
-            model_name='user',
-            name='realname',
-            field=models.TextField(null=True),
-        ),
+        )
     ]
