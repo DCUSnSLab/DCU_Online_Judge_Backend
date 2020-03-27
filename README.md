@@ -23,10 +23,11 @@ Main modules are available below:
 
 ## Dependency
 
-apk add gcc
+heartbeat 앱 동작을 위해 아래 라이브러리가 필요함
+`apk add gcc
 apk add linux-headers
 apk add musl-dev
-pip install psutil
+pip install psutil`
 
 ## Installation
 
