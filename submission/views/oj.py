@@ -162,7 +162,10 @@ class ContestSubmissionListAPI(APIView):
             return self.error("Limit is needed")
 
         contest = self.contest
-        submissions = Submission.objects.filter(contest_id=contest.id).select_related("problem__created_by")
+        submissions = Submission.objects.filter(contest_id=contest.id).select_related("problem__created_by").select_related("user")
+        print("Test", submissions[0].user.realname)
+        print(submissions)
+
         problem_id = request.GET.get("problem_id")
         myself = request.GET.get("myself")
         result = request.GET.get("result")

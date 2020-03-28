@@ -1,3 +1,4 @@
+from utils.api import UsernameSerializer
 from .models import Submission
 from utils.api import serializers
 from utils.serializers import LanguageNameChoiceField
@@ -36,6 +37,7 @@ class SubmissionSafeModelSerializer(serializers.ModelSerializer):
 class SubmissionListSerializer(serializers.ModelSerializer):
     problem = serializers.SlugRelatedField(read_only=True, slug_field="_id")
     show_link = serializers.SerializerMethodField()
+    user = UsernameSerializer()
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
