@@ -103,7 +103,8 @@ class UserAdminAPI(APIView):
         if pre_username != user.username:
             Submission.objects.filter(username=pre_username).update(username=user.username)
 
-        UserProfile.objects.filter(user=user).update(real_name=data["real_name"])
+        # UserProfile.objects.filter(user=user).update(realname=data["realname"])
+        User.objects.filter(id=user.id).update(realname=data["realname"])
         return self.success(UserAdminSerializer(user).data)
 
     # @super_admin_required
