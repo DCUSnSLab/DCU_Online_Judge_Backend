@@ -103,7 +103,8 @@ class UserAdminAPI(APIView):
         if pre_username != user.username:
             Submission.objects.filter(username=pre_username).update(username=user.username)
 
-        UserProfile.objects.filter(user=user).update(real_name=data["real_name"])
+        # UserProfile.objects.filter(user=user).update(realname=data["realname"])
+        User.objects.filter(id=user.id).update(realname=data["realname"])
         return self.success(UserAdminSerializer(user).data)
 
     # @super_admin_required
@@ -129,7 +130,9 @@ class UserAdminAPI(APIView):
 
             #input Problem Structure in Lecture
             LectureInfo = ResLecture()
+            print("Problem List")
             for p in plist:
+                # print(p.id,p.title,p.visible)
                 LectureInfo.addProblem(p)
                 #print(p,p.title,p.contest)
 
@@ -138,8 +141,17 @@ class UserAdminAPI(APIView):
 
             for us in ulist:
 
-                if us.user is not None:
+                #inlit result values
+                us.tryProblem = 0
+                us.solveProblem = 0
+                us.totalScore = 0
+                us.avgScore = 0
+                us.progress = 0
+                us.totalProblem = 0
+                us.maxScore = 0
 
+                if us.user is not None:
+                    #print(us.user.id,us.user.realname)
                     #get data from db
                     ldates = sublist.filter(user=us.user).values('contest','problem').annotate(latest_created_at=Max('create_time'))
                     sdata = sublist.filter(create_time__in=ldates.values('latest_created_at')).order_by('-create_time')
@@ -147,19 +159,15 @@ class UserAdminAPI(APIView):
                     student = SubmitLecture(us, LectureInfo)
 
                     for submit in sdata:
+                        # if us.user.username == 'djg05105':
+                        #     print(submit.id, submit.problem_id, submit.problem.title, submit.result, submit.info)
                         student.addSubmission(submit)
 
                     us.tryProblem = student.submittedProblems
                     us.solveProblem = student.passedProblems
                     us.totalScore = student.totalscore
                     us.avgScore = student.average
-                    us.progress = student.progress
-                else:
-                    us.tryProblem = 0
-                    us.solveProblem = 0
-                    us.totalScore = 0
-                    us.avgScore = 0
-                    us.progress = 0
+                    us.progress = round(student.progress)
 
                 us.totalProblem = LectureInfo.numofProblems
                 us.maxScore = LectureInfo.totalscore
