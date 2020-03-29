@@ -140,6 +140,15 @@ class UserAdminAPI(APIView):
 
             for us in ulist:
 
+                #inlit result values
+                us.tryProblem = 0
+                us.solveProblem = 0
+                us.totalScore = 0
+                us.avgScore = 0
+                us.progress = 0
+                us.totalProblem = 0
+                us.maxScore = 0
+
                 if us.user is not None:
                     #print(us.user.id,us.user.realname)
                     #get data from db
@@ -157,13 +166,7 @@ class UserAdminAPI(APIView):
                     us.solveProblem = student.passedProblems
                     us.totalScore = student.totalscore
                     us.avgScore = student.average
-                    us.progress = student.progress
-                else:
-                    us.tryProblem = 0
-                    us.solveProblem = 0
-                    us.totalScore = 0
-                    us.avgScore = 0
-                    us.progress = 0
+                    us.progress = round(student.progress)
 
                 us.totalProblem = LectureInfo.numofProblems
                 us.maxScore = LectureInfo.totalscore

@@ -22,6 +22,12 @@ class ResLecture:
             self.totalscore += problem.total_score
             self.numofProblems += 1
 
+    def getContestInfo(self, cid):
+        return self.contests[cid]
+
+    def getProblemInfo(self, cid, pid):
+        return self.contests[cid].problems[pid]
+
 class ResContest:
     title = ""
     id = -1
@@ -85,7 +91,7 @@ class SubmitLecture:
 
 
     def addSubmission(self, submission):
-        proinfo = self.LectureInfo.contests[submission.contest_id].problems[submission.problem_id]
+        proinfo = self.LectureInfo.getProblemInfo(cid=submission.contest_id, pid=submission.problem_id)
         if proinfo.isvisible is True:
             cid = submission.contest_id
             sid = submission.problem_id
@@ -103,9 +109,8 @@ class SubmitLecture:
 
 
             if self.totalProblems != 0:
-                self.average = self.totalscore / self.totalProblems
+                self.average = round(self.totalscore / self.totalProblems,2)
                 self.progress = self.submittedProblems / self.totalProblems * 100
-
 
 class SubmitContest:
     id = -1
