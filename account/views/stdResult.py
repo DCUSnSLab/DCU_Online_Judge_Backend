@@ -1,6 +1,6 @@
 from problem.models import Problem
 from contest.models import Contest
-from submission.models import Submission
+from submission.models import Submission, JudgeStatus
 from lecture.models import Lecture, signup_class
 
 class ResLecture:
@@ -18,9 +18,15 @@ class ResLecture:
 
         self.contests[cid].addProblem(problem)
 
-        self.totalscore += problem.total_score
-        self.numofProblems += 1
+        if problem.visible is True:
+            self.totalscore += problem.total_score
+            self.numofProblems += 1
 
+    def getContestInfo(self, cid):
+        return self.contests[cid]
+
+    def getProblemInfo(self, cid, pid):
+        return self.contests[cid].problems[pid]
 
 class ResContest:
     title = ""
@@ -47,7 +53,7 @@ class ResContest:
 
 class ResProblem:
     score = 0
-
+    isvisible = False
     def __init__(self, problem):
         self.myproblem = None
         self.migrateProblem(problem)
@@ -55,6 +61,7 @@ class ResProblem:
     def migrateProblem(self, problem):
         self.myproblem = problem
         self.score = problem.total_score
+        self.isvisible = problem.visible
 
     def getProblemID(self):
         return self.myproblem.id
@@ -84,25 +91,26 @@ class SubmitLecture:
 
 
     def addSubmission(self, submission):
-        cid = submission.contest_id
-        sid = submission.problem_id
+        proinfo = self.LectureInfo.getProblemInfo(cid=submission.contest_id, pid=submission.problem_id)
+        if proinfo.isvisible is True:
+            cid = submission.contest_id
+            sid = submission.problem_id
 
-        if cid not in self.contests:
-            self.contests[cid] = SubmitContest(submission)
+            if cid not in self.contests:
+                self.contests[cid] = SubmitContest(submission)
 
-        self.passedProblems -= self.contests[cid].passedProblems
+            self.passedProblems -= self.contests[cid].passedProblems
 
-        self.contests[cid].addProblem(submission)
+            self.contests[cid].addProblem(submission)
 
-        self.submittedProblems += 1
-        self.totalscore += self.contests[cid].problems[sid].myscore
-        self.passedProblems += self.contests[cid].passedProblems
+            self.submittedProblems += 1
+            self.totalscore += self.contests[cid].problems[sid].myscore
+            self.passedProblems += self.contests[cid].passedProblems
 
 
-        if self.totalProblems != 0:
-            self.average = self.totalscore / self.totalProblems
-            self.progress = self.submittedProblems / self.totalProblems * 100
-
+            if self.totalProblems != 0:
+                self.average = round(self.totalscore / self.totalProblems,2)
+                self.progress = self.submittedProblems / self.totalProblems * 100
 
 class SubmitContest:
     id = -1
@@ -141,12 +149,10 @@ class SubmitProblem:
         Json = submission.info
 
         if Json:  # 해당 사용자의 submit 이력이 있는 경우 (Submission에 사용자의 id값이 포함된 값이 있는 경우)
-            jsondata = Json['data'][0]
-            if jsondata['result'] == 0:
+            for jsondata in Json['data']:
                 self.myscore += jsondata['score']
 
-
-        if self.myscore == 100:
+        if submission.result == JudgeStatus.ACCEPTED:
             self.ispassed = True
 
     def getProblemID(self):

@@ -20,3 +20,20 @@ class SubmissionRejudgeAPI(APIView):
 
         judge_task.send(submission.id, submission.problem.id)
         return self.success()
+
+class SubmissionUpdater(APIView):
+    @super_admin_required
+    def get(self, request):
+        subb = Submission.objects.all()
+
+        i = 0
+        for sub in subb:
+            if sub.contest_id is not None and sub.lecture_id is None:
+                sub.lecture_id = sub.contest.lecture_id
+                sub.save()
+                print(i, sub.problem.title, sub.contest_id, sub.lecture_id, sub.contest.lecture_id)
+
+            #if i % 100 == 0:
+            #    print(i,sub.id,sub.problem.title)
+            i+=1
+        return self.success()
