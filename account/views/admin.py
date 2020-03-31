@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import xlsxwriter
 
 from django.db import transaction, IntegrityError
@@ -11,18 +10,16 @@ from django.contrib.auth.hashers import make_password
 from submission.models import Submission
 from utils.api import APIView, validate_serializer
 from utils.shortcuts import rand_str
-from lecture.models import Lecture, signup_class
-from contest.models import Contest
+from lecture.models import signup_class
 from problem.models import Problem
 
 from ..decorators import super_admin_required
 from ..models import AdminType, ProblemPermission, User, UserProfile
 from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserSerializer
 from ..serializers import ImportUserSeralizer, SignupSerializer
-from lecture.serializers import SignupClassSerializer
 from django.db.models import Max
-from django.db.models import F
-from account.views.stdResult import ResContest, ResProblem, ResLecture, SubmitLecture, SubmitContest, SubmitProblem
+from lecture.views.stdResult import RefLecture, SubmitLecture
+
 
 class UserAdminAPI(APIView):
     @validate_serializer(ImportUserSeralizer)
@@ -120,7 +117,7 @@ class UserAdminAPI(APIView):
         if lecture_id: # 특정 수강과목을 수강중인 학생 리스트업 하는 경우
             try:
                 ulist = signup_class.objects.filter(lecture=lecture_id).select_related('lecture').order_by("realname") # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
-
+                ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
             except signup_class.DoesNotExist:
                 return self.error("수강중인 학생이 없습니다.")
 
@@ -129,8 +126,8 @@ class UserAdminAPI(APIView):
             plist = Problem.objects.filter(contest__lecture=lecture_id).prefetch_related('contest')
 
             #input Problem Structure in Lecture
-            LectureInfo = ResLecture()
-            print("Problem List")
+            LectureInfo = RefLecture()
+            #print("Problem List")
             for p in plist:
                 # print(p.id,p.title,p.visible)
                 LectureInfo.addProblem(p)
@@ -160,13 +157,13 @@ class UserAdminAPI(APIView):
 
                     for submit in sdata:
                         # if us.user.username == 'djg05105':
-                        #     print(submit.id, submit.problem_id, submit.problem.title, submit.result, submit.info)
+                        #     print(submit.id, submit.problem_id, submit.problem.title, submit.result)
                         student.addSubmission(submit)
 
                     us.tryProblem = student.submittedProblems
                     us.solveProblem = student.passedProblems
                     us.totalScore = student.totalscore
-                    us.avgScore = student.average
+                    us.avgScore = student.problemAverage
                     us.progress = round(student.progress)
 
                 us.totalProblem = LectureInfo.numofProblems
