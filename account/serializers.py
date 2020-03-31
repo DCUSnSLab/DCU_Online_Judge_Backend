@@ -77,7 +77,7 @@ class SignupSerializer(serializers.ModelSerializer):
     tryProblem = serializers.IntegerField()
     totalScore = serializers.IntegerField()
     maxScore = serializers.IntegerField()
-    avgScore = serializers.IntegerField()
+    avgScore = serializers.FloatField()
     progress = serializers.FloatField()
 
     class Meta:
