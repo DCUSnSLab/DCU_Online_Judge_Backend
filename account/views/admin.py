@@ -7,6 +7,7 @@ from django.db.models import Q
 from django.http import HttpResponse
 from django.contrib.auth.hashers import make_password
 
+from lecture.views.LectureAnalysis import LectureAnalysis
 from submission.models import Submission
 from utils.api import APIView, validate_serializer
 from utils.shortcuts import rand_str
@@ -123,6 +124,9 @@ class UserAdminAPI(APIView):
 
             #collect lecture info
             plist = Problem.objects.filter(contest__lecture=lecture_id).prefetch_related('contest')
+
+            #test
+            linfo = LectureAnalysis()
 
             #input Problem Structure in Lecture
             LectureInfo = RefLecture()
