@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.http import HttpResponse
 from django.contrib.auth.hashers import make_password
 
-from lecture.views.LectureAnalysis import LectureAnalysis
+from lecture.views.LectureAnalysis import LectureAnalysis, DataType
 from submission.models import Submission
 from utils.api import APIView, validate_serializer
 from utils.shortcuts import rand_str
@@ -126,19 +126,31 @@ class UserAdminAPI(APIView):
             plist = Problem.objects.filter(contest__lecture=lecture_id).prefetch_related('contest')
 
             #test
-            linfo = LectureAnalysis()
-
-            #input Problem Structure in Lecture
-            LectureInfo = RefLecture()
-            #print("Problem List")
+            LectureInfo = LectureAnalysis()
             for p in plist:
                 # print(p.id,p.title,p.visible)
-                LectureInfo.addProblem(p)
-                #print(p,p.title,p.contest)
+                LectureInfo.migrateProblem(p)
+
+            print("Print Lecture Info :",LectureInfo.Info.data[DataType.NUMOFCONTENTS], LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS])
+            for key in LectureInfo.contAnalysis.keys():
+                print("Contest Type :",key)
+                contA = LectureInfo.contAnalysis[key]
+                print("Inform :",contA.Info.data[DataType.POINT]
+                      , contA.Info.data[DataType.NUMOFCONTENTS], contA.Info.data[DataType.NUMOFTOTALPROBLEMS]
+                      , "/",contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS])
+
+                # for cont in contA.contests:
+                #     print(cont.title,":",cont.Info.point, cont.Info.numofContents)
+
+            # LectureInfo = RefLecture()
+            # for p in plist:
+            #     #print(p.id,p.title,p.visible)
+            #     LectureInfo.addProblem(p)
+            #     #print(p,p.title,p.contest)
 
             #get Submission
             sublist = Submission.objects.filter(lecture=lecture_id)
-
+            cnt = 0
             for us in ulist:
 
                 #inlit result values
@@ -155,22 +167,23 @@ class UserAdminAPI(APIView):
                     #get data from db
                     ldates = sublist.filter(user=us.user).values('contest','problem').annotate(latest_created_at=Max('create_time'))
                     sdata = sublist.filter(create_time__in=ldates.values('latest_created_at')).order_by('-create_time')
-
-                    student = SubmitLecture(us, LectureInfo)
-
+                    LectureInfo.cleanDataForScorebard()
                     for submit in sdata:
                         # if us.user.username == 'djg05105':
                         #     print(submit.id, submit.problem_id, submit.problem.title, submit.result)
-                        student.addSubmission(submit)
 
-                    us.tryProblem = student.submittedProblems
-                    us.solveProblem = student.passedProblems
-                    us.totalScore = student.totalscore
-                    us.avgScore = student.problemAverage
-                    us.progress = round(student.progress)
+                        LectureInfo.associateSubmission(submit)
 
-                us.totalProblem = LectureInfo.numofProblems
-                us.maxScore = LectureInfo.totalscore
+                    us.tryProblem = LectureInfo.Info.data[DataType.NUMOFTOTALSUBPROBLEMS]
+                    us.solveProblem = LectureInfo.Info.data[DataType.NUMOFTOTALSOLVEDPROBLEMS]
+                    us.totalScore = LectureInfo.Info.data[DataType.SCORE]
+                    us.avgScore = LectureInfo.Info.data[DataType.TOTALAVERAGE]
+                    us.progress = 0#round(student.progress)
+
+                us.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]
+                us.maxScore = LectureInfo.Info.data[DataType.POINT]
+
+                cnt += 1
 
             return self.success(self.paginate_data(request, ulist, SignupSerializer))
 
