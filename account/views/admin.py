@@ -133,11 +133,18 @@ class UserAdminAPI(APIView):
 
             print("Print Lecture Info :",LectureInfo.Info.data[DataType.NUMOFCONTENTS], LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS])
             for key in LectureInfo.contAnalysis.keys():
-                print("Contest Type :",key)
+                print("Contest Type :",key, end=" - ")
                 contA = LectureInfo.contAnalysis[key]
                 print("Inform :",contA.Info.data[DataType.POINT]
                       , contA.Info.data[DataType.NUMOFCONTENTS], contA.Info.data[DataType.NUMOFTOTALPROBLEMS]
                       , "/",contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS])
+
+                for cont in contA.contests.values():
+                    print("-- Contest - ",cont.title,":",cont.Info.data[DataType.POINT], cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.ISVISIBLE])
+
+                    for prob in cont.problems.values():
+                        print("----- Prob - ", prob.Id, ":", prob.Info.data[DataType.POINT],
+                              prob.Info.data[DataType.NUMOFCONTENTS], prob.Info.data[DataType.ISVISIBLE])
 
                 # for cont in contA.contests:
                 #     print(cont.title,":",cont.Info.point, cont.Info.numofContents)
@@ -177,7 +184,7 @@ class UserAdminAPI(APIView):
                     us.tryProblem = LectureInfo.Info.data[DataType.NUMOFTOTALSUBPROBLEMS]
                     us.solveProblem = LectureInfo.Info.data[DataType.NUMOFTOTALSOLVEDPROBLEMS]
                     us.totalScore = LectureInfo.Info.data[DataType.SCORE]
-                    us.avgScore = LectureInfo.Info.data[DataType.TOTALAVERAGE]
+                    us.avgScore = round(LectureInfo.Info.data[DataType.TOTALAVERAGE],2)
                     us.progress = 0#round(student.progress)
 
                 us.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]

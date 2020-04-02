@@ -66,6 +66,16 @@ class Information:
             else:
                 self.data[dtype] = 0
 
+    def clone(self):
+        cinfo = Information()
+        for dtype in DataType.numericTypeList:
+            cinfo.data[dtype] = self.data[dtype]
+
+        for dtype in DataType.booleanTypeList:
+            cinfo.data[dtype] = self.data[dtype]
+
+        return cinfo
+
 class LectureAnalysis:
     id = -1
     title = ""
@@ -220,14 +230,15 @@ class RefProblem():
         self.Info.data[DataType.ISVISIBLE] = problem.visible
         self.Info.data[DataType.NUMOFCONTENTS] = 1
         self.Info.data[DataType.NUMOFTOTALPROBLEMS] = 1
-        self.pcontest.reCalInfo(self.Info)
+        cinfo = self.Info.clone()
+        self.pcontest.reCalInfo(cinfo)
 
     def associateSubmission(self, submission):
         self.mysubmission = submission
 
         Json = submission.info
 
-        if Json:  # 해당 사용자의 submit 이력이 있는 경우 (Submission에 사용자의 id값이 포함된 값이 있는 경우)
+        if Json:
             for jsondata in Json['data']:
                 self.Info.data[DataType.SCORE] += jsondata['score']
 
@@ -242,6 +253,7 @@ class RefProblem():
         cinfo = self.cloneInfoForSubmit(self.Info)
         self.pcontest.reCalInfo(cinfo)
 
+    #need to modify
     def cloneInfoForSubmit(self, origin):
         info = Information()
         info.data[DataType.ISPASSED] = origin.data[DataType.ISPASSED]
