@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.http import HttpResponse
 from django.contrib.auth.hashers import make_password
 
-from lecture.views.LectureAnalysis import LectureAnalysis, DataType
+from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType
 from submission.models import Submission
 from utils.api import APIView, validate_serializer
 from utils.shortcuts import rand_str
@@ -131,20 +131,20 @@ class UserAdminAPI(APIView):
                 # print(p.id,p.title,p.visible)
                 LectureInfo.migrateProblem(p)
 
-            print("Print Lecture Info :",LectureInfo.Info.data[DataType.NUMOFCONTENTS], LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS])
-            for key in LectureInfo.contAnalysis.keys():
-                print("Contest Type :",key, end=" - ")
-                contA = LectureInfo.contAnalysis[key]
-                print("Inform :",contA.Info.data[DataType.POINT]
-                      , contA.Info.data[DataType.NUMOFCONTENTS], contA.Info.data[DataType.NUMOFTOTALPROBLEMS]
-                      , "/",contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS])
-
-                for cont in contA.contests.values():
-                    print("-- Contest - ",cont.title,":",cont.Info.data[DataType.POINT], cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.ISVISIBLE])
-
-                    for prob in cont.problems.values():
-                        print("----- Prob - ", prob.Id, ":", prob.Info.data[DataType.POINT],
-                              prob.Info.data[DataType.NUMOFCONTENTS], prob.Info.data[DataType.ISVISIBLE])
+            # print("Print Lecture Info :",LectureInfo.Info.data[DataType.NUMOFCONTENTS], LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS])
+            # for key in LectureInfo.contAnalysis.keys():
+            #     print("Contest Type :",key, end=" - ")
+            #     contA = LectureInfo.contAnalysis[key]
+            #     print("Inform :",contA.Info.data[DataType.POINT]
+            #           , contA.Info.data[DataType.NUMOFCONTENTS], contA.Info.data[DataType.NUMOFTOTALPROBLEMS]
+            #           , "/",contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS])
+            #
+            #     for cont in contA.contests.values():
+            #         print("-- Contest - ",cont.title,":",cont.Info.data[DataType.POINT], cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.ISVISIBLE])
+            #
+            #         for prob in cont.problems.values():
+            #             print("----- Prob - ", prob.Id, ":", prob.Info.data[DataType.POINT],
+            #                   prob.Info.data[DataType.NUMOFCONTENTS], prob.Info.data[DataType.ISVISIBLE])
 
                 # for cont in contA.contests:
                 #     print(cont.title,":",cont.Info.point, cont.Info.numofContents)
@@ -161,6 +161,14 @@ class UserAdminAPI(APIView):
             for us in ulist:
 
                 #inlit result values
+                us.totalPractice = 0
+                us.subPractice = 0
+                us.solvePractice = 0
+
+                us.totalAssign = 0
+                us.subAssign = 0
+                us.solveAssign = 0
+
                 us.tryProblem = 0
                 us.solveProblem = 0
                 us.totalScore = 0
@@ -181,11 +189,39 @@ class UserAdminAPI(APIView):
 
                         LectureInfo.associateSubmission(submit)
 
+                    us.totalPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFCONTENTS]
+                    us.subPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSUBCONTENTS]
+                    us.solvePractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSOLVEDCONTENTS]
+
+                    us.totalAssign = LectureInfo.contAnalysis[ContestType.ASSIGN].Info.data[DataType.NUMOFCONTENTS]
+                    us.subAssign = LectureInfo.contAnalysis[ContestType.ASSIGN].Info.data[DataType.NUMOFSUBCONTENTS]
+                    us.solveAssign = LectureInfo.contAnalysis[ContestType.ASSIGN].Info.data[DataType.NUMOFSOLVEDCONTENTS]
+
                     us.tryProblem = LectureInfo.Info.data[DataType.NUMOFTOTALSUBPROBLEMS]
                     us.solveProblem = LectureInfo.Info.data[DataType.NUMOFTOTALSOLVEDPROBLEMS]
                     us.totalScore = LectureInfo.Info.data[DataType.SCORE]
-                    us.avgScore = round(LectureInfo.Info.data[DataType.TOTALAVERAGE],2)
-                    us.progress = 0#round(student.progress)
+                    us.avgScore = LectureInfo.Info.data[DataType.AVERAGE]
+                    us.progress = LectureInfo.Info.data[DataType.PROGRESS]
+
+                    #Test Print
+                    # print()
+                    # print(us.user.realname, " Student Info - ", LectureInfo.Info.data[DataType.PROGRESS],"%",sep="")
+                    # for key in LectureInfo.contAnalysis.keys():
+                    #     print("Contest Type :", key, end=" - ")
+                    #     contA = LectureInfo.contAnalysis[key]
+                    #     print("Inform :", contA.Info.data[DataType.POINT], contA.Info.data[DataType.NUMOFCONTENTS]
+                    #           ,"[",contA.Info.data[DataType.NUMOFTOTALPROBLEMS]
+                    #           , "/", contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS]
+                    #           , "/", contA.Info.data[DataType.NUMOFTOTALSOLVEDPROBLEMS], "]"
+                    #           , "sub :",contA.Info.data[DataType.SCORE], contA.Info.data[DataType.AVERAGE]
+                    #           ," -PROG:",contA.Info.data[DataType.PROGRESS])
+                    #
+                    #     for cont in contA.contests.values():
+                    #         print("-- Contest - ", cont.title, ":", cont.Info.data[DataType.POINT],
+                    #               cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.ISVISIBLE]
+                    #               ,"sub:",cont.Info.data[DataType.SCORE], cont.Info.data[DataType.AVERAGE]
+                    #               ," -PROG:",cont.Info.data[DataType.PROGRESS])
+
 
                 us.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]
                 us.maxScore = LectureInfo.Info.data[DataType.POINT]

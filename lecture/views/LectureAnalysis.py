@@ -9,23 +9,33 @@ class DataType(object):
     NUMOFSOLVEDCONTENTS = 'numofSolvedContent'
     NUMOFSUBCONTENTS = 'numofSubmitContent'
     NUMOFCONTENTS = "numofcontents"
-    AVERAGE = "average"
 
     NUMOFTOTALSOLVEDPROBLEMS = 'numofTotalSolvedProblems'
     NUMOFTOTALSUBPROBLEMS = 'numofTotalSubmitProblems'
     NUMOFTOTALPROBLEMS = 'numOfTotalProblems'
-    TOTALAVERAGE = 'totalAverage'
+
+    AVERAGE = "average"
+
+    PROGRESS = "progress"
+
     ISSUBMITTED = 'isSubmitted'
     ISPASSED = 'isPassed'
     ISVISIBLE = 'isVisible'
 
-    numericTypeList = [POINT, SCORE, NUMOFCONTENTS, AVERAGE, NUMOFTOTALPROBLEMS, TOTALAVERAGE
+    #Initialization
+    numericTypeList = [POINT, SCORE, NUMOFCONTENTS, AVERAGE, PROGRESS, NUMOFTOTALPROBLEMS
         , NUMOFSUBCONTENTS, NUMOFTOTALSUBPROBLEMS, NUMOFSOLVEDCONTENTS, NUMOFTOTALSOLVEDPROBLEMS]
     booleanTypeList = [ISSUBMITTED, ISPASSED, ISVISIBLE]
+
+    #Conditional
     RefreshList = [POINT, SCORE, NUMOFCONTENTS, NUMOFTOTALPROBLEMS
         , NUMOFSUBCONTENTS, NUMOFTOTALSUBPROBLEMS, NUMOFSOLVEDCONTENTS, NUMOFTOTALSOLVEDPROBLEMS]
-    ScoreBoardClearList = [SCORE, AVERAGE, TOTALAVERAGE, ISSUBMITTED, ISPASSED, NUMOFSUBCONTENTS
+    ScoreBoardClearList = [SCORE, AVERAGE, PROGRESS, ISSUBMITTED, ISPASSED, NUMOFSUBCONTENTS
         , NUMOFTOTALSUBPROBLEMS, NUMOFSOLVEDCONTENTS, NUMOFTOTALSOLVEDPROBLEMS]
+
+    #for Problem Clean
+    problemSubmitExceptList = [POINT, NUMOFCONTENTS, AVERAGE, PROGRESS
+        , NUMOFTOTALPROBLEMS]
 
 class ContestType(object):
     PRACTICE = "실습"
@@ -47,20 +57,26 @@ class Information:
     def reCalInfo(self, pinfo):
         for dtype in DataType.RefreshList:
             self.data[dtype] += pinfo.data[dtype]
+        #round(self.totalscore * 100 / self.LectureInfo.totalscore, 2)
+        self.data[DataType.AVERAGE] = self.calAverage(self.data[DataType.SCORE], self.data[DataType.POINT])
 
-        self.data[DataType.AVERAGE] = self.calAverage(self.data[DataType.SCORE], self.data[DataType.NUMOFCONTENTS])
-        self.data[DataType.TOTALAVERAGE] = self.calAverage(self.data[DataType.SCORE], self.data[DataType.NUMOFTOTALPROBLEMS])
+        #cal progress
+        if self.data[DataType.NUMOFTOTALPROBLEMS] != 0:
+            self.data[DataType.PROGRESS] = round(self.data[DataType.NUMOFTOTALSUBPROBLEMS] / self.data[DataType.NUMOFTOTALPROBLEMS] * 100, 2)
 
-    def calAverage(self, sum, cnt):
+    def calAverage(self, sum, totalScore):
         average = 0
-        if cnt != 0:
-            average = sum / cnt;
+        if totalScore != 0:
+            average = round(sum * 100 / totalScore, 2)
         else:
             average = 0
         return average
 
     def cleanForScoreboard(self):
-        for dtype in DataType.ScoreBoardClearList:
+        self.cleanForScoreboardbyList(DataType.ScoreBoardClearList)
+
+    def cleanForScoreboardbyList(self, dTypeList):
+        for dtype in dTypeList:
             if str(type(self.data[dtype])) == "<class 'bool'>":
                 self.data[dtype] = False
             else:
@@ -165,6 +181,8 @@ class ResContest:
     Id = -1
     title = ""
     IS_NewContest = False
+    solveCount = 0
+    isSubmitted = False
 
     def __init__(self, contest, contA):
         self.contAnalysis = contA
@@ -179,8 +197,10 @@ class ResContest:
         self.Info.data[DataType.ISVISIBLE] = contest.visible
 
     def migrateproblem(self, problem):
-        inprob = RefProblem(problem, self)
-        self.problems[inprob.Id] = inprob
+        if problem.visible is True:
+            inprob = RefProblem(problem, self)
+            self.problems[inprob.Id] = inprob
+            self.solveCount += 1
 
     def reCalInfo(self, pinfo):
         if self.Info.data[DataType.ISVISIBLE] is True:
@@ -193,8 +213,26 @@ class ResContest:
                 pinfo.data[DataType.NUMOFCONTENTS] = 0
 
             #if all problems of contest have been solved, please count solved contest as below
+            self.checkContestStatus(pinfo)
+
 
             self.contAnalysis.reCalInfo(pinfo)
+
+    def checkContestStatus(self, pinfo):
+        pinfo.data[DataType.NUMOFSUBCONTENTS] = 0
+        pinfo.data[DataType.NUMOFSOLVEDCONTENTS] = 0
+
+        #Submit Check
+        if pinfo.data[DataType.ISSUBMITTED] is True and self.isSubmitted is False:
+            pinfo.data[DataType.NUMOFSUBCONTENTS] = 1
+            self.isSubmitted = True
+
+        #Solved Check
+        if pinfo.data[DataType.ISPASSED] is True:
+            self.solveCount -= 1
+
+        if self.solveCount == 0:
+            pinfo.data[DataType.NUMOFSOLVEDCONTENTS] = 1
 
     def typeSelector(self, dbtype):
         if dbtype == ContestType.ASSIGN:
@@ -209,6 +247,8 @@ class ResContest:
             subprob.associateSubmission(submission)
 
     def cleanDataForScorebard(self):
+        self.isSubmitted = False
+        self.solveCount = len(self.problems)
         self.Info.cleanForScoreboard()
         for po in self.problems.values():
             po.cleanDataForScorebard()
@@ -249,21 +289,15 @@ class RefProblem():
 
         self.Info.data[DataType.NUMOFTOTALSUBPROBLEMS] = 1
         self.Info.data[DataType.NUMOFSUBCONTENTS] = 1
-
-        cinfo = self.cloneInfoForSubmit(self.Info)
+        self.Info.data[DataType.ISSUBMITTED] = True
+        #cinfo = self.cloneInfoForSubmit(self.Info)
+        cinfo = self.Info.clone()
+        self.CleanforSubmit(cinfo)
         self.pcontest.reCalInfo(cinfo)
 
     #need to modify
-    def cloneInfoForSubmit(self, origin):
-        info = Information()
-        info.data[DataType.ISPASSED] = origin.data[DataType.ISPASSED]
-        info.data[DataType.ISVISIBLE] = origin.data[DataType.ISVISIBLE]
-        info.data[DataType.SCORE] = origin.data[DataType.SCORE]
-        info.data[DataType.NUMOFTOTALSUBPROBLEMS] = origin.data[DataType.NUMOFTOTALSUBPROBLEMS]
-        info.data[DataType.NUMOFSUBCONTENTS] = origin.data[DataType.NUMOFSUBCONTENTS]
-        info.data[DataType.NUMOFSOLVEDCONTENTS] = origin.data[DataType.NUMOFSOLVEDCONTENTS]
-        info.data[DataType.NUMOFTOTALSOLVEDPROBLEMS] = origin.data[DataType.NUMOFTOTALSOLVEDPROBLEMS]
-        return info
+    def CleanforSubmit(self, origin):
+        origin.cleanForScoreboardbyList(DataType.problemSubmitExceptList)
 
     def cleanDataForScorebard(self):
         self.Info.cleanForScoreboard()

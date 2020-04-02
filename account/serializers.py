@@ -72,6 +72,12 @@ class UserSerializer(serializers.ModelSerializer):
 class SignupSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     lecture = LectureSerializer()
+    totalPractice = serializers.IntegerField()
+    subPractice = serializers.IntegerField()
+    solvePractice = serializers.IntegerField()
+    totalAssign = serializers.IntegerField()
+    subAssign = serializers.IntegerField()
+    solveAssign = serializers.IntegerField()
     totalProblem = serializers.IntegerField() # 시리얼라이저에 변수 명, 데이터형 명시하여 값을 전달할 수 있음
     solveProblem = serializers.IntegerField()
     tryProblem = serializers.IntegerField()
