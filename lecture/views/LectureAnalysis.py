@@ -34,8 +34,7 @@ class DataType(object):
         , NUMOFTOTALSUBPROBLEMS, NUMOFSOLVEDCONTENTS, NUMOFTOTALSOLVEDPROBLEMS]
 
     #for Problem Clean
-    problemSubmitExceptList = [POINT, NUMOFCONTENTS, AVERAGE, PROGRESS
-        , NUMOFTOTALPROBLEMS]
+    problemSubmitExceptList = [POINT, NUMOFCONTENTS, AVERAGE, PROGRESS, NUMOFTOTALPROBLEMS]
 
 class ContestType(object):
     PRACTICE = "실습"
@@ -152,7 +151,7 @@ class ContestAnalysis:
         resCont = None
         if cid not in self.contests:
             resCont = self.addContest(ResContest(contest, self), cid)
-            print("Add Contest :",resCont.id,resCont.title)
+            #print("Add Contest :",resCont.id,resCont.title)
         else:
             resCont = self.contests[cid]
 
