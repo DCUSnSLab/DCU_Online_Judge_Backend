@@ -58,9 +58,9 @@ class TakingLectureListAPI(APIView):
         sortsubj = data.get("subjSort")
         sortprof = data.get("profSort")
 
-        print(sortyear)
-        print(sortsubj)
-        print(sortprof)
+        print("year",sortyear)
+        print("subj",sortsubj)
+        print("prof",sortprof)
 
         if not request.user.is_authenticated:
             return self.error("로그인 후 사용 가능합니다.")
@@ -75,13 +75,11 @@ class TakingLectureListAPI(APIView):
                 if sortyear == '1':
                     print("sorted")
                     signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct('lecture_id')
-                    for signup in signuplist:
-                        print("Title ", signup.lecture.year)
                 else:
                     print("normal")
                     signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct('lecture_id')
                 for signup in signuplist:
-                    print("Test ",signup.lecture.title, signup.lecture.id)
+                    print("Test ",signup.lecture.title, signup.lecture.id, signup.lecture.year)
                     signup.isallow = True
 
                 return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))

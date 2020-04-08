@@ -42,6 +42,7 @@ class ContestAdminSerializer(serializers.ModelSerializer):
 
 
 class ContestSerializer(ContestAdminSerializer):
+    lecture_title = serializers.CharField(allow_blank=True, allow_null=True)
     class Meta:
         model = Contest
         exclude = ("password", "allowed_ip_ranges")
