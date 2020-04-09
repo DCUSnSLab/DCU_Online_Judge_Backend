@@ -23,8 +23,10 @@ class DataType(object):
     ISVISIBLE = 'isVisible'
 
     #Initialization
-    numericTypeList = [POINT, SCORE, NUMOFCONTENTS, AVERAGE, PROGRESS, NUMOFTOTALPROBLEMS
-        , NUMOFSUBCONTENTS, NUMOFTOTALSUBPROBLEMS, NUMOFSOLVEDCONTENTS, NUMOFTOTALSOLVEDPROBLEMS]
+    dataTypeList = [POINT, SCORE, NUMOFCONTENTS, AVERAGE, PROGRESS, NUMOFTOTALPROBLEMS
+        , NUMOFSUBCONTENTS, NUMOFTOTALSUBPROBLEMS, NUMOFSOLVEDCONTENTS, NUMOFTOTALSOLVEDPROBLEMS, ISSUBMITTED, ISPASSED, ISVISIBLE]
+    # numericTypeList = [POINT, SCORE, NUMOFCONTENTS, AVERAGE, PROGRESS, NUMOFTOTALPROBLEMS
+    #     , NUMOFSUBCONTENTS, NUMOFTOTALSUBPROBLEMS, NUMOFSOLVEDCONTENTS, NUMOFTOTALSOLVEDPROBLEMS]
     booleanTypeList = [ISSUBMITTED, ISPASSED, ISVISIBLE]
 
     #Conditional
@@ -47,11 +49,7 @@ class Information:
         self.initData()
 
     def initData(self):
-        for dtype in DataType.numericTypeList:
-            self.data[dtype] = 0
-
-        for dtype in DataType.booleanTypeList:
-            self.data[dtype] = 0
+        self.cleanDatabyList(DataType.dataTypeList)
 
     def reCalInfo(self, pinfo):
         for dtype in DataType.RefreshList:
@@ -72,21 +70,24 @@ class Information:
         return average
 
     def cleanForScoreboard(self):
-        self.cleanForScoreboardbyList(DataType.ScoreBoardClearList)
+        self.cleanDatabyList(DataType.ScoreBoardClearList)
 
-    def cleanForScoreboardbyList(self, dTypeList):
-        for dtype in dTypeList:
-            if str(type(self.data[dtype])) == "<class 'bool'>":
-                self.data[dtype] = False
-            else:
+    def cleanDatabyList(self, dTypeList):
+        if len(self.data) == 0:
+            for dtype in dTypeList:
                 self.data[dtype] = 0
+            for dtype in DataType.booleanTypeList:
+                self.data[dtype] = False
+        else:
+            for dtype in dTypeList:
+                if str(type(self.data[dtype])) == "<class 'bool'>":
+                    self.data[dtype] = False
+                else:
+                    self.data[dtype] = 0
 
     def clone(self):
         cinfo = Information()
-        for dtype in DataType.numericTypeList:
-            cinfo.data[dtype] = self.data[dtype]
-
-        for dtype in DataType.booleanTypeList:
+        for dtype in DataType.dataTypeList:
             cinfo.data[dtype] = self.data[dtype]
 
         return cinfo
@@ -136,6 +137,59 @@ class LectureAnalysis:
         for ca in self.contAnalysis.values():
             ca.cleanDataForScorebard()
 
+    def toDict(self):
+        ldict = dict()
+        ldict[LectureDictionaryKeys.INFO] = self.Info.data
+
+        CASdict = dict()
+        for ckey in self.contAnalysis.keys():
+            CA = self.contAnalysis[ckey]
+            contsdict = dict()
+            for contkey in CA.contests.keys():
+                cont = CA.contests[contkey]
+                probsdict = dict()
+                for pkey in cont.problems.keys():
+                    probdict = dict()
+                    probs = cont.problems[pkey]
+                    probdict[LectureDictionaryKeys.INFO] = probs.Info.data
+                    probsdict[pkey] = probdict
+
+                contdict = dict()
+                contdict[LectureDictionaryKeys.CONTEST_TITLE] = cont.title
+                contdict[LectureDictionaryKeys.INFO] = cont.Info.data
+                contdict[LectureDictionaryKeys.CONTEST_TYPE] = cont.contestType
+                contdict[LectureDictionaryKeys.CONTEST_SOLVE_CNT] = cont.solveCount
+                contdict[LectureDictionaryKeys.PROBLEMS] = probsdict
+                contsdict[contkey] = contdict
+
+            CAdict = dict()
+            CAdict[LectureDictionaryKeys.INFO] = CA.Info.data
+            CAdict[LectureDictionaryKeys.CONTESTS] = contsdict
+            CASdict[ckey] = CAdict
+
+        ldict[LectureDictionaryKeys.CONTESTANALYSIS] = CASdict
+
+        return ldict
+
+    def fromDict(self, dicdata):
+        self.Info.data = dicdata[LectureDictionaryKeys.INFO]
+
+        for contA in dicdata[LectureDictionaryKeys.CONTESTANALYSIS].keys():
+            dicContA = dicdata[LectureDictionaryKeys.CONTESTANALYSIS][contA]
+            inContA = self.contAnalysis[contA]
+            inContA.Info.data = dicContA[LectureDictionaryKeys.INFO]
+            inContA.migrateDictionary(dicContA)
+
+class LectureDictionaryKeys:
+    INFO = 'Info'
+    CONTESTANALYSIS = 'ContestAnalysis'
+    CONTESTS = 'contests'
+    PROBLEMS = 'problems'
+    CONTEST_TITLE = 'ctitle'
+    CONTEST_TYPE = 'ctype'
+    CONTEST_SOLVE_CNT = 'csolvecnt'
+
+
 class ContestAnalysis:
 
     resLecture = None
@@ -150,12 +204,23 @@ class ContestAnalysis:
         cid = contest.id
         resCont = None
         if cid not in self.contests:
-            resCont = self.addContest(ResContest(contest, self), cid)
-            #print("Add Contest :",resCont.id,resCont.title)
+            resCont = self.addContest(ResContest(contA=self, contest=contest), cid)
+            print("Add Contest :",resCont.id,resCont.title)
         else:
             resCont = self.contests[cid]
 
         resCont.migrateproblem(problem)
+
+    def migrateDictionary(self, dicData):
+        for contestkey in dicData['contests'].keys():
+            contDict = dicData['contests'][contestkey]
+            cdict = {'id':contestkey,
+                     'title':contDict[LectureDictionaryKeys.CONTEST_TITLE],
+                     'type':contDict[LectureDictionaryKeys.CONTEST_TYPE],
+                     'scnt':contDict[LectureDictionaryKeys.CONTEST_SOLVE_CNT],
+                     'Info':contDict['Info']}
+            resCont = self.addContest(ResContest(contA=self, contDict=cdict), contestkey)
+            resCont.migrateDictionary(contDict)
 
     def reCalInfo(self, cinfo):
         self.Info.reCalInfo(cinfo)
@@ -179,27 +244,42 @@ class ContestAnalysis:
 class ResContest:
     Id = -1
     title = ""
+    contestType = ""
     IS_NewContest = False
     solveCount = 0
     isSubmitted = False
 
-    def __init__(self, contest, contA):
+    def __init__(self, contA, contest=None, contDict=None):
         self.contAnalysis = contA
         self.Info = Information()
         self.problems = dict()
-        self.myContest = contest
-        self.id = contest.id
-        self.title = contest.title
-        self.contestType = self.typeSelector(contest.lecture_contest_type)
         self.IS_NewContest = True
 
-        self.Info.data[DataType.ISVISIBLE] = contest.visible
+        if contest is not None:
+            self.id = contest.id
+            self.title = contest.title
+            self.contestType = self.typeSelector(contest.lecture_contest_type)
+            self.Info.data[DataType.ISVISIBLE] = contest.visible
+        else:
+            self.id = contDict['id']
+            self.title = contDict['title']
+            self.contestType = contDict['type']
+            self.Info.data = contDict['Info']
+            self.solveCount = contDict['scnt']
+
+
 
     def migrateproblem(self, problem):
         if problem.visible is True:
-            inprob = RefProblem(problem, self)
+            inprob = RefProblem(cont=self, problem=problem)
             self.problems[inprob.Id] = inprob
             self.solveCount += 1
+
+    def migrateDictionary(self, dicData):
+        for probkey in dicData[LectureDictionaryKeys.PROBLEMS].keys():
+            problem = dicData[LectureDictionaryKeys.PROBLEMS][probkey]
+            probDict = {'id':probkey, 'Info':problem[LectureDictionaryKeys.INFO]}
+            self.problems[probkey] = RefProblem(cont=self, probDict=probDict)
 
     def reCalInfo(self, pinfo):
         if self.Info.data[DataType.ISVISIBLE] is True:
@@ -255,16 +335,19 @@ class ResContest:
 class RefProblem():
     Id = -1
 
-    def __init__(self, problem, cont):
-        self.Id = problem.id
+    def __init__(self, cont, problem=None, probDict=None):
         self.pcontest = cont
         self.Info = Information()
-        self.myproblem = None
         self.mysubmission = None
-        self.migrateProblem(problem)
+
+        if problem is not None:
+            self.Id = problem.id
+            self.migrateProblem(problem)
+        else:
+            self.Id = probDict['id']
+            self.Info.data = probDict['Info']
 
     def migrateProblem(self, problem):
-        self.myproblem = problem
         self.Info.data[DataType.POINT] = problem.total_score
         self.Info.data[DataType.ISVISIBLE] = problem.visible
         self.Info.data[DataType.NUMOFCONTENTS] = 1
@@ -296,7 +379,7 @@ class RefProblem():
 
     #need to modify
     def CleanforSubmit(self, origin):
-        origin.cleanForScoreboardbyList(DataType.problemSubmitExceptList)
+        origin.cleanDatabyList(DataType.problemSubmitExceptList)
 
     def cleanDataForScorebard(self):
         self.Info.cleanForScoreboard()

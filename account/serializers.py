@@ -85,7 +85,7 @@ class SignupSerializer(serializers.ModelSerializer):
     maxScore = serializers.IntegerField()
     avgScore = serializers.FloatField()
     progress = serializers.FloatField()
-
+    lecDict = serializers.DictField()
     class Meta:
         model = signup_class
         fields = "__all__"
