@@ -11,7 +11,6 @@ from django.utils.timezone import now
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from otpauth import OtpAuth
 
-from lecture.views.LectureAnalysis import DataType
 from problem.models import Problem
 from submission.models import Submission
 from utils.constants import ContestRuleType
@@ -32,6 +31,7 @@ from ..tasks import send_email_async
 from lecture.models import signup_class, Lecture
 from django.db.models import Max
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType
+
 
 class UserProfileAPI(APIView):
     @method_decorator(ensure_csrf_cookie)
@@ -77,7 +77,7 @@ class UserProgress(APIView):
         print(request.user)
 
         try:
-            lectures = signup_class.objects.filter(user_id=request.user).select_related('lecture')
+            lectures = signup_class.objects.filter(user_id=request.user, isallow=True).select_related('lecture')
             # ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
         except signup_class.DoesNotExist:
             return self.error("수강중인 학생이 없습니다.")
@@ -124,7 +124,7 @@ class UserProgress(APIView):
             lec.progress = 0
             lec.totalProblem = 0
             lec.maxScore = 0
-
+            lec.lecDict = []
             #print(us.user.id,us.user.realname)
             #get data from db
             ldates = sublist.filter(user_id=request.user).values('contest','problem').annotate(latest_created_at=Max('create_time'))
@@ -147,31 +147,27 @@ class UserProgress(APIView):
             lec.totalScore = LectureInfo.Info.data[DataType.SCORE]
             lec.avgScore = LectureInfo.Info.data[DataType.AVERAGE]
             lec.progress = LectureInfo.Info.data[DataType.PROGRESS]
+            lec.lecDict = LectureInfo.toDict()
 
-            #Test Print
-            print()
-            print(request.user, " Student Info - ", LectureInfo.Info.data[DataType.PROGRESS],"%",sep="")
-            for key in LectureInfo.contAnalysis.keys():
-                print("Contest Type :", key, end=" - ")
-                contA = LectureInfo.contAnalysis[key]
-                print("Inform :", contA.Info.data[DataType.POINT], contA.Info.data[DataType.NUMOFCONTENTS]
-                      ,"[",contA.Info.data[DataType.NUMOFTOTALPROBLEMS]
-                      , "/", contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS]
-                      , "/", contA.Info.data[DataType.NUMOFTOTALSOLVEDPROBLEMS], "]"
-                      , "sub :",contA.Info.data[DataType.SCORE], contA.Info.data[DataType.AVERAGE]
-                      ," -PROG:",contA.Info.data[DataType.PROGRESS])
+            # lec.score = LectureInfo.toDict()
+            # lec.save()
 
-                for cont in contA.contests.values():
-                    print("-- Contest - ", cont.title, ":", cont.Info.data[DataType.POINT],
-                          cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.ISVISIBLE]
-                          ,"sub:",cont.Info.data[DataType.SCORE], cont.Info.data[DataType.AVERAGE]
-                          ," -PROG:",cont.Info.data[DataType.PROGRESS])
+            # testlec = LectureAnalysis()
+            # testlec.fromDict(lec.score)
+            #
+            # print(lec.score)
+            # print("Lecture Info : ",testlec.Info.data)
+            # for contA in testlec.contAnalysis.values():
+            #     print("----", contA.Info.data)
+            #     for contt in contA.contests.values():
+            #         print("    ----",contt.title, "[",contt.contestType,"]", contt.Info.data, contt.solveCount)
+            #         for prob in contt.problems.values():
+            #             print("       ----",prob.Id, prob.Info.data)
 
             lec.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]
             lec.maxScore = LectureInfo.Info.data[DataType.POINT]
 
         return self.success(self.paginate_data(request, lectures, SignupSerializer))
-
 
 class AvatarUploadAPI(APIView):
     request_parsers = ()

@@ -176,6 +176,7 @@ class UserAdminAPI(APIView):
                 us.progress = 0
                 us.totalProblem = 0
                 us.maxScore = 0
+                us.lecDict = dict()
 
                 if us.user is not None:
                     #print(us.user.id,us.user.realname)
@@ -225,9 +226,8 @@ class UserAdminAPI(APIView):
 
                 us.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]
                 us.maxScore = LectureInfo.Info.data[DataType.POINT]
-
+                us.lecDict = LectureInfo.getDict()
                 cnt += 1
-
             return self.success(self.paginate_data(request, ulist, SignupSerializer))
 
         """
