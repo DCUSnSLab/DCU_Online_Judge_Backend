@@ -30,7 +30,7 @@ from ..tasks import send_email_async
 
 from lecture.models import signup_class, Lecture
 from django.db.models import Max
-from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType
+from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
 
 
 class UserProfileAPI(APIView):
@@ -125,11 +125,16 @@ class UserProgress(APIView):
             lec.totalProblem = 0
             lec.maxScore = 0
             lec.lecDict = []
+
+
+
+
             #print(us.user.id,us.user.realname)
             #get data from db
             ldates = sublist.filter(user_id=request.user).values('contest','problem').annotate(latest_created_at=Max('create_time'))
             sdata = sublist.filter(create_time__in=ldates.values('latest_created_at')).order_by('-create_time')
             LectureInfo.cleanDataForScorebard()
+
 
             for submit in sdata:
                 LectureInfo.associateSubmission(submit)

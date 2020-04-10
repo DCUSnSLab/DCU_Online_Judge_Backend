@@ -180,6 +180,11 @@ class LectureAnalysis:
             inContA.Info.data = dicContA[LectureDictionaryKeys.INFO]
             inContA.migrateDictionary(dicContA)
 
+class lecDispatcher(LectureAnalysis):
+    def __init__(self):
+        LectureAnalysis.__init__(self)
+        self.id = 0
+
 class LectureDictionaryKeys:
     INFO = 'Info'
     CONTESTANALYSIS = 'ContestAnalysis'
