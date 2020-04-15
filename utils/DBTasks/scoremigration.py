@@ -26,8 +26,8 @@ total = lectures.count()
 cnt = 0
 for lec in lectures:
     cnt += 1
-    # if lec.user.realname != '홍도영':
-    #     continue
+    #if lec.user.realname != '홍도영':
+    #    continue
 
     if lec.user.admin_type == AdminType.SUPER_ADMIN or lec.user.admin_type == AdminType.ADMIN:
         continue
