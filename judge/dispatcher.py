@@ -217,7 +217,7 @@ class JudgeDispatcher(DispatcherBase):
             print(LectureInfo.toDict())
             for contA in LectureInfo.contAnalysis.values():
                 for cont in contA.contests.values():
-                    print(cont.Id,cont.title,cont.contestType,cont.solveCount,cont.isSubmitted)
+                    print(cont.id,cont.title,cont.contestType,cont.solveCount,cont.isSubmitted)
             LectureInfo.associateSubmission(self.submission)
             person.score = LectureInfo.toDict()
             person.save()
