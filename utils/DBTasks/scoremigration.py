@@ -26,6 +26,9 @@ total = lectures.count()
 cnt = 0
 for lec in lectures:
     cnt += 1
+    # if lec.user.realname != '홍도영':
+    #     continue
+
     if lec.user.admin_type == AdminType.SUPER_ADMIN or lec.user.admin_type == AdminType.ADMIN:
         continue
 
@@ -50,20 +53,27 @@ for lec in lectures:
     for submit in sdata:
         LectureInfo.associateSubmission(submit)
 
-    # print("Print Lecture Info :",LectureInfo.Info.data[DataType.NUMOFCONTENTS], LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS])
+    # print("Print Lecture Info :",LectureInfo.Info.data[DataType.NUMOFCONTENTS], LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS],
+    #       LectureInfo.Info.data[DataType.POINT]
+    #       ,"/", LectureInfo.Info.data[DataType.NUMOFTOTALSUBPROBLEMS]
+    #       ,"|", LectureInfo.Info.data[DataType.AVERAGE], LectureInfo.Info.data[DataType.PROGRESS])
+    #
     # for key in LectureInfo.contAnalysis.keys():
     #     print("Contest Type :",key, end=" - ")
     #     contA = LectureInfo.contAnalysis[key]
     #     print("Inform :",contA.Info.data[DataType.POINT]
     #           , contA.Info.data[DataType.NUMOFCONTENTS], contA.Info.data[DataType.NUMOFTOTALPROBLEMS]
-    #           , "/",contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS])
+    #           , "/",contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS]
+    #           , "|", contA.Info.data[DataType.AVERAGE], contA.Info.data[DataType.PROGRESS])
     #
     #     for cont in contA.contests.values():
-    #         print("-- Contest - ",cont.title,":",cont.Info.data[DataType.POINT], cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.ISVISIBLE])
+    #         print("-- Contest - ",cont.title,":",cont.Info.data[DataType.POINT], cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.NUMOFTOTALPROBLEMS], cont.Info.data[DataType.ISVISIBLE],
+    #               "|",cont.Info.data[DataType.AVERAGE],cont.Info.data[DataType.PROGRESS])
     #
     #         for prob in cont.problems.values():
-    #             print("----- Prob - ", prob.Id, ":", prob.Info.data[DataType.POINT],
-    #                   prob.Info.data[DataType.NUMOFCONTENTS], prob.Info.data[DataType.ISVISIBLE])
+    #             print("----- Prob - ", prob.id, ":", prob.Info.data[DataType.POINT],
+    #                   prob.Info.data[DataType.NUMOFCONTENTS], prob.Info.data[DataType.ISVISIBLE],
+    #                   "| SCORE:",prob.Info.data[DataType.SCORE])
 
     # for cont in contA.contests:
     #     print(cont.title,":",cont.Info.point, cont.Info.numofContents)

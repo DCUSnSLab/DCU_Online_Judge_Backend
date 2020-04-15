@@ -183,7 +183,6 @@ class UserAdminAPI(APIView):
                     #get data from db
 
                     LectureInfo.fromDict(us.score)
-
                     us.totalPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFCONTENTS]
                     us.subPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSUBCONTENTS]
                     us.solvePractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSOLVEDCONTENTS]
