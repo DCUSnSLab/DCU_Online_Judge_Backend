@@ -43,6 +43,16 @@ class ContestType(object):
     ASSIGN = "과제"
     cTypeList = [PRACTICE, ASSIGN]
 
+#Lectuer Dictionary Keys for data exchanging from class to dictionary
+class LectureDictionaryKeys:
+    INFO = 'Info'
+    CONTESTANALYSIS = 'ContestAnalysis'
+    CONTESTS = 'contests'
+    PROBLEMS = 'problems'
+    CONTEST_TITLE = 'ctitle'
+    CONTEST_TYPE = 'ctype'
+    CONTEST_SOLVE_CNT = 'csolvecnt'
+
 class Information:
     def __init__(self):
         self.data = dict()
@@ -137,6 +147,11 @@ class LectureAnalysis:
         for ca in self.contAnalysis.values():
             ca.cleanDataForScorebard()
 
+class lecDispatcher(LectureAnalysis):
+    def __init__(self):
+        LectureAnalysis.__init__(self)
+        self.id = 0
+
     def toDict(self):
         ldict = dict()
         ldict[LectureDictionaryKeys.INFO] = self.Info.data
@@ -172,6 +187,9 @@ class LectureAnalysis:
         return ldict
 
     def fromDict(self, dicdata):
+        if len(dicdata) == 0:
+            return
+
         self.Info.data = dicdata[LectureDictionaryKeys.INFO]
 
         for contA in dicdata[LectureDictionaryKeys.CONTESTANALYSIS].keys():
@@ -179,21 +197,6 @@ class LectureAnalysis:
             inContA = self.contAnalysis[contA]
             inContA.Info.data = dicContA[LectureDictionaryKeys.INFO]
             inContA.migrateDictionary(dicContA)
-
-class lecDispatcher(LectureAnalysis):
-    def __init__(self):
-        LectureAnalysis.__init__(self)
-        self.id = 0
-
-class LectureDictionaryKeys:
-    INFO = 'Info'
-    CONTESTANALYSIS = 'ContestAnalysis'
-    CONTESTS = 'contests'
-    PROBLEMS = 'problems'
-    CONTEST_TITLE = 'ctitle'
-    CONTEST_TYPE = 'ctype'
-    CONTEST_SOLVE_CNT = 'csolvecnt'
-
 
 class ContestAnalysis:
 
@@ -210,7 +213,7 @@ class ContestAnalysis:
         resCont = None
         if cid not in self.contests:
             resCont = self.addContest(ResContest(contA=self, contest=contest), cid)
-            print("Add Contest :",resCont.id,resCont.title)
+            #print("Add Contest :",resCont.id,resCont.title)
         else:
             resCont = self.contests[cid]
 

@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.http import HttpResponse
 from django.contrib.auth.hashers import make_password
 
-from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType
+from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
 from submission.models import Submission
 from utils.api import APIView, validate_serializer
 from utils.shortcuts import rand_str
@@ -126,7 +126,7 @@ class UserAdminAPI(APIView):
             plist = Problem.objects.filter(contest__lecture=lecture_id).prefetch_related('contest')
 
             #test
-            LectureInfo = LectureAnalysis()
+            LectureInfo = lecDispatcher()
             for p in plist:
                 # print(p.id,p.title,p.visible)
                 LectureInfo.migrateProblem(p)
@@ -155,8 +155,6 @@ class UserAdminAPI(APIView):
             #     LectureInfo.addProblem(p)
             #     #print(p,p.title,p.contest)
 
-            #get Submission
-            sublist = Submission.objects.filter(lecture=lecture_id)
             cnt = 0
             for us in ulist:
 
@@ -180,15 +178,10 @@ class UserAdminAPI(APIView):
 
                 if us.user is not None:
                     #print(us.user.id,us.user.realname)
+                    #print(us.score)
                     #get data from db
-                    ldates = sublist.filter(user=us.user).values('contest','problem').annotate(latest_created_at=Max('create_time'))
-                    sdata = sublist.filter(create_time__in=ldates.values('latest_created_at')).order_by('-create_time')
                     LectureInfo.cleanDataForScorebard()
-                    for submit in sdata:
-                        # if us.user.username == 'djg05105':
-                        #     print(submit.id, submit.problem_id, submit.problem.title, submit.result)
-
-                        LectureInfo.associateSubmission(submit)
+                    LectureInfo.fromDict(us.score)
 
                     us.totalPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFCONTENTS]
                     us.subPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSUBCONTENTS]
@@ -204,29 +197,8 @@ class UserAdminAPI(APIView):
                     us.avgScore = LectureInfo.Info.data[DataType.AVERAGE]
                     us.progress = LectureInfo.Info.data[DataType.PROGRESS]
 
-                    #Test Print
-                    # print()
-                    # print(us.user.realname, " Student Info - ", LectureInfo.Info.data[DataType.PROGRESS],"%",sep="")
-                    # for key in LectureInfo.contAnalysis.keys():
-                    #     print("Contest Type :", key, end=" - ")
-                    #     contA = LectureInfo.contAnalysis[key]
-                    #     print("Inform :", contA.Info.data[DataType.POINT], contA.Info.data[DataType.NUMOFCONTENTS]
-                    #           ,"[",contA.Info.data[DataType.NUMOFTOTALPROBLEMS]
-                    #           , "/", contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS]
-                    #           , "/", contA.Info.data[DataType.NUMOFTOTALSOLVEDPROBLEMS], "]"
-                    #           , "sub :",contA.Info.data[DataType.SCORE], contA.Info.data[DataType.AVERAGE]
-                    #           ," -PROG:",contA.Info.data[DataType.PROGRESS])
-                    #
-                    #     for cont in contA.contests.values():
-                    #         print("-- Contest - ", cont.title, ":", cont.Info.data[DataType.POINT],
-                    #               cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.ISVISIBLE]
-                    #               ,"sub:",cont.Info.data[DataType.SCORE], cont.Info.data[DataType.AVERAGE]
-                    #               ," -PROG:",cont.Info.data[DataType.PROGRESS])
-
-
                 us.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]
                 us.maxScore = LectureInfo.Info.data[DataType.POINT]
-                us.lecDict = LectureInfo.getDict()
                 cnt += 1
             return self.success(self.paginate_data(request, ulist, SignupSerializer))
 
