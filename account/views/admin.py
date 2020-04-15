@@ -128,9 +128,9 @@ class UserAdminAPI(APIView):
 
             #test
             LectureInfo = lecDispatcher()
-            for p in plist:
-                # print(p.id,p.title,p.visible)
-                LectureInfo.migrateProblem(p)
+            # for p in plist:
+            #     # print(p.id,p.title,p.visible)
+            #     LectureInfo.migrateProblem(p)
 
             # print("Print Lecture Info :",LectureInfo.Info.data[DataType.NUMOFCONTENTS], LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS])
             # for key in LectureInfo.contAnalysis.keys():
@@ -181,7 +181,7 @@ class UserAdminAPI(APIView):
                     #print(us.user.id,us.user.realname)
                     #print(us.score)
                     #get data from db
-                    LectureInfo.cleanDataForScorebard()
+
                     LectureInfo.fromDict(us.score)
 
                     us.totalPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFCONTENTS]

@@ -207,20 +207,23 @@ class JudgeDispatcher(DispatcherBase):
         process_pending_task()
 
     def updateLecturePersonalInfo(self):
-        try:
-            persons = signup_class.objects.filter(isallow=True, user=self.submission.user_id).select_related('lecture')
+        #try:
+        persons = signup_class.objects.filter(isallow=True, user=self.submission.user_id).select_related('lecture')
 
-            for person in persons:
-                plist = Problem.objects.filter(contest__lecture=person.lecture_id).prefetch_related('contest')
-                LectureInfo = lecDispatcher()
-                for p in plist:
-                    LectureInfo.migrateProblem(p)
-                LectureInfo.fromDict(person.score)
-                print(LectureInfo.toDict())
-                #LectureInfo.associateSubmission(self.submission)
+        for person in persons:
+            plist = Problem.objects.filter(contest__lecture=person.lecture_id).prefetch_related('contest')
+            LectureInfo = lecDispatcher()
+            LectureInfo.fromDict(person.score)
+            print(LectureInfo.toDict())
+            for contA in LectureInfo.contAnalysis.values():
+                for cont in contA.contests.values():
+                    print(cont.Id,cont.title,cont.contestType,cont.solveCount,cont.isSubmitted)
+            LectureInfo.associateSubmission(self.submission)
+            person.score = LectureInfo.toDict()
+            person.save()
 
-        except:
-            print("exception")
+        # except Exception as ex:
+        #     print("exception", ex)
 
 
     def update_problem_status_rejudge(self):

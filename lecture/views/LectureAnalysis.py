@@ -52,6 +52,7 @@ class LectureDictionaryKeys:
     CONTEST_TITLE = 'ctitle'
     CONTEST_TYPE = 'ctype'
     CONTEST_SOLVE_CNT = 'csolvecnt'
+    CONTEST_IS_SUBMIT = 'cissubmit'
 
 class Information:
     def __init__(self):
@@ -174,6 +175,7 @@ class lecDispatcher(LectureAnalysis):
                 contdict[LectureDictionaryKeys.INFO] = cont.Info.data
                 contdict[LectureDictionaryKeys.CONTEST_TYPE] = cont.contestType
                 contdict[LectureDictionaryKeys.CONTEST_SOLVE_CNT] = cont.solveCount
+                contdict[LectureDictionaryKeys.CONTEST_IS_SUBMIT] = cont.isSubmitted
                 contdict[LectureDictionaryKeys.PROBLEMS] = probsdict
                 contsdict[contkey] = contdict
 
@@ -226,6 +228,7 @@ class ContestAnalysis:
                      'title':contDict[LectureDictionaryKeys.CONTEST_TITLE],
                      'type':contDict[LectureDictionaryKeys.CONTEST_TYPE],
                      'scnt':contDict[LectureDictionaryKeys.CONTEST_SOLVE_CNT],
+                     'issubmit':contDict[LectureDictionaryKeys.CONTEST_IS_SUBMIT],
                      'Info':contDict['Info']}
             resCont = self.addContest(ResContest(contA=self, contDict=cdict), contestkey)
             resCont.migrateDictionary(contDict)
@@ -240,7 +243,13 @@ class ContestAnalysis:
 
     def associateSubmission(self, submission):
         cid = submission.contest.id
-        selectedContest = self.contests[cid]
+        try:
+            selectedContest = self.contests[cid]
+        except KeyError:
+            selectedContest = self.contests[str(cid)]
+        except Exception as e:
+            print('Exception ',e)
+
         if selectedContest is not None:
             selectedContest.associateSubmission(submission)
 
@@ -261,19 +270,20 @@ class ResContest:
         self.contAnalysis = contA
         self.Info = Information()
         self.problems = dict()
-        self.IS_NewContest = True
 
         if contest is not None:
             self.id = contest.id
             self.title = contest.title
             self.contestType = self.typeSelector(contest.lecture_contest_type)
             self.Info.data[DataType.ISVISIBLE] = contest.visible
+            self.IS_NewContest = True
         else:
             self.id = contDict['id']
             self.title = contDict['title']
             self.contestType = contDict['type']
             self.Info.data = contDict['Info']
             self.solveCount = contDict['scnt']
+            self.isSubmitted = contDict['issubmit']
 
 
 
@@ -329,7 +339,12 @@ class ResContest:
 
     def associateSubmission(self, submission):
         pid = submission.problem.id
-        subprob = self.problems[pid]
+        try:
+            subprob = self.problems[pid]
+        except KeyError:
+            subprob = self.problems[str(pid)]
+        except Exception as e:
+            print("Exception ",e)
         if subprob is not None:
             subprob.associateSubmission(submission)
 
@@ -367,19 +382,25 @@ class RefProblem():
         self.mysubmission = submission
 
         Json = submission.info
-
+        print("associate problem")
         if Json:
             for jsondata in Json['data']:
                 self.Info.data[DataType.SCORE] += jsondata['score']
 
-        if submission.result == JudgeStatus.ACCEPTED:
+        if submission.result == JudgeStatus.ACCEPTED and not self.Info.data[DataType.ISPASSED]:
             self.Info.data[DataType.ISPASSED] = True
             self.Info.data[DataType.NUMOFSOLVEDCONTENTS] = 1
             self.Info.data[DataType.NUMOFTOTALSOLVEDPROBLEMS] = 1
 
-        self.Info.data[DataType.NUMOFTOTALSUBPROBLEMS] = 1
-        self.Info.data[DataType.NUMOFSUBCONTENTS] = 1
-        self.Info.data[DataType.ISSUBMITTED] = True
+        if not self.Info.data[DataType.ISSUBMITTED]:
+            self.Info.data[DataType.NUMOFTOTALSUBPROBLEMS] = 1
+            self.Info.data[DataType.NUMOFSUBCONTENTS] = 1
+            self.Info.data[DataType.ISSUBMITTED] = True
+        else:
+            self.Info.data[DataType.NUMOFTOTALSUBPROBLEMS] = 0
+            self.Info.data[DataType.NUMOFSUBCONTENTS] = 0
+            self.Info.data[DataType.ISSUBMITTED] = False
+
         #cinfo = self.cloneInfoForSubmit(self.Info)
         cinfo = self.Info.clone()
         self.CleanforSubmit(cinfo)
