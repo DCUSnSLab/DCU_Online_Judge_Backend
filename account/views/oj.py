@@ -83,30 +83,18 @@ class UserProgress(APIView):
             return self.error("수강중인 학생이 없습니다.")
 
         for lec in lectures:
-            print(lec.lecture.title)
+            #print(lec.lecture.title)
             #collect lecture info
             plist = Problem.objects.filter(contest__lecture=lec.lecture_id).prefetch_related('contest')
 
             #test
-            LectureInfo = LectureAnalysis()
+            LectureInfo = lecDispatcher()
             for p in plist:
                 # print(p.id,p.title,p.visible)
                 LectureInfo.migrateProblem(p)
 
-            print("Print Lecture Info :",LectureInfo.Info.data[DataType.NUMOFCONTENTS], LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS])
-            for key in LectureInfo.contAnalysis.keys():
-                print("Contest Type :",key, end=" - ")
-                contA = LectureInfo.contAnalysis[key]
-                print("Inform :",contA.Info.data[DataType.POINT]
-                      , contA.Info.data[DataType.NUMOFCONTENTS], contA.Info.data[DataType.NUMOFTOTALPROBLEMS]
-                      , "/",contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS])
-
-                for cont in contA.contests.values():
-                    print("-- Contest - ",cont.title,":",cont.Info.data[DataType.POINT], cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.ISVISIBLE])
-
-            #get Submission
-            sublist = Submission.objects.filter(lecture=lec.lecture_id)
-
+            LectureInfo.cleanDataForScorebard()
+            LectureInfo.fromDict(lec.score)
 
             #inlit result values
             lec.totalPractice = 0
@@ -124,20 +112,7 @@ class UserProgress(APIView):
             lec.progress = 0
             lec.totalProblem = 0
             lec.maxScore = 0
-            lec.lecDict = []
-
-
-
-
-            #print(us.user.id,us.user.realname)
-            #get data from db
-            ldates = sublist.filter(user_id=request.user).values('contest','problem').annotate(latest_created_at=Max('create_time'))
-            sdata = sublist.filter(create_time__in=ldates.values('latest_created_at')).order_by('-create_time')
-            LectureInfo.cleanDataForScorebard()
-
-
-            for submit in sdata:
-                LectureInfo.associateSubmission(submit)
+            lec.lecDict = dict()
 
             lec.totalPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFCONTENTS]
             lec.subPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSUBCONTENTS]
@@ -152,22 +127,6 @@ class UserProgress(APIView):
             lec.totalScore = LectureInfo.Info.data[DataType.SCORE]
             lec.avgScore = LectureInfo.Info.data[DataType.AVERAGE]
             lec.progress = LectureInfo.Info.data[DataType.PROGRESS]
-            lec.lecDict = LectureInfo.toDict()
-
-            # lec.score = LectureInfo.toDict()
-            # lec.save()
-
-            # testlec = LectureAnalysis()
-            # testlec.fromDict(lec.score)
-            #
-            # print(lec.score)
-            # print("Lecture Info : ",testlec.Info.data)
-            # for contA in testlec.contAnalysis.values():
-            #     print("----", contA.Info.data)
-            #     for contt in contA.contests.values():
-            #         print("    ----",contt.title, "[",contt.contestType,"]", contt.Info.data, contt.solveCount)
-            #         for prob in contt.problems.values():
-            #             print("       ----",prob.Id, prob.Info.data)
 
             lec.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]
             lec.maxScore = LectureInfo.Info.data[DataType.POINT]
