@@ -52,6 +52,15 @@ class LectureListAPI(APIView):
 class TakingLectureListAPI(APIView):
     def get(self, request):
         print("TakingLectureListAPI Called")
+        data = request.data
+
+        sortyear = data.get("yearSort")
+        sortsubj = data.get("subjSort")
+        sortprof = data.get("profSort")
+
+        print(sortyear)
+        print(sortsubj)
+        print(sortprof)
 
         if not request.user.is_authenticated:
             return self.error("로그인 후 사용 가능합니다.")
@@ -63,8 +72,14 @@ class TakingLectureListAPI(APIView):
         if request.user.is_super_admin():
             print("관리자입니다.")
             try:
-                signuplist = signup_class.objects.select_related("lecture").order_by('lecture').distinct('lecture_id')
-
+                if sortyear == '1':
+                    print("sorted")
+                    signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct('lecture_id')
+                    for signup in signuplist:
+                        print("Title ", signup.lecture.year)
+                else:
+                    print("normal")
+                    signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct('lecture_id')
                 for signup in signuplist:
                     print("Test ",signup.lecture.title, signup.lecture.id)
                     signup.isallow = True

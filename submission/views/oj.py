@@ -1,11 +1,11 @@
 import ipaddress
 
 from account.decorators import login_required, check_contest_permission
-from contest.models import ContestStatus, ContestRuleType
+from contest.models import Contest, ContestStatus, ContestRuleType
+from lecture.models import Lecture
 from judge.dispatcher import JudgeDispatcher
 from judge.tasks import judge_task
 from options.options import SysOptions
-# from judge.dispatcher import JudgeDispatcher
 from problem.models import Problem, ProblemRuleType
 from utils.api import APIView, validate_serializer
 from utils.cache import cache
@@ -72,14 +72,38 @@ class SubmissionAPI(APIView):
             return self.error("Problem not exist")
         if data["language"] not in problem.languages:
             return self.error(f"{data['language']} is now allowed in the problem")
-        submission = Submission.objects.create(user_id=request.user.id,
-                                               username=request.user.username,
-                                               language=data["language"],
-                                               code=data["code"],
-                                               problem_id=problem.id,
-                                               ip=request.session["ip"],
-                                               contest_id=data.get("contest_id"),
-                                               lecture_id=data.get("lecture_id"))
+
+        if data.get("contest_id"): # 대회에 소속된 문제인 경우,
+            contest = Contest.objects.get(id=data.get("contest_id"))
+            print(contest.title)
+            print(contest.lecture_id)
+            if contest.lecture_id is not None:
+                submission = Submission.objects.create(user_id=request.user.id,
+                                                       username=request.user.username,
+                                                       language=data["language"],
+                                                       code=data["code"],
+                                                       problem_id=problem.id,
+                                                       ip=request.session["ip"],
+                                                       contest_id=data.get("contest_id"),
+                                                       lecture_id=contest.lecture.id)
+            else:
+                submission = Submission.objects.create(user_id=request.user.id,
+                                                       username=request.user.username,
+                                                       language=data["language"],
+                                                       code=data["code"],
+                                                       problem_id=problem.id,
+                                                       ip=request.session["ip"],
+                                                       contest_id=data.get("contest_id"),
+                                                       lecture_id=None)
+        else: # 수강과목, 대회 어느 쪽에도 소속되지 않은 문제인 경우
+            submission = Submission.objects.create(user_id=request.user.id,
+                                                   username=request.user.username,
+                                                   language=data["language"],
+                                                   code=data["code"],
+                                                   problem_id=problem.id,
+                                                   ip=request.session["ip"],
+                                                   contest_id=data.get("contest_id"),
+                                                   lecture_id=None)
         # use this for debug
         JudgeDispatcher(submission.id, problem.id).judge()
         #judge_task.send(submission.id, problem.id)
