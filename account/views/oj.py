@@ -89,11 +89,11 @@ class UserProgress(APIView):
 
             #test
             LectureInfo = lecDispatcher()
-            for p in plist:
-                # print(p.id,p.title,p.visible)
-                LectureInfo.migrateProblem(p)
-
-            LectureInfo.cleanDataForScorebard()
+            # for p in plist:
+            #     # print(p.id,p.title,p.visible)
+            #     LectureInfo.migrateProblem(p)
+            #
+            # LectureInfo.cleanDataForScorebard()
             LectureInfo.fromDict(lec.score)
 
             #inlit result values
