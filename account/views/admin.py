@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from django.contrib.auth.hashers import make_password
 
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
+from lecture.views.LectureBuilder import LectureBuilder
 from submission.models import Submission
 from utils.api import APIView, validate_serializer
 from utils.shortcuts import rand_str
@@ -122,7 +123,8 @@ class UserAdminAPI(APIView):
             except signup_class.DoesNotExist:
                 return self.error("수강중인 학생이 없습니다.")
 
-
+            #lb = LectureBuilder()
+            #lb.buildLecture(ulist[0].lecture)
             #collect lecture info
             plist = Problem.objects.filter(contest__lecture=lecture_id).prefetch_related('contest')
 
