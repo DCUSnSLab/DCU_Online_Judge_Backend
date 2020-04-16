@@ -22,7 +22,6 @@ class HeartBeatView(APIView):
     permission_classes = (permissions.AllowAny,)
 
     def get(self, request, format=None):
-        print("test2")
         output_data = {}
 
         output_status = status.HTTP_200_OK
@@ -47,8 +46,12 @@ class HeartBeatView(APIView):
 
         try: # 저지 서버의 마지막 heartbeat를 확인한다.
             servers = JudgeServer.objects.all()
-            print(servers[0].last_heartbeat)
-            if (str(now) - servers[0].last_heartbeat).seconds > 10:
+            print("last_heartbeat",servers[0].last_heartbeat) # 저지 서버는 현재 1개만 가동중이므로 0번째 쿼리셋의 값을 가져온다.
+            print("now", now)
+            dt = servers[0].last_heartbeat.replace(tzinfo=None) # UTC datetime 포맷에서 tz값(+00:00)을 제거한다
+            sub = now - dt
+            if sub.seconds > 10:
+                print("judge-server no response")
                 output_data['judge_server'] = False
         except:
             print("judge-server Not Exist")
