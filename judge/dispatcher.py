@@ -12,6 +12,7 @@ from conf.models import JudgeServer
 from contest.models import ContestRuleType, ACMContestRank, OIContestRank, ContestStatus
 from lecture.models import signup_class
 from lecture.views.LectureAnalysis import lecDispatcher
+from lecture.views.LectureBuilder import LectureBuilder
 from options.options import SysOptions
 from problem.models import Problem, ProblemRuleType
 from problem.utils import parse_problem_template
@@ -193,7 +194,6 @@ class JudgeDispatcher(DispatcherBase):
                     "Contest debug mode, id: " + str(self.contest_id) + ", submission id: " + self.submission.id)
                 return
             with transaction.atomic():
-                print("Submission and Problem saved 1")
                 self.update_contest_problem_status()
                 self.update_contest_rank()
                 self.updateLecturePersonalInfo()
@@ -208,19 +208,8 @@ class JudgeDispatcher(DispatcherBase):
 
     def updateLecturePersonalInfo(self):
         #try:
-        persons = signup_class.objects.filter(isallow=True, user=self.submission.user_id).select_related('lecture')
-
-        for person in persons:
-            plist = Problem.objects.filter(contest__lecture=person.lecture_id).prefetch_related('contest')
-            LectureInfo = lecDispatcher()
-            LectureInfo.fromDict(person.score)
-            print(LectureInfo.toDict())
-            for contA in LectureInfo.contAnalysis.values():
-                for cont in contA.contests.values():
-                    print(cont.id,cont.title,cont.contestType,cont.solveCount,cont.isSubmitted)
-            LectureInfo.associateSubmission(self.submission)
-            person.score = LectureInfo.toDict()
-            person.save()
+        lb = LectureBuilder()
+        lb.LectureSubmit(self.submission)
 
         # except Exception as ex:
         #     print("exception", ex)

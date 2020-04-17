@@ -8,6 +8,7 @@ from django.http import FileResponse
 
 from account.decorators import check_contest_permission, ensure_created_by
 from account.models import User
+from lecture.views.LectureBuilder import LectureBuilder
 from submission.models import Submission, JudgeStatus
 from utils.api import APIView, validate_serializer
 from utils.cache import cache
@@ -75,11 +76,13 @@ class ContestAPI(APIView):
 
         for k, v in data.items():
             setattr(contest, k, v)
+
+        lb = LectureBuilder()
+        lb.MigrateContest(contest)
         contest.save()
         return self.success(ContestAdminSerializer(contest).data)
 
     def get(self, request):
-        print("ContestAPI get")
         contest_id = request.GET.get("id")
         contest_year = request.GET.get("year")
 
@@ -89,7 +92,6 @@ class ContestAPI(APIView):
                 contests = contests.filter(create_time__year=contest_year) # 페이지로부터 년도에 관련된 값을 전달받은 경우, 해당 년도에 해당하는 contest들만 리턴한다.
             return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
-        print("test")
         if contest_id:
             try:
                 contest = Contest.objects.get(id=contest_id)
@@ -98,7 +100,6 @@ class ContestAPI(APIView):
             except Contest.DoesNotExist:
                 return self.error("Contest does not exist 9")
 
-        print("test")
         contests = Contest.objects.all().order_by("-create_time")
         # if request.user.is_admin(): # 요청자가 admin이 아닌 경우, 본인이 생성한 실습, 과제, 대회만 출력하게 하는 부분
         #    contests = contests.filter(created_by=request.user)
@@ -120,13 +121,8 @@ class ContestAPI(APIView):
             try:
                 lecture_title = Lecture.objects.get(contest=contest.id)
                 contest.lecture_title = lecture_title.title
-            except:
-                print("no lecture")
-            # print("수강과목 타이틀 :", lecture_title.title)
-            # print("수강과목 타이틀 :", contest.lecture_title)
-
-
-
+            except Exception as e:
+                print("Contest Get Error:",e)
 
         return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
@@ -134,7 +130,12 @@ class ContestAPI(APIView):
         id = request.GET.get("id")
         if not id:
             return self.error("Invalid Parameter, id is required")
-        Contest.objects.filter(id=id).delete()
+        conts = Contest.objects.filter(id=id)
+        if conts:
+            for cont in conts:
+                lb = LectureBuilder()
+                lb.DeleteContest(cont)
+            conts.delete()
         return self.success()
 
 class LectureContestAPI(APIView):
