@@ -66,11 +66,11 @@ class Information:
     def initData(self):
         self.cleanDatasbyList(DataType.dataTypeList)
 
-    def reCalInfo(self, contents, ismigrate):
+    def reCalInfo(self, contents, isMigrate, isAssociate):
         #Clean Data
-        if ismigrate:
+        if isMigrate:
             self.cleanDatasbyList(DataType.MigrationClearList)
-        else:
+        if isAssociate:
             self.cleanDatasbyList(DataType.AssociationClearList)
 
         #Re-calculate data
@@ -79,12 +79,13 @@ class Information:
             if not cont.Info.data[DataType.ISVISIBLE]:
                 continue
 
-            if ismigrate:
+            if isMigrate:
                 for dtype in DataType.MigrationList:
                     self.data[dtype] += cont.Info.data[dtype]
 
                 self.data[DataType.NUMOFCONTENTS] += 1
-            else:
+
+            if isAssociate:
                 for dtype in DataType.AssociationList:
                     self.data[dtype] += cont.Info.data[dtype]
 
@@ -97,14 +98,14 @@ class Information:
                 else:
                     solveCheck = False
 
-                #round(self.totalscore * 100 / self.LectureInfo.totalscore, 2)
-                self.data[DataType.AVERAGE] = self.calAverage(self.data[DataType.SCORE], self.data[DataType.POINT])
+            #round(self.totalscore * 100 / self.LectureInfo.totalscore, 2)
+            self.data[DataType.AVERAGE] = self.calAverage(self.data[DataType.SCORE], self.data[DataType.POINT])
 
-                #cal progress
-                if self.data[DataType.NUMOFTOTALPROBLEMS] != 0:
-                    self.data[DataType.PROGRESS] = round(self.data[DataType.NUMOFTOTALSUBPROBLEMS] / self.data[DataType.NUMOFTOTALPROBLEMS] * 100, 2)
+            #cal progress
+            if self.data[DataType.NUMOFTOTALPROBLEMS] != 0:
+                self.data[DataType.PROGRESS] = round(self.data[DataType.NUMOFTOTALSUBPROBLEMS] / self.data[DataType.NUMOFTOTALPROBLEMS] * 100, 2)
 
-        if not ismigrate and solveCheck:
+        if isAssociate and solveCheck:
             self.data[DataType.ISPASSED] = True
 
     def calAverage(self, sum, totalScore):
@@ -170,8 +171,21 @@ class LectureAnalysis(Content):
         #     self.totalscore += problem.total_score
         #     self.numofProblems += 1
 
-    def reCalInfo(self, ismigrate):
-        self.Info.reCalInfo(self.contAnalysis, ismigrate)
+    def deleteProblem(self, problem):
+        contest = problem.contest
+        ctype = self.typeSelector(contest.lecture_contest_type)
+        self.contAnalysis[ctype].deleteProblem(problem)
+
+    def migrateContest(self, contest):
+        ctype = self.typeSelector(contest.lecture_contest_type)
+        self.contAnalysis[ctype].migrateContest(contest)
+
+    def deleteContest(self, contest):
+        ctype = self.typeSelector(contest.lecture_contest_type)
+        self.contAnalysis[ctype].deleteContest(contest)
+
+    def reCalInfo(self, isMigrate, isAssociate):
+        self.Info.reCalInfo(self.contAnalysis, isMigrate, isAssociate)
         
     def typeSelector(self, dbtype):
         if dbtype == ContestType.ASSIGN:
@@ -267,6 +281,25 @@ class ContestAnalysis (Content):
 
         resCont.migrateproblem(problem)
 
+    def deleteProblem(self, problem):
+        contest = problem.contest
+        cid = contest.id
+        resCont = None
+        if cid in self.contests:
+            resCont = self.contests[cid]
+            resCont.deleteProblem(problem)
+
+    def migrateContest(self, contest):
+        cid = contest.id
+        if cid in self.contests:
+            self.contests[cid].migrateContest(contest)
+
+    def deleteContest(self, contest):
+        cid = contest.id
+        if cid in self.contests:
+            self.contests.pop(cid)
+            self.reCalInfo(True, True)
+
     def migrateDictionary(self, dicData):
         for contestkey in dicData['contests'].keys():
             contDict = dicData['contests'][contestkey]
@@ -279,9 +312,9 @@ class ContestAnalysis (Content):
             resCont = self.addContest(ResContest(contA=self, contDict=cdict), int(contestkey))
             resCont.migrateDictionary(contDict)
 
-    def reCalInfo(self, ismigrate):
-        self.Info.reCalInfo(self.contests, ismigrate)
-        self.resLecture.reCalInfo(ismigrate)
+    def reCalInfo(self, isMigrate, isAssociate):
+        self.Info.reCalInfo(self.contests, isMigrate, isAssociate)
+        self.resLecture.reCalInfo(isMigrate, isAssociate)
 
     def addContest(self, resCont, cid):
         self.contests[cid] = resCont
@@ -337,8 +370,24 @@ class ResContest (Content):
             if pid not in self.problems:
                 inprob = RefProblem(cont=self, problem=problem)
                 self.problems[inprob.id] = inprob
-                inprob.migrateProblem(problem)
+
                 self.solveCount += 1
+            else:
+                inprob = self.problems[pid]
+
+            inprob.migrateProblem(problem)
+
+    def deleteProblem(self, problem):
+        pid = problem.id
+        if pid in self.problems:
+            self.problems.pop(pid)
+            self.reCalInfo(isMigrate=True, isAssociate=True)
+
+    def migrateContest(self, contest):
+        self.title = contest.title
+        self.contestType = self.typeSelector(contest.lecture_contest_type)
+        self.Info.data[DataType.ISVISIBLE] = contest.visible
+        self.reCalInfo(isMigrate=True, isAssociate=False)
 
     def migrateDictionary(self, dicData):
         for probkey in dicData[LectureDictionaryKeys.PROBLEMS].keys():
@@ -346,36 +395,18 @@ class ResContest (Content):
             probDict = {'id':probkey, 'Info':problem[LectureDictionaryKeys.INFO]}
             self.problems[int(probkey)] = RefProblem(cont=self, probDict=probDict)
 
-    def reCalInfo(self, ismigrate):
+    def reCalInfo(self, isMigrate, isAssociate):
         if self.Info.data[DataType.ISVISIBLE] is True:
-            self.Info.reCalInfo(self.problems, ismigrate)
+            self.Info.reCalInfo(self.problems, isMigrate, isAssociate)
 
             #self.checkContestStatus()
-            self.contAnalysis.reCalInfo(ismigrate)
+            self.contAnalysis.reCalInfo(isMigrate, isAssociate)
 
             #if all problems of contest have been solved, please count solved contest as below
             # self.checkContestStatus(pinfo)
             #
             #
             # self.contAnalysis.reCalInfo(pinfo)
-
-    def checkContestStatus(self):
-        #Contest Submit Check, this is checked only once for contest submit check
-        # if self.Info.data[DataType.ISSUBMITTED] is True and self.isSubmitted is False:
-        #     self.Info.data[DataType.ISSUBMITTED] = True
-        #     self.isSubmitted = True
-
-        #Solved Check
-        scnt = 0
-        for prob in self.problems.values():
-            probinfo = prob.Info
-            if probinfo.data[DataType.ISPASSED] is True:
-                scnt += 1
-
-        if self.solveCount == scnt:
-            self.Info.data[DataType.ISSOLVED] = True
-        else:
-            self.Info.data[DataType.NUMOFSOLVEDCONTENTS] = False
 
     def typeSelector(self, dbtype):
         if dbtype == ContestType.ASSIGN:
@@ -416,12 +447,13 @@ class RefProblem(Content):
             self.Info.data = probDict['Info']
 
     def migrateProblem(self, problem):
+        self.title = problem.title
         self.Info.data[DataType.POINT] = problem.total_score
         self.Info.data[DataType.ISVISIBLE] = problem.visible
         self.Info.data[DataType.NUMOFCONTENTS] = 1
         self.Info.data[DataType.NUMOFTOTALPROBLEMS] = 1
-        #cinfo = self.Info.clone()
-        self.pcontest.reCalInfo(ismigrate=True)
+
+        self.pcontest.reCalInfo(isMigrate=True, isAssociate=False)
 
     def associateSubmission(self, submission):
         self.mysubmission = submission
@@ -448,7 +480,7 @@ class RefProblem(Content):
             self.Info.data[DataType.NUMOFSUBCONTENTS] = 1
             self.Info.data[DataType.ISSUBMITTED] = True
 
-        self.pcontest.reCalInfo(ismigrate=False)
+        self.pcontest.reCalInfo(isMigrate=False, isAssociate=True)
 
     def cleanDataForScorebard(self):
         self.Info.cleanForScoreboard()

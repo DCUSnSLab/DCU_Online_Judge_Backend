@@ -338,7 +338,7 @@ class ContestProblemAPI(ProblemBase):
         data["created_by"] = request.user
         problem = Problem.objects.create(**data)
         lb = LectureBuilder()
-        lb.buildLecture(problem.contest.lecture)
+        lb.MigrateProblem(problem)
         for item in tags:
             try:
                 tag = ProblemTag.objects.get(name=item)
@@ -413,8 +413,10 @@ class ContestProblemAPI(ProblemBase):
         for k, v in data.items():
             setattr(problem, k, v)
         problem.save()
+
         lb = LectureBuilder()
-        lb.buildLecture(problem.contest.lecture)
+        lb.MigrateProblem(problem)
+
         problem.tags.remove(*problem.tags.all())
         for tag in tags:
             try:
@@ -438,9 +440,11 @@ class ContestProblemAPI(ProblemBase):
         d = os.path.join(settings.TEST_CASE_DIR, problem.test_case_id)
         if os.path.isdir(d):
             shutil.rmtree(d, ignore_errors=True)
-        problem.delete()
+
         lb = LectureBuilder()
-        lb.buildLecture(problem.contest.lecture)
+        lb.DeleteProblem(problem)
+
+        problem.delete()
         return self.success()
 
 

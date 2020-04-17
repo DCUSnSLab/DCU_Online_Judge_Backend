@@ -133,7 +133,7 @@ class UserAdminAPI(APIView):
             # for p in plist:
             #     # print(p.id,p.title,p.visible)
             #     LectureInfo.migrateProblem(p)
-
+            #
             # print("Print Lecture Info :",LectureInfo.Info.data[DataType.NUMOFCONTENTS], LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS])
             # for key in LectureInfo.contAnalysis.keys():
             #     print("Contest Type :",key, end=" - ")
@@ -146,7 +146,7 @@ class UserAdminAPI(APIView):
             #         print("-- Contest - ",cont.title,":",cont.Info.data[DataType.POINT], cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.ISVISIBLE])
             #
             #         for prob in cont.problems.values():
-            #             print("----- Prob - ", prob.Id, ":", prob.Info.data[DataType.POINT],
+            #             print("----- Prob - ", prob.id, ":", prob.Info.data[DataType.POINT],
             #                   prob.Info.data[DataType.NUMOFCONTENTS], prob.Info.data[DataType.ISVISIBLE])
 
                 # for cont in contA.contests:
@@ -183,7 +183,6 @@ class UserAdminAPI(APIView):
                     #print(us.user.id,us.user.realname)
                     #print(us.score)
                     #get data from db
-
                     LectureInfo.fromDict(us.score)
                     us.totalPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFCONTENTS]
                     us.subPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSUBCONTENTS]
