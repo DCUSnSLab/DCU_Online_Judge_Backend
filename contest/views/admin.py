@@ -8,7 +8,7 @@ from django.http import FileResponse
 
 from account.decorators import check_contest_permission, ensure_created_by
 from account.models import User
-from lecture.views.LectureBuilder import LectureBuilder
+from lecture.views.LectureBuilder import LectureBuilder, ContestBuilder
 from submission.models import Submission, JudgeStatus
 from utils.api import APIView, validate_serializer
 from utils.cache import cache
@@ -77,8 +77,8 @@ class ContestAPI(APIView):
         for k, v in data.items():
             setattr(contest, k, v)
 
-        lb = LectureBuilder()
-        lb.MigrateContest(contest)
+        lb = ContestBuilder(contest)
+        lb.MigrateContent()
         contest.save()
         return self.success(ContestAdminSerializer(contest).data)
 
@@ -133,8 +133,8 @@ class ContestAPI(APIView):
         conts = Contest.objects.filter(id=id)
         if conts:
             for cont in conts:
-                lb = LectureBuilder()
-                lb.DeleteContest(cont)
+                lb = ContestBuilder(cont)
+                lb.DeleteContent()
             conts.delete()
         return self.success()
 

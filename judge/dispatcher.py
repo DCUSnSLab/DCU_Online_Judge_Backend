@@ -12,7 +12,7 @@ from conf.models import JudgeServer
 from contest.models import ContestRuleType, ACMContestRank, OIContestRank, ContestStatus
 from lecture.models import signup_class
 from lecture.views.LectureAnalysis import lecDispatcher
-from lecture.views.LectureBuilder import LectureBuilder
+from lecture.views.LectureBuilder import LectureBuilder, SubmitBuilder
 from options.options import SysOptions
 from problem.models import Problem, ProblemRuleType
 from problem.utils import parse_problem_template
@@ -208,8 +208,8 @@ class JudgeDispatcher(DispatcherBase):
 
     def updateLecturePersonalInfo(self):
         #try:
-        lb = LectureBuilder()
-        lb.LectureSubmit(self.submission)
+        lb = SubmitBuilder(self.submission)
+        lb.LectureSubmit()
 
         # except Exception as ex:
         #     print("exception", ex)
