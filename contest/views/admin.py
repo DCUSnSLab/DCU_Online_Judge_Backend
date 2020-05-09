@@ -8,7 +8,7 @@ from django.http import FileResponse
 
 from account.decorators import check_contest_permission, ensure_created_by
 from account.models import User
-from lecture.views.LectureBuilder import LectureBuilder, ContestBuilder
+from lecture.views.LectureBuilder import LectureBuilder, ContestBuilder, ProblemBuilder
 from submission.models import Submission, JudgeStatus
 from utils.api import APIView, validate_serializer
 from utils.cache import cache
@@ -384,10 +384,14 @@ class AddLectureContestAPI(APIView):
             problem.contest = contest
             problem.is_public = True
             problem.visible = True
-            problem._id = str(lecture.id)+"_"+problem._id
+            #problem._id = str(lecture.id)+"_"+problem._id
             problem.submission_number = problem.accepted_number = 0
             problem.statistic_info = {}
             problem.save()
+
+            lb = ProblemBuilder(problem)
+            lb.MigrateContent()
+
             problem.tags.set(tags)
 
         return self.success()

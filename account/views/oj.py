@@ -11,6 +11,7 @@ from django.utils.timezone import now
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from otpauth import OtpAuth
 
+from lecture.views.LectureBuilder import UserBuilder
 from problem.models import Problem
 from submission.models import Submission
 from utils.constants import ContestRuleType
@@ -338,6 +339,9 @@ class UserRegisterAPI(APIView):
                 signup.user = user
                 signup.isallow = True
                 signup.save()
+
+            ub = UserBuilder(None)
+            ub.buildLecturebyUser(user)
         except:
             print("no matching singup_class")
 
