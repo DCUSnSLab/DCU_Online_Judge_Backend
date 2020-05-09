@@ -503,6 +503,10 @@ class AddContestProblemAPI(APIView):
         problem.submission_number = problem.accepted_number = 0
         problem.statistic_info = {}
         problem.save()
+
+        lb = ProblemBuilder(problem)
+        lb.MigrateContent()
+
         problem.tags.set(tags)
         return self.success()
 

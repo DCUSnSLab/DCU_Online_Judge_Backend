@@ -132,3 +132,23 @@ class ContestBuilder(LectureBuilder):
 
     def doDeleteTask(self, lecDispatcher):
         lecDispatcher.deleteContest(self.MainQuery)
+
+class UserBuilder(LectureBuilder):
+    def __init__(self, cont):
+        LectureBuilder.__init__(self, cont)
+
+    def getLecture(self):
+        pass
+
+    def doMigrateTask(self, lecDispatcher):
+        pass
+
+    def doDeleteTask(self, lecDispatcher):
+        pass
+
+    def buildLecturebyUser(self, user):
+        try:
+            lectures = signup_class.objects.filter(isallow=True, user=user).select_related('lecture').order_by('lecture')
+        except Exception as e:
+            print("exception", e)
+        self.buildLecture(lectures)
