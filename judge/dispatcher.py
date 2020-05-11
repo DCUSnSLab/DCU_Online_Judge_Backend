@@ -10,6 +10,9 @@ from django.db.models import F
 from account.models import User
 from conf.models import JudgeServer
 from contest.models import ContestRuleType, ACMContestRank, OIContestRank, ContestStatus
+from lecture.models import signup_class
+from lecture.views.LectureAnalysis import lecDispatcher
+from lecture.views.LectureBuilder import LectureBuilder, SubmitBuilder
 from options.options import SysOptions
 from problem.models import Problem, ProblemRuleType
 from problem.utils import parse_problem_template
@@ -159,7 +162,6 @@ class JudgeDispatcher(DispatcherBase):
                 return
             Submission.objects.filter(id=self.submission.id).update(result=JudgeStatus.JUDGING)
             resp = self._request(urljoin(server.service_url, "/judge"), data=data)
-
         if not resp:
             Submission.objects.filter(id=self.submission.id).update(result=JudgeStatus.SYSTEM_ERROR)
             return
@@ -175,12 +177,14 @@ class JudgeDispatcher(DispatcherBase):
             error_test_case = list(filter(lambda case: case["result"] != 0, resp["data"]))
             # ACM模式下,多个测试点全部正确则AC，否则取第一个错误的测试点的状态
             # OI模式下, 若多个测试点全部正确则AC， 若全部错误则取第一个错误测试点状态，否则为部分正确
+
             if not error_test_case:
                 self.submission.result = JudgeStatus.ACCEPTED
             elif self.problem.rule_type == ProblemRuleType.ACM or len(error_test_case) == len(resp["data"]):
                 self.submission.result = error_test_case[0]["result"]
             else:
                 self.submission.result = JudgeStatus.PARTIALLY_ACCEPTED
+
         self.submission.save()
 
         if self.contest_id:
@@ -192,6 +196,7 @@ class JudgeDispatcher(DispatcherBase):
             with transaction.atomic():
                 self.update_contest_problem_status()
                 self.update_contest_rank()
+                self.updateLecturePersonalInfo()
         else:
             if self.last_result:
                 self.update_problem_status_rejudge()
@@ -200,6 +205,15 @@ class JudgeDispatcher(DispatcherBase):
 
         # 至此判题结束，尝试处理任务队列中剩余的任务
         process_pending_task()
+
+    def updateLecturePersonalInfo(self):
+        #try:
+        lb = SubmitBuilder(self.submission)
+        lb.LectureSubmit()
+
+        # except Exception as ex:
+        #     print("exception", ex)
+
 
     def update_problem_status_rejudge(self):
         result = str(self.submission.result)
@@ -327,6 +341,7 @@ class JudgeDispatcher(DispatcherBase):
             if self.submission.result == JudgeStatus.ACCEPTED:
                 problem.accepted_number += 1
             problem.save(update_fields=["submission_number", "accepted_number", "statistic_info"])
+            print("Submission and Problem saved")
 
     def update_contest_rank(self):
         if self.contest.rule_type == ContestRuleType.OI or self.contest.real_time_rank:

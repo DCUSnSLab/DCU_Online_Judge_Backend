@@ -15,6 +15,7 @@ from account.decorators import problem_permission_required, ensure_created_by
 from contest.models import Contest, ContestStatus
 from fps.parser import FPSHelper, FPSParser
 from judge.dispatcher import SPJCompiler
+from lecture.views.LectureBuilder import LectureBuilder, ProblemBuilder
 from options.options import SysOptions
 from submission.models import Submission, JudgeStatus
 from utils.api import APIView, CSRFExemptAPIView, validate_serializer, APIError
@@ -336,7 +337,8 @@ class ContestProblemAPI(ProblemBase):
         tags = data.pop("tags")
         data["created_by"] = request.user
         problem = Problem.objects.create(**data)
-
+        lb = ProblemBuilder(problem)
+        lb.MigrateContent()
         for item in tags:
             try:
                 tag = ProblemTag.objects.get(name=item)
@@ -412,6 +414,9 @@ class ContestProblemAPI(ProblemBase):
             setattr(problem, k, v)
         problem.save()
 
+        lb = ProblemBuilder(problem)
+        lb.MigrateContent()
+
         problem.tags.remove(*problem.tags.all())
         for tag in tags:
             try:
@@ -435,6 +440,10 @@ class ContestProblemAPI(ProblemBase):
         d = os.path.join(settings.TEST_CASE_DIR, problem.test_case_id)
         if os.path.isdir(d):
             shutil.rmtree(d, ignore_errors=True)
+
+        lb = ProblemBuilder(problem)
+        lb.DeleteContent()
+
         problem.delete()
         return self.success()
 
@@ -494,6 +503,10 @@ class AddContestProblemAPI(APIView):
         problem.submission_number = problem.accepted_number = 0
         problem.statistic_info = {}
         problem.save()
+
+        lb = ProblemBuilder(problem)
+        lb.MigrateContent()
+
         problem.tags.set(tags)
         return self.success()
 
