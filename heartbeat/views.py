@@ -62,6 +62,7 @@ class HeartBeatView(APIView):
 
         judgetime = time.time() - judgetime
         print("저지 서버 연결 유무 확인", judgetime)
+        output_data['judgetime'] = str(judgetime)
 
         postgrestime = time.time()
         try:
@@ -90,6 +91,7 @@ class HeartBeatView(APIView):
 
         postgrestime = time.time() - postgrestime
         print("데이터베이스 서버 연결 유무 확인", postgrestime)
+        output_data['postgrestime'] = str(postgrestime)
 
         redistime = time.time()
         try:
@@ -104,7 +106,7 @@ class HeartBeatView(APIView):
 
         redistime = time.time() - redistime
         print("redis 서버 연결 유무 확인", redistime)
-
+        output_data['redistime'] = str(redistime)
 
         output_data['heartbeat'] = res
 
