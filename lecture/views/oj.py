@@ -49,7 +49,7 @@ class LectureListAPI(APIView):
         # return self.success(self.paginate_data(request, lectures, LectureSerializer))
         return self.success(self.paginate_data(request, lectures, LectureSerializer))
 
-class TakingLectureListAPI(APIView):
+class TakingLectureListAPI(APIView): # 수강중인 과목 목록
     def get(self, request):
         print("TakingLectureListAPI Called")
         data = request.data
