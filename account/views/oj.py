@@ -11,7 +11,7 @@ from django.utils.timezone import now
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from otpauth import OtpAuth
 
-from lecture.views.LectureAnalysis import DataType
+from lecture.views.LectureBuilder import UserBuilder
 from problem.models import Problem
 from submission.models import Submission
 from utils.constants import ContestRuleType
@@ -31,7 +31,8 @@ from ..tasks import send_email_async
 
 from lecture.models import signup_class, Lecture
 from django.db.models import Max
-from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType
+from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
+
 
 class UserProfileAPI(APIView):
     @method_decorator(ensure_csrf_cookie)
@@ -77,36 +78,24 @@ class UserProgress(APIView):
         print(request.user)
 
         try:
-            lectures = signup_class.objects.filter(user_id=request.user).select_related('lecture')
+            lectures = signup_class.objects.filter(user_id=request.user, isallow=True).select_related('lecture')
             # ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
         except signup_class.DoesNotExist:
             return self.error("수강중인 학생이 없습니다.")
 
         for lec in lectures:
-            print(lec.lecture.title)
+            #print(lec.lecture.title)
             #collect lecture info
             plist = Problem.objects.filter(contest__lecture=lec.lecture_id).prefetch_related('contest')
 
             #test
-            LectureInfo = LectureAnalysis()
-            for p in plist:
-                # print(p.id,p.title,p.visible)
-                LectureInfo.migrateProblem(p)
-
-            print("Print Lecture Info :",LectureInfo.Info.data[DataType.NUMOFCONTENTS], LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS])
-            for key in LectureInfo.contAnalysis.keys():
-                print("Contest Type :",key, end=" - ")
-                contA = LectureInfo.contAnalysis[key]
-                print("Inform :",contA.Info.data[DataType.POINT]
-                      , contA.Info.data[DataType.NUMOFCONTENTS], contA.Info.data[DataType.NUMOFTOTALPROBLEMS]
-                      , "/",contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS])
-
-                for cont in contA.contests.values():
-                    print("-- Contest - ",cont.title,":",cont.Info.data[DataType.POINT], cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.ISVISIBLE])
-
-            #get Submission
-            sublist = Submission.objects.filter(lecture=lec.lecture_id)
-
+            LectureInfo = lecDispatcher()
+            # for p in plist:
+            #     # print(p.id,p.title,p.visible)
+            #     LectureInfo.migrateProblem(p)
+            #
+            # LectureInfo.cleanDataForScorebard()
+            LectureInfo.fromDict(lec.score)
 
             #inlit result values
             lec.totalPractice = 0
@@ -124,15 +113,7 @@ class UserProgress(APIView):
             lec.progress = 0
             lec.totalProblem = 0
             lec.maxScore = 0
-
-            #print(us.user.id,us.user.realname)
-            #get data from db
-            ldates = sublist.filter(user_id=request.user).values('contest','problem').annotate(latest_created_at=Max('create_time'))
-            sdata = sublist.filter(create_time__in=ldates.values('latest_created_at')).order_by('-create_time')
-            LectureInfo.cleanDataForScorebard()
-
-            for submit in sdata:
-                LectureInfo.associateSubmission(submit)
+            lec.lecDict = dict()
 
             lec.totalPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFCONTENTS]
             lec.subPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSUBCONTENTS]
@@ -148,30 +129,10 @@ class UserProgress(APIView):
             lec.avgScore = LectureInfo.Info.data[DataType.AVERAGE]
             lec.progress = LectureInfo.Info.data[DataType.PROGRESS]
 
-            #Test Print
-            print()
-            print(request.user, " Student Info - ", LectureInfo.Info.data[DataType.PROGRESS],"%",sep="")
-            for key in LectureInfo.contAnalysis.keys():
-                print("Contest Type :", key, end=" - ")
-                contA = LectureInfo.contAnalysis[key]
-                print("Inform :", contA.Info.data[DataType.POINT], contA.Info.data[DataType.NUMOFCONTENTS]
-                      ,"[",contA.Info.data[DataType.NUMOFTOTALPROBLEMS]
-                      , "/", contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS]
-                      , "/", contA.Info.data[DataType.NUMOFTOTALSOLVEDPROBLEMS], "]"
-                      , "sub :",contA.Info.data[DataType.SCORE], contA.Info.data[DataType.AVERAGE]
-                      ," -PROG:",contA.Info.data[DataType.PROGRESS])
-
-                for cont in contA.contests.values():
-                    print("-- Contest - ", cont.title, ":", cont.Info.data[DataType.POINT],
-                          cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.ISVISIBLE]
-                          ,"sub:",cont.Info.data[DataType.SCORE], cont.Info.data[DataType.AVERAGE]
-                          ," -PROG:",cont.Info.data[DataType.PROGRESS])
-
             lec.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]
             lec.maxScore = LectureInfo.Info.data[DataType.POINT]
 
         return self.success(self.paginate_data(request, lectures, SignupSerializer))
-
 
 class AvatarUploadAPI(APIView):
     request_parsers = ()
@@ -378,6 +339,9 @@ class UserRegisterAPI(APIView):
                 signup.user = user
                 signup.isallow = True
                 signup.save()
+
+            ub = UserBuilder(None)
+            ub.buildLecturebyUser(user)
         except:
             print("no matching singup_class")
 
