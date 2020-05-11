@@ -1,6 +1,7 @@
 from django import forms
 
 from utils.api import serializers, UsernameSerializer
+from contest.serializers import ContestSerializer, UserContestSerializer
 
 from .models import AdminType, ProblemPermission, User, UserProfile
 from lecture.models import signup_class
@@ -86,6 +87,7 @@ class SignupSerializer(serializers.ModelSerializer):
     avgScore = serializers.FloatField()
     progress = serializers.FloatField()
     lecDict = serializers.DictField()
+    contestlist = serializers.DictField()
     class Meta:
         model = signup_class
         fields = "__all__"

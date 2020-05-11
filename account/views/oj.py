@@ -13,6 +13,7 @@ from otpauth import OtpAuth
 
 from lecture.views.LectureBuilder import UserBuilder
 from problem.models import Problem
+from contest.models import Contest
 from submission.models import Submission
 from utils.constants import ContestRuleType
 from options.options import SysOptions
@@ -83,6 +84,17 @@ class UserProgress(APIView):
         except signup_class.DoesNotExist:
             return self.error("수강중인 학생이 없습니다.")
 
+        for lecture in lectures:
+            try:
+                contestlist = Contest.objects.filter(lecture=lecture.lecture.id).order_by('end_time')
+            except:
+                print("contest no exists")
+
+            print("실습/과제 목록 :",contestlist)
+            for contest in contestlist:
+                print(contest.title)
+                print(contest.end_time)
+
         for lec in lectures:
             #print(lec.lecture.title)
             #collect lecture info
@@ -131,6 +143,20 @@ class UserProgress(APIView):
 
             lec.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]
             lec.maxScore = LectureInfo.Info.data[DataType.POINT]
+
+            try:
+                contestlist = Contest.objects.filter(lecture=lecture.lecture.id).order_by('end_time')
+            except:
+                print("contest no exists")
+
+            lec.contestlist = dict()
+
+            for idx, contest in enumerate(contestlist):
+                condict = dict()
+                condict['end_time'] = str(contest.end_time)
+                condict['title'] = contest.title
+                condict['description'] = contest.description
+                lec.contestlist[contest.id] = condict
 
         return self.success(self.paginate_data(request, lectures, SignupSerializer))
 
