@@ -153,10 +153,11 @@ class UserProgress(APIView):
 
             for idx, contest in enumerate(contestlist):
                 condict = dict()
+                condict['id'] = contest.id
                 condict['end_time'] = str(contest.end_time)
                 condict['title'] = contest.title
                 condict['description'] = contest.description
-                lec.contestlist[contest.id] = condict
+                lec.contestlist[idx] = condict
 
         return self.success(self.paginate_data(request, lectures, SignupSerializer))
 
