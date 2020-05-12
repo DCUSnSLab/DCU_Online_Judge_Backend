@@ -87,10 +87,12 @@ class SignupSerializer(serializers.ModelSerializer):
     avgScore = serializers.FloatField()
     progress = serializers.FloatField()
     lecDict = serializers.DictField()
-    contestlist = serializers.DictField()
     class Meta:
         model = signup_class
         fields = "__all__"
+
+class MainSignupSerializer(SignupSerializer):
+    contestlist = serializers.DictField()
 
 class UserProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer()

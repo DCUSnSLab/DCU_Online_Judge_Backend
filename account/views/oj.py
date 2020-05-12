@@ -25,7 +25,7 @@ from ..models import User, UserProfile, AdminType
 from ..serializers import (ApplyResetPasswordSerializer, ResetPasswordSerializer,
                            UserChangePasswordSerializer, UserLoginSerializer,
                            UserRegisterSerializer, UsernameOrEmailCheckSerializer,
-                           RankInfoSerializer, UserChangeEmailSerializer, SSOSerializer, SignupSerializer)
+                           RankInfoSerializer, UserChangeEmailSerializer, SSOSerializer, SignupSerializer, MainSignupSerializer)
 from ..serializers import (TwoFactorAuthCodeSerializer, UserProfileSerializer,
                            EditUserProfileSerializer, ImageUploadForm)
 from ..tasks import send_email_async
@@ -159,7 +159,7 @@ class UserProgress(APIView):
                 condict['description'] = contest.description
                 lec.contestlist[idx] = condict
 
-        return self.success(self.paginate_data(request, lectures, SignupSerializer))
+        return self.success(self.paginate_data(request, lectures, MainSignupSerializer))
 
 class AvatarUploadAPI(APIView):
     request_parsers = ()
