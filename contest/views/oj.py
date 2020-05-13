@@ -6,6 +6,7 @@ from django.utils.timezone import now
 from django.core.cache import cache
 
 from problem.models import Problem
+from lecture.models import Lecture
 from utils.api import APIView, validate_serializer
 from utils.constants import CacheKey
 from utils.shortcuts import datetime2str, check_is_id
@@ -35,7 +36,6 @@ class ContestAnnouncementListAPI(APIView):
 
 class ContestAPI(APIView):
     def get(self, request):
-        #print('insert contest')
         id = request.GET.get("id")
 
         if not id or not check_is_id(id):
@@ -68,6 +68,10 @@ class ContestListAPI(APIView):
         # contests = Contest.objects.get(lecture=request.get('lecture_id'))
         # return self.success(self.paginate_data(request, contests, ContestSerializer))
         lectureid = request.GET.get('lectureid')
+        try:
+            lecture = Lecture.objects.get(id=lectureid)
+        except:
+            print("lecture not exist")
         contests = Contest.objects.select_related("created_by").filter(visible=True, lecture=lectureid)
         keyword = request.GET.get("keyword")
         rule_type = request.GET.get("rule_type")
@@ -84,6 +88,8 @@ class ContestListAPI(APIView):
                 contests = contests.filter(end_time__lt=cur)
             else:
                 contests = contests.filter(start_time__lte=cur, end_time__gte=cur)
+        for contest in contests:
+            contest.lecture_title = lecture.title
         return self.success(self.paginate_data(request, contests, ContestSerializer))
 
 

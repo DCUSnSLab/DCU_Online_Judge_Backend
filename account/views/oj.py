@@ -11,7 +11,10 @@ from django.utils.timezone import now
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from otpauth import OtpAuth
 
+from lecture.views.LectureBuilder import UserBuilder
 from problem.models import Problem
+from contest.models import Contest
+from submission.models import Submission
 from utils.constants import ContestRuleType
 from options.options import SysOptions
 from utils.api import APIView, validate_serializer, CSRFExemptAPIView
@@ -22,12 +25,15 @@ from ..models import User, UserProfile, AdminType
 from ..serializers import (ApplyResetPasswordSerializer, ResetPasswordSerializer,
                            UserChangePasswordSerializer, UserLoginSerializer,
                            UserRegisterSerializer, UsernameOrEmailCheckSerializer,
-                           RankInfoSerializer, UserChangeEmailSerializer, SSOSerializer)
+                           RankInfoSerializer, UserChangeEmailSerializer, SSOSerializer, SignupSerializer, MainSignupSerializer)
 from ..serializers import (TwoFactorAuthCodeSerializer, UserProfileSerializer,
                            EditUserProfileSerializer, ImageUploadForm)
 from ..tasks import send_email_async
 
-from lecture.models import signup_class
+from lecture.models import signup_class, Lecture
+from django.db.models import Max
+from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
+
 
 class UserProfileAPI(APIView):
     @method_decorator(ensure_csrf_cookie)
@@ -61,6 +67,93 @@ class UserProfileAPI(APIView):
         user_profile.save()
         return self.success(UserProfileSerializer(user_profile, show_real_name=True).data)
 
+class UserProgress(APIView):
+    @login_required
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return self.error("로그인 후 사용 가능합니다.")
+
+        if request.user.is_super_admin(): # 관리자 계정의 개설 과목 출력
+            print("관리자입니다.")
+            return self.error("관리자 없")
+        print(request.user)
+
+        try:
+            lectures = signup_class.objects.filter(user_id=request.user, isallow=True).select_related('lecture')
+            # ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
+        except signup_class.DoesNotExist:
+            return self.error("수강중인 학생이 없습니다.")
+
+        for lec in lectures:
+            #print(lec.lecture.title)
+            #collect lecture info
+            plist = Problem.objects.filter(contest__lecture=lec.lecture_id).prefetch_related('contest')
+
+            #test
+            LectureInfo = lecDispatcher()
+            # for p in plist:
+            #     # print(p.id,p.title,p.visible)
+            #     LectureInfo.migrateProblem(p)
+            #
+            # LectureInfo.cleanDataForScorebard()
+            LectureInfo.fromDict(lec.score)
+
+            #inlit result values
+            lec.totalPractice = 0
+            lec.subPractice = 0
+            lec.solvePractice = 0
+
+            lec.totalAssign = 0
+            lec.subAssign = 0
+            lec.solveAssign = 0
+
+            lec.tryProblem = 0
+            lec.solveProblem = 0
+            lec.totalScore = 0
+            lec.avgScore = 0
+            lec.progress = 0
+            lec.totalProblem = 0
+            lec.maxScore = 0
+            lec.lecDict = dict()
+
+            lec.totalPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFCONTENTS]
+            lec.subPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSUBCONTENTS]
+            lec.solvePractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSOLVEDCONTENTS]
+
+            lec.totalAssign = LectureInfo.contAnalysis[ContestType.ASSIGN].Info.data[DataType.NUMOFCONTENTS]
+            lec.subAssign = LectureInfo.contAnalysis[ContestType.ASSIGN].Info.data[DataType.NUMOFSUBCONTENTS]
+            lec.solveAssign = LectureInfo.contAnalysis[ContestType.ASSIGN].Info.data[DataType.NUMOFSOLVEDCONTENTS]
+
+            lec.tryProblem = LectureInfo.Info.data[DataType.NUMOFTOTALSUBPROBLEMS]
+            lec.solveProblem = LectureInfo.Info.data[DataType.NUMOFTOTALSOLVEDPROBLEMS]
+            lec.totalScore = LectureInfo.Info.data[DataType.SCORE]
+            lec.avgScore = LectureInfo.Info.data[DataType.AVERAGE]
+            lec.progress = LectureInfo.Info.data[DataType.PROGRESS]
+
+            lec.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]
+            lec.maxScore = LectureInfo.Info.data[DataType.POINT]
+
+            try:
+                contestlist = Contest.objects.filter(lecture=lec.lecture.id, end_time__gte=now()).order_by('end_time')
+            except:
+                print("contest no exists")
+
+            lec.contestlist = dict()
+
+            for idx, contest in enumerate(contestlist):
+                condict = dict()
+                condict['id'] = contest.id
+                condict['end_time'] = str(contest.end_time)
+                condict['title'] = contest.title
+                condict['description'] = contest.description
+                total = LectureInfo.contAnalysis[contest.lecture_contest_type].contests[contest.id].Info.data[DataType.NUMOFCONTENTS]
+                solved = LectureInfo.contAnalysis[contest.lecture_contest_type].contests[contest.id].Info.data[DataType.NUMOFSOLVEDCONTENTS]
+                condict['remainproblem'] = total - solved
+                print("테스트 출력",condict['remainproblem'])
+                if condict['remainproblem'] != 0:
+                    lec.contestlist[idx] = condict
+
+        return self.success(self.paginate_data(request, lectures, MainSignupSerializer))
 
 class AvatarUploadAPI(APIView):
     request_parsers = ()
@@ -267,6 +360,9 @@ class UserRegisterAPI(APIView):
                 signup.user = user
                 signup.isallow = True
                 signup.save()
+
+            ub = UserBuilder(None)
+            ub.buildLecturebyUser(user)
         except:
             print("no matching singup_class")
 

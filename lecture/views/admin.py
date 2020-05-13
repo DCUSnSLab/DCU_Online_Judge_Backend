@@ -12,6 +12,7 @@ from utils.cache import cache
 from utils.constants import CacheKey
 from utils.shortcuts import rand_str
 from utils.tasks import delete_files
+from .LectureBuilder import UserBuilder
 from ..models import Lecture, signup_class
 from ..serializers import (CreateLectureSerializer, EditLectureSerializer, LectureAdminSerializer, LectureSerializer, )
 
@@ -79,6 +80,10 @@ class AdminLectureApplyAPI(APIView):
             #print(appy)
             appy.isallow = True
             appy.save()
+
+            lectures = signup_class.objects.filter(isallow=True, lecture_id=data.get("lecture_id"), user_id=data.get("user_id")).select_related('lecture').order_by('lecture')
+            ub = UserBuilder(None)
+            ub.buildLecture(lectures)
             #print("modified")
 
         return self.success()
@@ -119,6 +124,9 @@ class WaitStudentAddAPI(APIView):
                             signup.user = user
                             signup.isallow = True
                             signup.save()
+
+                        ub = UserBuilder(None)
+                        ub.buildLecture(signup.select_related('lecture').order_by('lecture'))
                     except:
                         print("no matching user")
 
