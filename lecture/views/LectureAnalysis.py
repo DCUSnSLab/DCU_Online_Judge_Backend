@@ -45,7 +45,8 @@ class DataType(object):
 class ContestType(object):
     PRACTICE = "실습"
     ASSIGN = "과제"
-    cTypeList = [PRACTICE, ASSIGN]
+    CONTEST = "대회"
+    cTypeList = [PRACTICE, ASSIGN, CONTEST]
 
 #Lectuer Dictionary Keys for data exchanging from class to dictionary
 class LectureDictionaryKeys:
@@ -192,6 +193,8 @@ class LectureAnalysis(Content):
             return ContestType.ASSIGN
         elif dbtype == ContestType.PRACTICE:
             return ContestType.PRACTICE
+        elif dbtype== ContestType.CONTEST:
+            return ContestType.CONTEST
         else:
             return None
 
