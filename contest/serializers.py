@@ -40,12 +40,17 @@ class ContestAdminSerializer(serializers.ModelSerializer):
         model = Contest
         fields = "__all__"
 
-
 class ContestSerializer(ContestAdminSerializer):
+    lecture_title = serializers.CharField(allow_blank=True, allow_null=True)
     class Meta:
         model = Contest
         exclude = ("password", "allowed_ip_ranges")
 
+class UserContestSerializer(ContestAdminSerializer):
+    class Meta:
+        model = Contest
+        # exclude = ("password", "allowed_ip_ranges", "title", "description", "real_time_rank", "rule_type", "start_time", "end_time", "created_by")
+        exclude = ("password", "allowed_ip_ranges")
 
 class ContestAnnouncementSerializer(serializers.ModelSerializer):
     created_by = UsernameSerializer()

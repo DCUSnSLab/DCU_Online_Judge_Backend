@@ -3,9 +3,9 @@ import ipaddress
 from account.decorators import login_required, check_contest_permission
 from contest.models import Contest, ContestStatus, ContestRuleType
 from lecture.models import Lecture
+from judge.dispatcher import JudgeDispatcher
 from judge.tasks import judge_task
 from options.options import SysOptions
-# from judge.dispatcher import JudgeDispatcher
 from problem.models import Problem, ProblemRuleType
 from utils.api import APIView, validate_serializer
 from utils.cache import cache
@@ -105,8 +105,8 @@ class SubmissionAPI(APIView):
                                                    contest_id=data.get("contest_id"),
                                                    lecture_id=None)
         # use this for debug
-        # JudgeDispatcher(submission.id, problem.id).judge()
-        judge_task.send(submission.id, problem.id)
+        JudgeDispatcher(submission.id, problem.id).judge()
+        #judge_task.send(submission.id, problem.id)
         if hide_id:
             return self.success()
         else:
