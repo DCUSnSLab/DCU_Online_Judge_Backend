@@ -179,7 +179,7 @@ class UserAdminAPI(APIView):
                 us.maxScore = 0
                 us.lecDict = dict()
 
-                if us.user is not None:
+                if us.user is not None and us.isallow is True:
                     #print(us.user.id,us.user.realname)
                     #print(us.score)
                     #get data from db
