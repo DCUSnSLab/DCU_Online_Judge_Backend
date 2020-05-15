@@ -251,7 +251,7 @@ class lecDispatcher(LectureAnalysis):
         return ldict
 
     def fromDict(self, dicdata):
-        if len(dicdata) == 0:
+        if dicdata is None or len(dicdata) == 0:
             return
 
         self.Info.data = dicdata[LectureDictionaryKeys.INFO]
