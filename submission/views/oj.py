@@ -1,5 +1,6 @@
 import ipaddress
 
+from django.db.models import Q
 from account.decorators import login_required, check_contest_permission
 from contest.models import Contest, ContestStatus, ContestRuleType
 from lecture.models import Lecture
@@ -188,13 +189,12 @@ class ContestSubmissionListAPI(APIView):
 
         contest = self.contest
         submissions = Submission.objects.filter(contest_id=contest.id).select_related("problem__created_by").select_related("user")
-        print("Test", submissions[0].user.realname)
-        print(submissions)
 
         problem_id = request.GET.get("problem_id")
         myself = request.GET.get("myself")
         result = request.GET.get("result")
         username = request.GET.get("username")
+        realname = request.GET.get("realname")
         if problem_id:
             try:
                 problem = Problem.objects.get(_id=problem_id, contest_id=contest.id, visible=True)
@@ -205,7 +205,8 @@ class ContestSubmissionListAPI(APIView):
         if myself and myself == "1":
             submissions = submissions.filter(user_id=request.user.id)
         elif username:
-            submissions = submissions.filter(username__icontains=username)
+            submissions = submissions.filter(Q(username__icontains=username) |
+                                             Q(user_id__=username))
         if result:
             submissions = submissions.filter(result=result)
 
