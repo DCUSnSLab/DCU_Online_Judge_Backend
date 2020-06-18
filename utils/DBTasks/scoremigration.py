@@ -83,7 +83,7 @@ for lec in lectures:
     lec.score = LectureInfo.toDict()
     lec.save()
 
-    print("(", cnt, "/", total, ")", lec.lecture_id, lec.id, lec.user.realname,lec.user.username, lec.lecture.title, 'Completed')
+    print("(", cnt, "/", total, ")", lec.lecture_id, lec.id, lec.user.realname,lec.user.username, lec.lecture.title, 'Completedd')
 
     # if lec.user.realname=='강동우':
     #     print(lec.score)

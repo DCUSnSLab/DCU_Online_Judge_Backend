@@ -461,8 +461,8 @@ class RefProblem(Content):
     def associateSubmission(self, submission):
         self.mysubmission = submission
 
-        #Passed Submitdata
-        if submission.result == JudgeStatus.ACCEPTED:
+        # Passed Submitdata testtddd
+        if submission.result == JudgeStatus.ACCEPTED or submission.result == JudgeStatus.PARTIALLY_ACCEPTED or submission.result == JudgeStatus.WRONG_ANSWER:
             Json = submission.info
             if Json:
                 for jsondata in Json['data']:

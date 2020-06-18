@@ -25,11 +25,10 @@ from ..serializers import (ContestAnnouncementSerializer, ContestAdminSerializer
 
 
 class ContestAPI(APIView):
-    @validate_serializer(CreateContestSeriaizer)
+    @validate_serializer(CreateContestSeriaizer) # 해당 함수를 호출하기 전에, CreateContestSerializer에서 사전 정의되지 않은 값은 통과시키지 않는다.
     def post(self, request):
         print("ContestAPI post")
         data = request.data
-        print(data)
         data["start_time"] = dateutil.parser.parse(data["start_time"])
         data["end_time"] = dateutil.parser.parse(data["end_time"])
         if data["lecture_id"] is None: # 해당 Contest가 개설과목에 소속되지 않은 경우
@@ -53,7 +52,7 @@ class ContestAPI(APIView):
     def put(self, request):
         print("ContestAPI put")
         data = request.data
-        #print(data)
+        print(data)
         try:
             contest = Contest.objects.get(id=data.pop("id"))
             ensure_created_by(contest, request.user)
@@ -159,8 +158,6 @@ class LectureContestAPI(APIView):
         if keyword:
             contests = contests.filter(title__contains=keyword)
 
-        for cc in contests:
-            print(cc.title)
         # problem_id = request.GET.get("id")
         # contest_id = request.GET.get("contest_id")
         # user = request.user
