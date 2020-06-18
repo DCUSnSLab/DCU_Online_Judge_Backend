@@ -24,6 +24,7 @@ class EditContestSeriaizer(serializers.Serializer):
     description = serializers.CharField()
     start_time = serializers.DateTimeField()
     end_time = serializers.DateTimeField()
+    lecture_contest_type = serializers.ChoiceField(choices=[LectureContestType.Training, LectureContestType.Assignment, LectureContestType.Competition])
     password = serializers.CharField(allow_blank=True, allow_null=True, max_length=32)
     visible = serializers.BooleanField()
     real_time_rank = serializers.BooleanField()

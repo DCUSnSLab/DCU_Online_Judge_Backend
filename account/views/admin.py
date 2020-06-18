@@ -130,37 +130,9 @@ class UserAdminAPI(APIView):
 
             #test
             LectureInfo = lecDispatcher()
-            # for p in plist:
-            #     # print(p.id,p.title,p.visible)
-            #     LectureInfo.migrateProblem(p)
-            #
-            # print("Print Lecture Info :",LectureInfo.Info.data[DataType.NUMOFCONTENTS], LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS])
-            # for key in LectureInfo.contAnalysis.keys():
-            #     print("Contest Type :",key, end=" - ")
-            #     contA = LectureInfo.contAnalysis[key]
-            #     print("Inform :",contA.Info.data[DataType.POINT]
-            #           , contA.Info.data[DataType.NUMOFCONTENTS], contA.Info.data[DataType.NUMOFTOTALPROBLEMS]
-            #           , "/",contA.Info.data[DataType.NUMOFTOTALSUBPROBLEMS])
-            #
-            #     for cont in contA.contests.values():
-            #         print("-- Contest - ",cont.title,":",cont.Info.data[DataType.POINT], cont.Info.data[DataType.NUMOFCONTENTS], cont.Info.data[DataType.ISVISIBLE])
-            #
-            #         for prob in cont.problems.values():
-            #             print("----- Prob - ", prob.id, ":", prob.Info.data[DataType.POINT],
-            #                   prob.Info.data[DataType.NUMOFCONTENTS], prob.Info.data[DataType.ISVISIBLE])
-
-                # for cont in contA.contests:
-                #     print(cont.title,":",cont.Info.point, cont.Info.numofContents)
-
-            # LectureInfo = RefLecture()
-            # for p in plist:
-            #     #print(p.id,p.title,p.visible)
-            #     LectureInfo.addProblem(p)
-            #     #print(p,p.title,p.contest)
 
             cnt = 0
             for us in ulist:
-
                 #inlit result values
                 us.totalPractice = 0
                 us.subPractice = 0
@@ -201,6 +173,7 @@ class UserAdminAPI(APIView):
                 us.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]
                 us.maxScore = LectureInfo.Info.data[DataType.POINT]
                 cnt += 1
+
             return self.success(self.paginate_data(request, ulist, SignupSerializer))
 
         """

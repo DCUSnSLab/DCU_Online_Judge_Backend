@@ -7,6 +7,7 @@ from lecture.models import Lecture
 from judge.dispatcher import JudgeDispatcher
 from judge.tasks import judge_task
 from options.options import SysOptions
+from account.models import User
 from problem.models import Problem, ProblemRuleType
 from utils.api import APIView, validate_serializer
 from utils.cache import cache
@@ -194,7 +195,6 @@ class ContestSubmissionListAPI(APIView):
         myself = request.GET.get("myself")
         result = request.GET.get("result")
         username = request.GET.get("username")
-        realname = request.GET.get("realname")
         if problem_id:
             try:
                 problem = Problem.objects.get(_id=problem_id, contest_id=contest.id, visible=True)
@@ -205,8 +205,16 @@ class ContestSubmissionListAPI(APIView):
         if myself and myself == "1":
             submissions = submissions.filter(user_id=request.user.id)
         elif username:
-            submissions = submissions.filter(Q(username__icontains=username) |
-                                             Q(user_id__=username))
+            user_id = None
+            try:
+                user_id = User.objects.get(realname=username).id
+            except:
+                return self.error("존재하지 않는 사용자입니다.")
+            if user_id != None:
+                submissions = submissions.filter(Q(username__icontains=username) |
+                                                 Q(user_id=user_id))
+            else:
+                submissions = submissions.filter(username__icontains=username)
         if result:
             submissions = submissions.filter(result=result)
 
