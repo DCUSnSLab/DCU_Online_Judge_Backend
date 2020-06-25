@@ -51,6 +51,7 @@ class SubmissionAPI(APIView):
     @validate_serializer(CreateSubmissionSerializer)
     @login_required
     def post(self, request):
+        print("SubmissionAPI post")
         data = request.data
         hide_id = False
         if data.get("contest_id"):
@@ -75,7 +76,7 @@ class SubmissionAPI(APIView):
         if data["language"] not in problem.languages:
             return self.error(f"{data['language']} is now allowed in the problem")
 
-        if data.get("contest_id"): # 대회에 소속된 문제인 경우,
+        if data.get("contest_id"): # Contest에 소속된 문제인 경우,
             contest = Contest.objects.get(id=data.get("contest_id"))
             print(contest.title)
             print(contest.lecture_id)

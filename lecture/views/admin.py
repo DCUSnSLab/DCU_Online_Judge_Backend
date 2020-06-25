@@ -82,8 +82,8 @@ class AdminLectureApplyAPI(APIView):
             appy.save()
 
             lectures = signup_class.objects.filter(isallow=True, lecture_id=data.get("lecture_id"), user_id=data.get("user_id")).select_related('lecture').order_by('lecture')
-            ub = UserBuilder(None)
-            ub.buildLecture(lectures)
+            ub = UserBuilder(None) # 사용자 정보 생성 후 lecture_signup_class에 추가하는 부분
+            ub.buildLecture(lectures) # 이하동일
             #print("modified")
 
         return self.success()
