@@ -462,8 +462,9 @@ class RefProblem(Content):
         self.mysubmission = submission
 
         # Passed Submitdata testtddd
-        if submission.result == JudgeStatus.ACCEPTED or submission.result == JudgeStatus.PARTIALLY_ACCEPTED or submission.result == JudgeStatus.WRONG_ANSWER:
+        if submission.result == JudgeStatus.ACCEPTED or submission.result == JudgeStatus.PARTIALLY_ACCEPTED:
             Json = submission.info
+            self.Info.data[DataType.SCORE] = 0
             if Json:
                 for jsondata in Json['data']:
                     self.Info.data[DataType.SCORE] += jsondata['score']
