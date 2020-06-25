@@ -156,6 +156,7 @@ class SubmissionAPI(APIView):
 
 class SubmissionListAPI(APIView):
     def get(self, request):
+        print("SubmissionListAPI GET")
         if not request.GET.get("limit"):
             return self.error("Limit is needed")
         if request.GET.get("contest_id"):
@@ -186,6 +187,7 @@ class SubmissionListAPI(APIView):
 class ContestSubmissionListAPI(APIView):
     @check_contest_permission(check_type="submissions")
     def get(self, request):
+        print("ContestSubmissionListAPI GET")
         if not request.GET.get("limit"):
             return self.error("Limit is needed")
 
@@ -207,8 +209,9 @@ class ContestSubmissionListAPI(APIView):
             submissions = submissions.filter(user_id=request.user.id)
         elif username:
             user_id = None
+            print(username)
             try:
-                user_id = User.objects.get(realname=username).id
+                submissions = submissions.filter(username=username)
             except:
                 return self.error("존재하지 않는 사용자입니다.")
             if user_id != None:
