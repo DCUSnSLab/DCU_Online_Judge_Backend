@@ -176,7 +176,9 @@ class SubmissionListAPI(APIView):
         if (myself and myself == "1") or not SysOptions.submission_list_show_all:
             submissions = submissions.filter(user_id=request.user.id)
         elif username:
-            submissions = submissions.filter(username__icontains=username)
+            # submissions = submissions.filter(username__icontains=username)
+            # submissions = submissions.filter(user__realname__contains=username)
+            submissions = submissions.filter(Q(user__realname__contains=username) | Q(username__icontains=username))
         if result:
             submissions = submissions.filter(result=result)
         data = self.paginate_data(request, submissions)
