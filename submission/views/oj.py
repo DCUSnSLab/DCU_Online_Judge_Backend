@@ -210,17 +210,7 @@ class ContestSubmissionListAPI(APIView):
         if myself and myself == "1":
             submissions = submissions.filter(user_id=request.user.id)
         elif username:
-            user_id = None
-            print(username)
-            try:
-                submissions = submissions.filter(username=username)
-            except:
-                return self.error("존재하지 않는 사용자입니다.")
-            if user_id != None:
-                submissions = submissions.filter(Q(username__icontains=username) |
-                                                 Q(user_id=user_id))
-            else:
-                submissions = submissions.filter(username__icontains=username)
+            submissions = submissions.filter(Q(user__realname__contains=username) | Q(username__icontains=username))
         if result:
             submissions = submissions.filter(result=result)
 
