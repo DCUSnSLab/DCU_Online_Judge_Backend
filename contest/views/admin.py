@@ -8,7 +8,7 @@ from django.http import FileResponse
 
 from account.decorators import check_contest_permission, ensure_created_by
 from account.models import User
-from lecture.views.LectureBuilder import LectureBuilder, ContestBuilder, ProblemBuilder
+from lecture.views.LectureBuilder import LectureBuilder, ContestBuilder, ProblemBuilder, UserBuilder
 from submission.models import Submission, JudgeStatus
 from utils.api import APIView, validate_serializer
 from utils.cache import cache
@@ -76,9 +76,25 @@ class ContestAPI(APIView):
         for k, v in data.items():
             setattr(contest, k, v)
 
+        #contest 값 업데이트
         lb = ContestBuilder(contest)
         lb.MigrateContent()
         contest.save()
+
+        import timeit
+
+        start = timeit.default_timer()
+        #lb.doAssociateTask()
+        stop = timeit.default_timer()
+
+        print('Time: ', stop - start)
+        '''
+        all_student = UserBuilder(contest)
+        alst = all_student.getLecAllUserList(contest.lecture_id)
+        
+        for st in alst:
+            print(st.realname)
+        '''
         return self.success(ContestAdminSerializer(contest).data)
 
     def get(self, request):
