@@ -55,15 +55,17 @@ class LectureBuilder(metaclass=ABCMeta):
             for student in students:
                 linfo = lecDispatcher()
                 linfo.fromDict(student.score)
-
                 #do task by tasktype
+
                 if tasktype == TaskType.MIGRATE:
                     self.doMigrateTask(linfo)
+
                 elif tasktype == TaskType.DELETE:
                     self.doDeleteTask(linfo)
 
                 student.score = linfo.toDict()
                 student.save()
+
         except Exception as e:
             print(tasktype,"-",self.MainQuery," Exception :",e)
 
@@ -145,6 +147,13 @@ class UserBuilder(LectureBuilder):
 
     def doDeleteTask(self, lecDispatcher):
         pass
+
+    def getLecAllUserList(self, lid):
+        try:
+            LecAllUser = signup_class.objects.filter(lecture=lid).order_by("realname")
+        except Exception as e:
+            print("exception", e)
+        return LecAllUser
 
     def buildLecturebyUser(self, user):
         try:
