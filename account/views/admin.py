@@ -204,10 +204,10 @@ class UserAdminAPI(APIView):
         if id is None:
             print("Test")
         if not id:
-            return self.error("Invalid Parameter, id is required")
+            return self.error("잘못된 매개 변수, ID가 필요합니다.")
         ids = id.split(",")
         if str(request.user.id) in ids:
-            return self.error("Current user can not be deleted")
+            return self.error("현재 사용자는 삭제할 수 없습니다")
         User.objects.filter(id__in=ids).delete()
         return self.success()
 
@@ -220,12 +220,12 @@ class GenerateUserAPI(APIView):
         """
         file_id = request.GET.get("file_id")
         if not file_id:
-            return self.error("Invalid Parameter, file_id is required")
+            return self.error("유효하지 않은 매개 변수, file_id가 필요합니다")
         if not re.match(r"^[a-zA-Z0-9]+$", file_id):
-            return self.error("Illegal file_id")
+            return self.error("잘못된 file_id")
         file_path = f"/tmp/{file_id}.xlsx"
         if not os.path.isfile(file_path):
-            return self.error("File does not exist")
+            return self.error("파일이 없습니다.")
         with open(file_path, "rb") as f:
             raw_data = f.read()
         os.remove(file_path)
@@ -243,7 +243,7 @@ class GenerateUserAPI(APIView):
         data = request.data
         number_max_length = max(len(str(data["number_from"])), len(str(data["number_to"])))
         if number_max_length + len(data["prefix"]) + len(data["suffix"]) > 32:
-            return self.error("Username should not more than 32 characters")
+            return self.error("사용자 이름은 32자 이하 여야합니다")
         if data["number_from"] > data["number_to"]:
             return self.error("Start number must be lower than end number")
 

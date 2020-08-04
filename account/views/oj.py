@@ -256,7 +256,7 @@ class UserLoginAPI(APIView):
         # None is returned if username or password is wrong
         if user:
             if user.is_disabled:
-                return self.error("Your account has been disabled")
+                return self.error("귀하의 계정이 비활성화되었습니다.")
             if not user.two_factor_auth:
                 auth.login(request, user)
                 return self.success("Succeeded")
@@ -269,9 +269,9 @@ class UserLoginAPI(APIView):
                 auth.login(request, user)
                 return self.success("Succeeded")
             else:
-                return self.error("Invalid two factor verification code")
+                return self.error("유효하지 않은 2 단계 인증 코드입니다.")
         else:
-            return self.error("Invalid username or password")
+            return self.error("사용자 아이디 혹은 비밀번호가 잘못 되었습니다.")
 
 
 class UserLogoutAPI(APIView):

@@ -63,7 +63,7 @@ class SMTPTestAPI(APIView):
     @validate_serializer(TestSMTPConfigSerializer)
     def post(self, request):
         if not SysOptions.smtp_config:
-            return self.error("Please setup SMTP config at first")
+            return self.error("먼저 SMTP config를 설정하십시오.")
         try:
             send_email(smtp_config=SysOptions.smtp_config,
                        from_name=SysOptions.website_name_shortcut,

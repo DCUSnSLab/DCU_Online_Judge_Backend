@@ -20,10 +20,10 @@ class BasePermissionDecorator(object):
 
         if self.check_permission():
             if self.request.user.is_disabled:
-                return self.error("Your account is disabled")
+                return self.error("귀하의 계정이 비활성화되었습니다.")
             return self.func(*args, **kwargs)
         else:
-            return self.error("Please login first")
+            return self.error("먼저 로그인 해 주세요.")
 
     def check_permission(self):
         raise NotImplementedError()
@@ -81,7 +81,7 @@ def check_contest_permission(check_type="details"):
 
             # Anonymous
             if not user.is_authenticated:
-                return self.error("Please login first.")
+                return self.error("먼저 로그인 해 주세요.")
 
             # creator or owner
             if user.is_contest_admin(self.contest):
