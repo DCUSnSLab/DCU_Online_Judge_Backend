@@ -7,11 +7,13 @@ from utils.models import JSONField
 class AdminType(object):
     REGULAR_USER = "Regular User"
     ADMIN = "Admin"
+    TA_ADMIN = "TA_Admin"
     SUPER_ADMIN = "Super Admin"
 
 
 class ProblemPermission(object):
     NONE = "None"
+    SEMI = "Semi"
     OWN = "Own"
     ALL = "All"
 
