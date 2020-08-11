@@ -79,7 +79,7 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
                     print("normal")
                     signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct('lecture_id')
                 for signup in signuplist:
-                    print("Test ",signup.lecture.title, signup.lecture.id, signup.lecture.year)
+                    #print("Test ",signup.lecture.title, signup.lecture.id, signup.lecture.year)
                     signup.isallow = True
 
                 return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
