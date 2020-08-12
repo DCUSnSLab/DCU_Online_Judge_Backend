@@ -116,8 +116,13 @@ class ContestAPI(APIView):
                 return self.error("Contest does not exist 9")
 
         contests = Contest.objects.all().order_by("-create_time")
-        # if request.user.is_admin(): # 요청자가 admin이 아닌 경우, 본인이 생성한 실습, 과제, 대회만 출력하게 하는 부분
-        #    contests = contests.filter(created_by=request.user)
+        if request.user.is_admin(): # 요청자가 super admin이 아닌 경우, 본인이 생성한 실습, 과제, 대회만 출력하게 하는 부분
+           contests = contests.filter(created_by=request.user)
+
+        elif request.user.is_semi_admin():
+            user_permit_lec = Lecture.objects.filter(permit_to__has_keys=[str(request.user.id)])
+            print(user_permit_lec)
+            #user_permit_lec
 
         keyword = request.GET.get("keyword")
         if keyword:

@@ -10,6 +10,7 @@ class Lecture(models.Model):
     title = models.TextField()
     description = RichTextField()
     created_by = models.ForeignKey(User, on_delete = models.CASCADE) #외래키 사용 시 뒤에 자동으로 _id가 붙는다.
+    permit_to = JSONField(default=dict)
     year = models.IntegerField()
     semester = models.IntegerField()
     status = models.BooleanField()

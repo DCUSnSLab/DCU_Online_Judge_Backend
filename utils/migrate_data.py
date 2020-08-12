@@ -108,6 +108,8 @@ def import_users():
             user.admin_type = admin_type
             if admin_type == AdminType.ADMIN:
                 user.problem_permission = ProblemPermission.OWN
+            elif admin_type == AdminType.TA_ADMIN:
+                user.problem_permission = ProblemPermission.SEMI
             elif admin_type == AdminType.SUPER_ADMIN:
                 user.problem_permission = ProblemPermission.ALL
             user.save()

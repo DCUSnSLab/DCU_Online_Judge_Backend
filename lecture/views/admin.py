@@ -56,6 +56,8 @@ class LectureAPI(APIView):
         lectures = Lecture.objects.all().order_by("-id")
         if request.user.is_admin():
             lectures = lectures.filter(created_by=request.user)
+        elif request.user.is_semi_admin(): # 수정필요
+            lectures = lectures.filter(created_by=request.user)
 
         keyword = request.GET.get("keyword")
         if keyword:
