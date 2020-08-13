@@ -259,7 +259,7 @@ class UserLoginAPI(APIView):
                 return self.error("귀하의 계정이 비활성화되었습니다.")
             if not user.two_factor_auth:
                 auth.login(request, user)
-                return self.success("Succeeded")
+                return self.success("성공")
 
             # `tfa_code` not in post data
             if user.two_factor_auth and "tfa_code" not in data:
@@ -267,7 +267,7 @@ class UserLoginAPI(APIView):
 
             if OtpAuth(user.tfa_token).valid_totp(data["tfa_code"]):
                 auth.login(request, user)
-                return self.success("Succeeded")
+                return self.success("성공")
             else:
                 return self.error("유효하지 않은 2 단계 인증 코드입니다.")
         else:
@@ -327,18 +327,18 @@ class UserRegisterAPI(APIView):
         User register api
         """
         if not SysOptions.allow_register:
-            return self.error("Register function has been disabled by admin")
+            return self.error("관리자가 등록 기능을 비활성화했습니다.")
 
         data = request.data
         data["username"] = data["username"].lower()
         data["email"] = data["email"].lower()
         captcha = Captcha(request)
         if not captcha.check(data["captcha"]):
-            return self.error("Invalid captcha")
+            return self.error("잘못된 보안 문자입니다.")
         if User.objects.filter(username=data["username"]).exists():
-            return self.error("Username already exists")
+            return self.error("사용자 이름이 이미 존재합니다.")
         if User.objects.filter(email=data["email"]).exists():
-            return self.error("Email already exists")
+            return self.error("이메일이 이미 존재합니다.")
         if User.objects.filter(schoolssn=data["schoolssn"]).exists():
             return self.error("학번/교직번호가 이미 있습니다.")
         #print(data["realname"])
@@ -363,7 +363,7 @@ class UserRegisterAPI(APIView):
             ub = UserBuilder(None)
             ub.buildLecturebyUser(user)
         except:
-            print("no matching singup_class")
+            print("일치하는 singup_class가 없습니다.")
 
         user.set_password(data["password"])
         user.save()
@@ -382,15 +382,15 @@ class UserChangeEmailAPI(APIView):
                 if "tfa_code" not in data:
                     return self.error("tfa_required")
                 if not OtpAuth(user.tfa_token).valid_totp(data["tfa_code"]):
-                    return self.error("Invalid two factor verification code")
+                    return self.error("2 단계 인증 코드가 잘못되었습니다.")
             data["new_email"] = data["new_email"].lower()
             if User.objects.filter(email=data["new_email"]).exists():
-                return self.error("The email is owned by other account")
+                return self.error("다른 계정의 이메일입니다.")
             user.email = data["new_email"]
             user.save()
-            return self.success("Succeeded")
+            return self.success("성공")
         else:
-            return self.error("Wrong password")
+            return self.error("잘못된 비밀번호입니다.")
 
 
 class UserChangePasswordAPI(APIView):
@@ -408,12 +408,12 @@ class UserChangePasswordAPI(APIView):
                 if "tfa_code" not in data:
                     return self.error("tfa_required")
                 if not OtpAuth(user.tfa_token).valid_totp(data["tfa_code"]):
-                    return self.error("Invalid two factor verification code")
+                    return self.error("2 단계 인증 코드가 잘못되었습니다.")
             user.set_password(data["new_password"])
             user.save()
-            return self.success("Succeeded")
+            return self.success("성공")
         else:
-            return self.error("Invalid old password")
+            return self.error("잘못된 이전 비밀번호입니다.")
 
 
 class ApplyResetPasswordAPI(APIView):
