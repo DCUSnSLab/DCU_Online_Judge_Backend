@@ -420,18 +420,18 @@ class ApplyResetPasswordAPI(APIView):
     @validate_serializer(ApplyResetPasswordSerializer)
     def post(self, request):
         if request.user.is_authenticated:
-            return self.error("You have already logged in, are you kidding me? ")
+            return self.error("이미 로그인했습니다. 농담합니까? ")
         data = request.data
         captcha = Captcha(request)
         if not captcha.check(data["captcha"]):
-            return self.error("Invalid captcha")
+            return self.error("잘못된 보안 문자입니다.")
         try:
             user = User.objects.get(email__iexact=data["email"])
         except User.DoesNotExist:
-            return self.error("User does not exist")
+            return self.error("사용자가 존재하지 않습니다")
         if user.reset_password_token_expire_time and 0 < int(
                 (user.reset_password_token_expire_time - now()).total_seconds()) < 20 * 60:
-            return self.error("You can only reset password once per 20 minutes")
+            return self.error("비밀번호 재설정은 20 분에 한 번만 가능합니다.")
         user.reset_password_token = rand_str()
         user.reset_password_token_expire_time = now() + timedelta(minutes=20)
         user.save()
@@ -446,7 +446,7 @@ class ApplyResetPasswordAPI(APIView):
                               to_name=user.username,
                               subject=f"Reset your password",
                               content=email_html)
-        return self.success("Succeeded")
+        return self.success("성공")
 
 
 class ResetPasswordAPI(APIView):
@@ -455,18 +455,18 @@ class ResetPasswordAPI(APIView):
         data = request.data
         captcha = Captcha(request)
         if not captcha.check(data["captcha"]):
-            return self.error("Invalid captcha")
+            return self.error("잘못된 보안 문자")
         try:
             user = User.objects.get(reset_password_token=data["token"])
         except User.DoesNotExist:
-            return self.error("Token does not exist")
+            return self.error("토큰이 없습니다.")
         if user.reset_password_token_expire_time < now():
-            return self.error("Token has expired")
+            return self.error("토큰이 만료되었습니다.")
         user.reset_password_token = None
         user.two_factor_auth = False
         user.set_password(data["password"])
         user.save()
-        return self.success("Succeeded")
+        return self.success("성공")
 
 
 class SessionManagementAPI(APIView):
@@ -502,14 +502,14 @@ class SessionManagementAPI(APIView):
     def delete(self, request):
         session_key = request.GET.get("session_key")
         if not session_key:
-            return self.error("Parameter Error")
+            return self.error("매개 변수 오류입니다.")
         request.session.delete(session_key)
         if session_key in request.user.session_keys:
             request.user.session_keys.remove(session_key)
             request.user.save()
-            return self.success("Succeeded")
+            return self.success("성공")
         else:
-            return self.error("Invalid session_key")
+            return self.error("잘못된 세션키 입니다.")
 
 
 class UserRankAPI(APIView):
@@ -550,7 +550,7 @@ class OpenAPIAppkeyAPI(APIView):
     def post(self, request):
         user = request.user
         if not user.open_api:
-            return self.error("OpenAPI function is truned off for you")
+            return self.error("OpenAPI 기능이 차단되었습니다.")
         api_appkey = rand_str()
         user.open_api_appkey = api_appkey
         user.save()
@@ -571,5 +571,5 @@ class SSOAPI(CSRFExemptAPIView):
         try:
             user = User.objects.get(auth_token=request.data["token"])
         except User.DoesNotExist:
-            return self.error("User does not exist")
+            return self.error("사용자가 존재하지 않습니다.")
         return self.success({"username": user.username, "avatar": user.userprofile.avatar, "admin_type": user.admin_type})

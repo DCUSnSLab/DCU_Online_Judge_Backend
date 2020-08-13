@@ -39,11 +39,11 @@ class ContestAPI(APIView):
         id = request.GET.get("id")
 
         if not id or not check_is_id(id):
-            return self.error("Invalid parameter, id is required")
+            return self.error("잘못된 매개 변수, ID가 필요합니다.")
         try:
             contest = Contest.objects.get(id=id, visible=True)
         except Contest.DoesNotExist:
-            return self.error("Contest does not exist 12")
+            return self.error("콘테스트가 없습니다. 12")
 
         LU = LectureUtil()
         #print("lid = ",contest.lecture_id)
@@ -71,7 +71,7 @@ class ContestListAPI(APIView):
         try:
             lecture = Lecture.objects.get(id=lectureid)
         except:
-            print("lecture not exist")
+            print("강의가 존재하지 않습니다.")
         contests = Contest.objects.select_related("created_by").filter(visible=True, lecture=lectureid)
         keyword = request.GET.get("keyword")
         rule_type = request.GET.get("rule_type")
@@ -101,9 +101,9 @@ class ContestPasswordVerifyAPI(APIView):
         try:
             contest = Contest.objects.get(id=data["contest_id"], visible=True, password__isnull=False)
         except Contest.DoesNotExist:
-            return self.error("Contest does not exist 11")
+            return self.error("콘테스트가 없습니다. 11")
         if contest.password != data["password"]:
-            return self.error("Wrong password")
+            return self.error("잘못된 비밀번호 입니다.")
 
         # password verify OK.
         if "accessible_contests" not in request.session:

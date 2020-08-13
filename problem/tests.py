@@ -46,7 +46,7 @@ class ProblemCreateTestBase(APITestCase):
             total_score = 0
             for item in data["test_case_score"]:
                 if item["score"] <= 0:
-                    raise ValueError("invalid score")
+                    raise ValueError("잘못된 점수입니다.")
                 else:
                     total_score += item["score"]
             data["total_score"] = total_score
