@@ -54,7 +54,7 @@ class UserProfileAPI(APIView):
                 # api返回的是自己的信息，可以返real_name
                 show_real_name = True
         except User.DoesNotExist:
-            return self.error("User does not exist")
+            return self.error("사용자가 존재하지 않습니다.")
         return self.success(UserProfileSerializer(user.userprofile, show_real_name=show_real_name).data)
 
     @validate_serializer(EditUserProfileSerializer)
@@ -135,7 +135,7 @@ class UserProgress(APIView):
             try:
                 contestlist = Contest.objects.filter(lecture=lec.lecture.id, end_time__gte=now()).order_by('end_time')
             except:
-                print("contest no exists")
+                print("대회가 존재하지 않습니다.")
 
             lec.contestlist = dict()
 
@@ -163,12 +163,12 @@ class AvatarUploadAPI(APIView):
         if form.is_valid():
             avatar = form.cleaned_data["image"]
         else:
-            return self.error("Invalid file content")
+            return self.error("잘못된 파일 입니다.")
         if avatar.size > 2 * 1024 * 1024:
-            return self.error("Picture is too large")
+            return self.error("사진이 너무 큽니다.")
         suffix = os.path.splitext(avatar.name)[-1].lower()
         if suffix not in [".gif", ".jpg", ".jpeg", ".bmp", ".png"]:
-            return self.error("Unsupported file format")
+            return self.error("지원되지 않는 파일 형식입니다.")
 
         name = rand_str(10) + suffix
         with open(os.path.join(settings.AVATAR_UPLOAD_DIR, name), "wb") as img:
@@ -178,7 +178,7 @@ class AvatarUploadAPI(APIView):
 
         user_profile.avatar = f"{settings.AVATAR_URI_PREFIX}/{name}"
         user_profile.save()
-        return self.success("Succeeded")
+        return self.success("성공")
 
 
 class TwoFactorAuthAPI(APIView):
@@ -189,7 +189,7 @@ class TwoFactorAuthAPI(APIView):
         """
         user = request.user
         if user.two_factor_auth:
-            return self.error("2FA is already turned on")
+            return self.error("2FA가 이미 켜져 있습니다.")
         token = rand_str()
         user.tfa_token = token
         user.save()
@@ -209,9 +209,9 @@ class TwoFactorAuthAPI(APIView):
         if OtpAuth(user.tfa_token).valid_totp(code):
             user.two_factor_auth = True
             user.save()
-            return self.success("Succeeded")
+            return self.success("성공")
         else:
-            return self.error("Invalid code")
+            return self.error("유효하지 않은 코드")
 
     @login_required
     @validate_serializer(TwoFactorAuthCodeSerializer)
@@ -219,13 +219,13 @@ class TwoFactorAuthAPI(APIView):
         code = request.data["code"]
         user = request.user
         if not user.two_factor_auth:
-            return self.error("2FA is already turned off")
+            return self.error("2FA가 이미 꺼져 있습니다.")
         if OtpAuth(user.tfa_token).valid_totp(code):
             user.two_factor_auth = False
             user.save()
-            return self.success("Succeeded")
+            return self.success("성공")
         else:
-            return self.error("Invalid code")
+            return self.error("유효하지 않은 코드")
 
 
 class CheckTFARequiredAPI(APIView):
