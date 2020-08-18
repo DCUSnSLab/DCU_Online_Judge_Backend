@@ -10,7 +10,6 @@ class Lecture(models.Model):
     title = models.TextField()
     description = RichTextField()
     created_by = models.ForeignKey(User, on_delete = models.CASCADE) #외래키 사용 시 뒤에 자동으로 _id가 붙는다.
-    permit_to = JSONField(default=dict)
     year = models.IntegerField()
     semester = models.IntegerField()
     status = models.BooleanField()
@@ -29,3 +28,12 @@ class signup_class(models.Model):
     schoolssn = models.IntegerField(default=None, null=True)
     score = JSONField(default=dict)
     etc = models.TextField(null=True)
+
+class ta_admin_class(models.Model):
+    lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    realname = models.TextField(default=None, null=True)
+    schoolssn = models.IntegerField(default=None, null=True)
+    lecture_isallow = models.BooleanField(default=False)
+    code_isallow = models.BooleanField(default=False)
+    score_isallow = models.BooleanField(default=False)

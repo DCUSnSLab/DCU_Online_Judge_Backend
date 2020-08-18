@@ -44,6 +44,13 @@ class Contest(models.Model):
             return ContestType.PASSWORD_PROTECTED_CONTEST
         return ContestType.PUBLIC_CONTEST
 
+    @property
+    def lecture_title(self):
+        if self.lecture_id:
+            lecture = Lecture.objects.get(id=self.lecture_id).title
+            return lecture
+        return None
+
     # 是否有权查看problem 的一些统计信息 诸如submission_number, accepted_number 等
     def problem_details_permission(self, user):
         return self.rule_type == ContestRuleType.ACM or \

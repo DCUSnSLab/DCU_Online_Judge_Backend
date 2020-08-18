@@ -12,11 +12,16 @@ from utils.cache import cache
 from utils.constants import CacheKey
 from utils.shortcuts import rand_str
 from utils.tasks import delete_files
+from django.db.models import Q
 from .LectureBuilder import UserBuilder
-from ..models import Lecture, signup_class
+from ..models import Lecture, signup_class, ta_admin_class
 from ..serializers import (CreateLectureSerializer, EditLectureSerializer, LectureAdminSerializer, LectureSerializer, )
-
 from account.models import User
+
+class PermitTA(object):
+    PROBLEM = "point"
+    SCORE = "score"
+    SUBMISSIONLIST = "submissionlist"
 
 class LectureAPI(APIView):
     @validate_serializer(CreateLectureSerializer)
@@ -62,6 +67,7 @@ class LectureAPI(APIView):
         keyword = request.GET.get("keyword")
         if keyword:
             lectures = lectures.filter(title__contains=keyword)
+
         return self.success(self.paginate_data(request, lectures, LectureAdminSerializer))
 
     def delete(self, request):
@@ -69,6 +75,46 @@ class LectureAPI(APIView):
         if lecture_id:
             #print("test")
             Lecture.objects.filter(id=lecture_id).delete()
+            return self.success()
+
+        return self.error("Invalid Parameter, id is required")
+
+class TAAdminLectureAPI(APIView):
+    def post(self, request):
+        data = request.data
+        #DataType
+        user = User.objects.filter(schoolssn=data.get("ta_ssn"))
+
+        #쿼리 조회후 해당하는 유저가 있을 경우 해당 반환 값 반환
+        if user.exists():
+            lecture = Lecture.objects.get(id=data.get("lecture_id"))
+            if ta_admin_class.objects.filter(Q(schoolssn=user[0].schoolssn)).exists() is False:
+                ta_admin_class.objects.create(lecture=lecture, user=user[0], realname=user[0].realname, schoolssn=user[0].schoolssn)
+                return self.success()
+            else:
+                return self.error("중복된 학번입니다. 학번을 확인 해주세요.")
+
+            #lecture_TA_List = lecture.permit_to
+            #new_TA_USER = dict()
+            #UserProfile = dict()
+
+            #UserProfile["realname"] = user.realname
+            #UserProfile["schoolssn"] = user.schoolssn
+            #new_TA_USER[user.id] = UserProfile
+
+            #lecture.permit_to.update(new_TA_USER)
+            #print(lecture.permit_to)
+            #lecture.save()
+        else:
+            return self.error("학번을 조회 실패. 학번을 확인 해주세요.")
+        #print(lecture.permit_to)
+
+    def delete(self, request):
+        id = request.GET.get("id")
+        lecture_id = request.GET.get("lectureid")
+        if id:
+            print("test")
+            signup_class.objects.filter(id=id, lecture=lecture_id).delete()
             return self.success()
 
         return self.error("Invalid Parameter, id is required")

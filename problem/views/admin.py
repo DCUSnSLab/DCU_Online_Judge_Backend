@@ -369,8 +369,8 @@ class ContestProblemAPI(ProblemBase):
         except Contest.DoesNotExist:
             return self.error("Contest does not exist 2")
         problems = Problem.objects.filter(contest=contest).order_by("-create_time")
-        # if user.is_admin(): # 위 코드와 마찬가지로 관리자 계정 유무를 확인하는 코드
-        #     problems = problems.filter(contest__created_by=user)
+        if user.is_admin(): # 위 코드와 마찬가지로 관리자 계정 유무를 확인하는 코드
+            problems = problems.filter(contest__created_by=user)
         keyword = request.GET.get("keyword")
         if keyword:
             problems = problems.filter(title__contains=keyword)

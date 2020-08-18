@@ -105,6 +105,11 @@ class ContestAPI(APIView):
             contests = Contest.objects.all().order_by("-create_time")
             if int(contest_year) > 2000: # 년도 값이 유효한 경우, (기본값인 0이 아닌 경우)
                 contests = contests.filter(create_time__year=contest_year) # 페이지로부터 년도에 관련된 값을 전달받은 경우, 해당 년도에 해당하는 contest들만 리턴한다.
+                #ContestAdminSerializer.lecture_title =
+
+            #교수일 경우 교수 자신이 생성한 과목만 들고 올 수 있도록 활성화
+            if request.user.is_admin():
+                contests = contests.filter(created_by=request.user)
             return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
         if contest_id:
