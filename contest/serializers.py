@@ -1,6 +1,7 @@
 from utils.api import UsernameSerializer, serializers
 
 from .models import Contest, ContestAnnouncement, ContestRuleType, LectureContestType
+from problem.models import Problem
 from .models import ACMContestRank, OIContestRank
 
 
@@ -119,3 +120,4 @@ class ACMContesHelperSerializer(serializers.Serializer):
 class AddLectureContestSerializer(serializers.Serializer):
     lecture_id = serializers.IntegerField()
     contest_id = serializers.IntegerField()
+    prob_id = serializers.ListField()

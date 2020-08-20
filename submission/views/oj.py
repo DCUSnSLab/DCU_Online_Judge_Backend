@@ -3,11 +3,8 @@ import ipaddress
 from django.db.models import Q
 from account.decorators import login_required, check_contest_permission
 from contest.models import Contest, ContestStatus, ContestRuleType
-from lecture.models import Lecture
 from judge.dispatcher import JudgeDispatcher
-from judge.tasks import judge_task
 from options.options import SysOptions
-from account.models import User
 from problem.models import Problem, ProblemRuleType
 from utils.api import APIView, validate_serializer
 from utils.cache import cache
@@ -121,7 +118,7 @@ class SubmissionAPI(APIView):
         if not submission_id:
             return self.error("Parameter id doesn't exist")
         try:
-            submission = Submission.objects.select_related("problem").get(id=submission_id)
+            submission = Submission.objects.get(id=submission_id)
         except Submission.DoesNotExist:
             return self.error("Submission doesn't exist")
         if not submission.check_user_permission(request.user):
@@ -142,7 +139,7 @@ class SubmissionAPI(APIView):
         share submission
         """
         try:
-            submission = Submission.objects.select_related("problem").get(id=request.data["id"])
+            submission = Submission.objects.get(id=request.data["id"])
         except Submission.DoesNotExist:
             return self.error("Submission doesn't exist")
         if not submission.check_user_permission(request.user, check_share=False):

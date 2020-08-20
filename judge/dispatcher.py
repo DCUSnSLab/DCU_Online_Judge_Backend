@@ -10,12 +10,11 @@ from django.db.models import F
 from account.models import User
 from conf.models import JudgeServer
 from contest.models import ContestRuleType, ACMContestRank, OIContestRank, ContestStatus
-from lecture.models import signup_class
-from lecture.views.LectureAnalysis import lecDispatcher
-from lecture.views.LectureBuilder import LectureBuilder, SubmitBuilder
+from lecture.views.LectureBuilder import SubmitBuilder
 from options.options import SysOptions
 from problem.models import Problem, ProblemRuleType
 from problem.utils import parse_problem_template
+from problem.views.oj import get
 from submission.models import JudgeStatus, Submission
 from utils.cache import cache
 from utils.constants import CacheKey
@@ -99,7 +98,7 @@ class JudgeDispatcher(DispatcherBase):
         self.last_result = self.submission.result if self.submission.info else None
 
         if self.contest_id:
-            self.problem = Problem.objects.select_related("contest").get(id=problem_id, contest_id=self.contest_id)
+            self.problem = Problem.objects.get(id=problem_id, contest_id=self.contest_id)
             self.contest = self.problem.contest
         else:
             self.problem = Problem.objects.get(id=problem_id)
@@ -189,7 +188,7 @@ class JudgeDispatcher(DispatcherBase):
 
         if self.contest_id:
             if self.contest.status != ContestStatus.CONTEST_UNDERWAY or \
-                    User.objects.get(id=self.submission.user_id).is_contest_admin(self.contest):
+                    get(id=self.submission.user_id).is_contest_admin(self.contest):
                 logger.info(
                     "Contest debug mode, id: " + str(self.contest_id) + ", submission id: " + self.submission.id)
                 return
@@ -220,7 +219,7 @@ class JudgeDispatcher(DispatcherBase):
         problem_id = str(self.problem.id)
         with transaction.atomic():
             # update problem status
-            problem = Problem.objects.select_for_update().get(contest_id=self.contest_id, id=self.problem.id)
+            problem = Problem.objects.get(contest_id=self.contest_id, id=self.problem.id)
             if self.last_result != JudgeStatus.ACCEPTED and self.submission.result == JudgeStatus.ACCEPTED:
                 problem.accepted_number += 1
             problem_info = problem.statistic_info
@@ -228,7 +227,7 @@ class JudgeDispatcher(DispatcherBase):
             problem_info[result] = problem_info.get(result, 0) + 1
             problem.save(update_fields=["accepted_number", "statistic_info"])
 
-            profile = User.objects.select_for_update().get(id=self.submission.user_id).userprofile
+            profile = User.objects.get(id=self.submission.user_id).userprofile
             if problem.rule_type == ProblemRuleType.ACM:
                 acm_problems_status = profile.acm_problems_status.get("problems", {})
                 if acm_problems_status[problem_id]["status"] != JudgeStatus.ACCEPTED:
@@ -257,7 +256,7 @@ class JudgeDispatcher(DispatcherBase):
         problem_id = str(self.problem.id)
         with transaction.atomic():
             # update problem status
-            problem = Problem.objects.select_for_update().get(contest_id=self.contest_id, id=self.problem.id)
+            problem = Problem.objects.get(contest_id=self.contest_id, id=self.problem.id)
             problem.submission_number += 1
             if self.submission.result == JudgeStatus.ACCEPTED:
                 problem.accepted_number += 1
@@ -266,7 +265,7 @@ class JudgeDispatcher(DispatcherBase):
             problem.save(update_fields=["accepted_number", "submission_number", "statistic_info"])
 
             # update_userprofile
-            user = User.objects.select_for_update().get(id=self.submission.user_id)
+            user = User.objects.get(id=self.submission.user_id)
             user_profile = user.userprofile
             user_profile.submission_number += 1
             if problem.rule_type == ProblemRuleType.ACM:
@@ -305,7 +304,7 @@ class JudgeDispatcher(DispatcherBase):
 
     def update_contest_problem_status(self):
         with transaction.atomic():
-            user = User.objects.select_for_update().get(id=self.submission.user_id)
+            user = User.objects.get(id=self.submission.user_id)
             user_profile = user.userprofile
             problem_id = str(self.problem.id)
             if self.contest.rule_type == ContestRuleType.ACM:
@@ -333,7 +332,7 @@ class JudgeDispatcher(DispatcherBase):
                 user_profile.oi_problems_status["contest_problems"] = contest_problems_status
                 user_profile.save(update_fields=["oi_problems_status"])
 
-            problem = Problem.objects.select_for_update().get(contest_id=self.contest_id, id=self.problem.id)
+            problem = Problem.objects.get(contest_id=self.contest_id, id=self.problem.id)
             result = str(self.submission.result)
             problem_info = problem.statistic_info
             problem_info[result] = problem_info.get(result, 0) + 1
@@ -348,7 +347,7 @@ class JudgeDispatcher(DispatcherBase):
             cache.delete(f"{CacheKey.contest_rank_cache}:{self.contest.id}")
 
         def get_rank(model):
-            return model.objects.select_for_update().get(user_id=self.submission.user_id, contest=self.contest)
+            return model.objects.get(user_id=self.submission.user_id, contest=self.contest)
 
         if self.contest.rule_type == ContestRuleType.ACM:
             model = ACMContestRank
@@ -370,7 +369,7 @@ class JudgeDispatcher(DispatcherBase):
     def _update_acm_contest_rank(self, rank):
         info = rank.submission_info.get(str(self.submission.problem_id))
         # 因前面更改过，这里需要重新获取
-        problem = Problem.objects.select_for_update().get(contest_id=self.contest_id, id=self.problem.id)
+        problem = Problem.objects.get(contest_id=self.contest_id, id=self.problem.id)
         # 此题提交过
         if info:
             if info["is_ac"]:

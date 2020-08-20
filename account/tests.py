@@ -447,14 +447,14 @@ class UserRankAPITest(APITestCase):
         self.url = self.reverse("user_rank_api")
         self.create_user("test1", "test123", login=False)
         self.create_user("test2", "test123", login=False)
-        test1 = User.objects.get(username="test1")
+        test1 = get(username="test1")
         profile1 = test1.userprofile
         profile1.submission_number = 10
         profile1.accepted_number = 10
         profile1.total_score = 240
         profile1.save()
 
-        test2 = User.objects.get(username="test2")
+        test2 = get(username="test2")
         profile2 = test2.userprofile
         profile2.submission_number = 15
         profile2.accepted_number = 10
@@ -477,7 +477,7 @@ class UserRankAPITest(APITestCase):
 
     def test_admin_role_filted(self):
         self.create_admin("admin", "admin123")
-        admin = User.objects.get(username="admin")
+        admin = get(username="admin")
         profile1 = admin.userprofile
         profile1.submission_number = 20
         profile1.accepted_number = 5
@@ -531,7 +531,7 @@ class AdminUserTest(APITestCase):
         data["password"] = new_password
         response = self.client.put(self.url, data=data)
         self.assertSuccess(response)
-        user = User.objects.get(id=self.regular_user.id)
+        user = get(id=self.regular_user.id)
         self.assertFalse(user.check_password(self.password))
         self.assertTrue(user.check_password(new_password))
 
@@ -544,7 +544,7 @@ class AdminUserTest(APITestCase):
         resp_data = response.data["data"]
         # if `tfa_token` is None, a new value will be generated
         self.assertTrue(resp_data["two_factor_auth"])
-        token = User.objects.get(id=self.regular_user.id).tfa_token
+        token = get(id=self.regular_user.id).tfa_token
         self.assertIsNotNone(token)
 
         response = self.client.put(self.url, data=data)
@@ -552,7 +552,7 @@ class AdminUserTest(APITestCase):
         resp_data = response.data["data"]
         # if `tfa_token` is not None, the value is not changed
         self.assertTrue(resp_data["two_factor_auth"])
-        self.assertEqual(User.objects.get(id=self.regular_user.id).tfa_token, token)
+        self.assertEqual(get(id=self.regular_user.id).tfa_token, token)
 
     def test_edit_user_openapi(self):
         data = self.data
@@ -563,7 +563,7 @@ class AdminUserTest(APITestCase):
         resp_data = response.data["data"]
         # if `open_api_appkey` is None, a new value will be generated
         self.assertTrue(resp_data["open_api"])
-        key = User.objects.get(id=self.regular_user.id).open_api_appkey
+        key = get(id=self.regular_user.id).open_api_appkey
         self.assertIsNotNone(key)
 
         response = self.client.put(self.url, data=data)
@@ -571,7 +571,7 @@ class AdminUserTest(APITestCase):
         resp_data = response.data["data"]
         # if `openapi_app_key` is not None, the value is not changed
         self.assertTrue(resp_data["open_api"])
-        self.assertEqual(User.objects.get(id=self.regular_user.id).open_api_appkey, key)
+        self.assertEqual(get(id=self.regular_user.id).open_api_appkey, key)
 
     def test_import_users(self):
         data = {"users": [["user1", "pass1", "eami1@e.com"],
@@ -643,4 +643,4 @@ class OpenAPIAppkeyAPITest(APITestCase):
         self.user.save()
         resp = self.client.post(self.url, data={})
         self.assertSuccess(resp)
-        self.assertEqual(resp.data["data"]["appkey"], User.objects.get(username=self.user.username).open_api_appkey)
+        self.assertEqual(resp.data["data"]["appkey"], get(username=self.user.username).open_api_appkey)

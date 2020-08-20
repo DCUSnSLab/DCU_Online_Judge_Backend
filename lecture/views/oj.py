@@ -109,7 +109,7 @@ class LectureApplyAPI(APIView):
         schoolssn = data.get("user_schoolssn")
         print(data)
         lecture = Lecture.objects.get(id=lecture_id)
-        user = User.objects.get(id=user_id)
+        user = get(id=user_id)
         try:
             su = signup_class.objects.get(lecture=lecture, realname=realname, schoolssn=schoolssn)
             su.user = user
