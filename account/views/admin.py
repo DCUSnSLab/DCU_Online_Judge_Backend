@@ -57,7 +57,7 @@ class UserAdminAPI(APIView):
         """
         data = request.data
         try:
-            user = User.objects.get(id=data["id"])
+            user = get(id=data["id"])
         except User.DoesNotExist:
             return self.error("User does not exist")
         if User.objects.filter(username=data["username"].lower()).exclude(id=user.id).exists():
@@ -182,7 +182,7 @@ class UserAdminAPI(APIView):
 
         if user_id:
             try:
-                user = User.objects.get(id=user_id)
+                user = get(id=user_id)
             except User.DoesNotExist:
                 return self.error("User does not exist")
             return self.success(UserAdminSerializer(user).data)

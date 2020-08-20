@@ -48,7 +48,7 @@ class UserProfileAPI(APIView):
         username = request.GET.get("username")
         try:
             if username:
-                user = User.objects.get(username=username, is_disabled=False)
+                user = get(username=username, is_disabled=False)
             else:
                 user = request.user
                 # api返回的是自己的信息，可以返real_name
@@ -238,7 +238,7 @@ class CheckTFARequiredAPI(APIView):
         result = False
         if data.get("username"):
             try:
-                user = User.objects.get(username=data["username"])
+                user = get(username=data["username"])
                 result = user.two_factor_auth
             except User.DoesNotExist:
                 pass
@@ -426,7 +426,7 @@ class ApplyResetPasswordAPI(APIView):
         if not captcha.check(data["captcha"]):
             return self.error("Invalid captcha")
         try:
-            user = User.objects.get(email__iexact=data["email"])
+            user = get(email__iexact=data["email"])
         except User.DoesNotExist:
             return self.error("User does not exist")
         if user.reset_password_token_expire_time and 0 < int(
@@ -457,7 +457,7 @@ class ResetPasswordAPI(APIView):
         if not captcha.check(data["captcha"]):
             return self.error("Invalid captcha")
         try:
-            user = User.objects.get(reset_password_token=data["token"])
+            user = get(reset_password_token=data["token"])
         except User.DoesNotExist:
             return self.error("Token does not exist")
         if user.reset_password_token_expire_time < now():
@@ -569,7 +569,7 @@ class SSOAPI(CSRFExemptAPIView):
     @validate_serializer(SSOSerializer)
     def post(self, request):
         try:
-            user = User.objects.get(auth_token=request.data["token"])
+            user = get(auth_token=request.data["token"])
         except User.DoesNotExist:
             return self.error("User does not exist")
         return self.success({"username": user.username, "avatar": user.userprofile.avatar, "admin_type": user.admin_type})

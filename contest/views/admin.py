@@ -21,8 +21,21 @@ from ..models import Contest, ContestAnnouncement, ACMContestRank
 from ..serializers import (ContestAnnouncementSerializer, ContestAdminSerializer,
                            CreateContestSeriaizer, CreateContestAnnouncementSerializer,
                            EditContestSeriaizer, EditContestAnnouncementSerializer,
-                           ACMContesHelperSerializer, AddLectureContestSerializer,)
+                           ACMContesHelperSerializer, AddLectureContestSerializer, )
 
+
+class ContProblemAPI(APIView):
+    def post(self, request):
+        print("test2!")
+
+    def get(self, request):
+        from problem.serializers import ProblemAdminSerializer
+        contest_id = request.GET.get("id")
+        cont = Contest.objects.get(id=contest_id)
+        p_list = Problem.objects.filter(contest=cont)
+        #ensure_created_by(p_list, request.user)
+
+        return self.success(self.paginate_data(request, p_list, ProblemAdminSerializer))
 
 class ContestAPI(APIView):
     @validate_serializer(CreateContestSeriaizer) # 해당 함수를 호출하기 전에, CreateContestSerializer에서 사전 정의되지 않은 값은 통과시키지 않는다.
@@ -105,7 +118,7 @@ class ContestAPI(APIView):
             contests = Contest.objects.all().order_by("-create_time")
             if int(contest_year) > 2000: # 년도 값이 유효한 경우, (기본값인 0이 아닌 경우)
                 contests = contests.filter(create_time__year=contest_year) # 페이지로부터 년도에 관련된 값을 전달받은 경우, 해당 년도에 해당하는 contest들만 리턴한다.
-                #ContestAdminSerializer.lecture_title =
+
 
             #교수일 경우 교수 자신이 생성한 과목만 들고 올 수 있도록 활성화
             if request.user.is_admin():
@@ -387,34 +400,64 @@ class AddLectureContestAPI(APIView):
         try:
             contest = Contest.objects.get(id=data["contest_id"])
             lecture = Lecture.objects.get(id=data["lecture_id"])
+            select_prob = data["prob_id"]
         except (Contest.DoesNotExist):
             return self.error("Contest does not exist 4")
 
-        problems = Problem.objects.filter(contest=contest)
+        if len(select_prob):
+            # Contest Copy
+            contest.pk = None
+            contest.created_by = lecture.created_by
+            contest.lecture = lecture
+            contest.save()
+            # Select prob Copy
+            for prob in select_prob:
+                problems = Problem.objects.get(id=prob)
+                print("Contest 만든 사람 :", contest.created_by)
 
-        print("Contest 만든 사람 :",contest.created_by)
-        contest.pk = None
-        contest.created_by = lecture.created_by
-        contest.lecture = lecture
-        contest.save()
+                tags = problems.tags.all()
+                problems.pk = None
+                problems.created_by = contest.created_by
+                problems.contest = contest
+                problems.is_public = True
+                problems.visible = True
+                # problem._id = str(lecture.id)+"_"+problem._id
+                problems.submission_number = problems.accepted_number = 0
+                problems.statistic_info = {}
+                problems.save()
 
-        for problem in problems:
-            print(problem.title)
+                lb = ProblemBuilder(problems)
+                lb.MigrateContent()
 
-            tags = problem.tags.all()
-            problem.pk = None
-            problem.created_by = contest.created_by
-            problem.contest = contest
-            problem.is_public = True
-            problem.visible = True
-            #problem._id = str(lecture.id)+"_"+problem._id
-            problem.submission_number = problem.accepted_number = 0
-            problem.statistic_info = {}
-            problem.save()
+                problems.tags.set(tags)
 
-            lb = ProblemBuilder(problem)
-            lb.MigrateContent()
+            return self.success()
+        else:
+            problems = Problem.objects.filter(contest=contest)
 
-            problem.tags.set(tags)
+            print("Contest 만든 사람 :",contest.created_by)
+            contest.pk = None
+            contest.created_by = lecture.created_by
+            contest.lecture = lecture
+            contest.save()
 
-        return self.success()
+            for problem in problems:
+                print(problem.title)
+
+                tags = problem.tags.all()
+                problem.pk = None
+                problem.created_by = contest.created_by
+                problem.contest = contest
+                problem.is_public = True
+                problem.visible = True
+                #problem._id = str(lecture.id)+"_"+problem._id
+                problem.submission_number = problem.accepted_number = 0
+                problem.statistic_info = {}
+                problem.save()
+
+                lb = ProblemBuilder(problem)
+                lb.MigrateContent()
+
+                problem.tags.set(tags)
+
+            return self.success()

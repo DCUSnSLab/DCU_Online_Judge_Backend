@@ -157,7 +157,7 @@ class ContestRankAPI(APIView):
             qs = self.get_rank()
         else:
             cache_key = f"{CacheKey.contest_rank_cache}:{self.contest.id}"
-            qs = cache.get(cache_key)
+            qs = get(cache_key)
             if not qs:
                 qs = self.get_rank()
                 cache.set(cache_key, qs)

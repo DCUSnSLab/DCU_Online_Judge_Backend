@@ -66,7 +66,7 @@ class HeartBeatView(APIView):
 
         postgrestime = time.time()
         try:
-            Permission.objects.get(id = 1) #django permission. Should be always available
+            get(id = 1) #django permission. Should be always available
             # cache.set('test', 1)
             # cache_get = cache.get('test')
             # if cache_get != 1:
@@ -95,7 +95,7 @@ class HeartBeatView(APIView):
 
         redistime = time.time()
         try:
-            Permission.objects.get(id = 1) #django permission. Should be always available
+            get(id = 1) #django permission. Should be always available
         except ConnectionError:
             print("redis Error")
             output_status = status.HTTP_500_INTERNAL_SERVER_ERROR
