@@ -1,11 +1,14 @@
+from django.utils.datetime_safe import datetime
 from django.utils.timezone import now
 from django.db.models import Count
 from utils.shortcuts import datetime2str, check_is_id
 from utils.api import APIView
 
+
 from account.models import User
 from ..models import Lecture, signup_class
 from ..serializers import LectureSerializer, SignupClassSerializer
+
 
 class LectureAPI(APIView):
     def get(self, request):
@@ -57,10 +60,14 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
         sortyear = data.get("yearSort")
         sortsubj = data.get("subjSort")
         sortprof = data.get("profSort")
+        yearFilter = data.get("yearFilter")
+        semesterFilter = data.get("semesterFilter")
 
         print("year",sortyear)
         print("subj",sortsubj)
         print("prof",sortprof)
+        print("yearfilter",yearFilter)
+        print("semesterfilter",semesterFilter)
 
         if not request.user.is_authenticated:
             return self.error("로그인 후 사용 가능합니다.")
@@ -72,14 +79,24 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
         if request.user.is_super_admin():
             print("관리자입니다.")
             try:
-                if sortyear == '1':
+                if sortyear == '1':  #누르면
                     print("sorted")
                     signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct('lecture_id')
-                else:
+                elif yearFilter != None :
+                    print("hey")
+                    signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct('lecture_id')
+                    signuplist = signuplist.filter(lecture__year=yearFilter)
+                    print(yearFilter)
+                elif semesterFilter != None :
+                    print("hey")
+                    signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct('lecture_id')
+                    signuplist = signuplist.filter(lecture__semester=semesterFilter)
+                    print(semesterFilter)
+                else: # 값 추출
                     print("normal")
                     signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct('lecture_id')
                 for signup in signuplist:
-                    print("Test ",signup.lecture.title, signup.lecture.id, signup.lecture.year)
+                    print("Test", signup.lecture.title, signup.lecture.id, signup.lecture.year)
                     signup.isallow = True
 
                 return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
@@ -94,8 +111,49 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
 
         signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
 
-        for signup in signuplist:
-            print(signup.lecture.created_by.realname)
+
+
+        # 한번더 필터 현재월 년도
+        # 프론트 콤보박스로 2학기를 보여줌   ///백 - 현재날짜(년도월일) 가져와서 월에따라 학기를 나누고 년도 ///프론트엔드 콤보박스 년도 학기 //
+                                # signup.lecture.year
+        signuplist = signuplist.filter(lecture__year=2020)
+        if (8 >= datetime.today().month >= 3):
+            signuplist = signuplist.filter(lecture__semester=1)
+            print("1학기");
+        else:
+            if (datetime.today().month >= 9 or datetime.today().month <= 2):
+                signuplist = signuplist.filter(lecture__semester=2)
+                print("2학기")
+
+        try:
+            if sortyear == '1':  # 누르면
+                print("sorted")
+                signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct(
+                    'lecture_id')
+            elif yearFilter != None:
+                print("hey")
+                signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct(
+                    'lecture_id')
+                signuplist = signuplist.filter(lecture__year=yearFilter)
+                print(yearFilter)
+            elif semesterFilter != None:
+                print("hey")
+                signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct(
+                    'lecture_id')
+                signuplist = signuplist.filter(lecture__semester=semesterFilter)
+                print(semesterFilter)
+            else:  # 값 추출
+                print("normal")
+                signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct(
+                    'lecture_id')
+            for signup in signuplist:
+                print("Test", signup.lecture.title, signup.lecture.id, signup.lecture.year)
+                signup.isallow = True
+
+            return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
+        except:
+            print(self.error())
+            return self.error("no lecture exist")
 
         return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
 
@@ -133,7 +191,7 @@ class LectureUtil:
                 lec = signup_class.objects.filter(user_id=uid)
                 print(lec)
             else:
-                print("LID IS NOT NONE user ID", uid, "lid=",lid)
+                print("LID IS NOT NONE user ID", uid, "lid=", lid)
                 lec = signup_class.objects.filter(lecture_id=lid, user_id=uid)
             retv = lec
         except signup_class.DoesNotExist:
