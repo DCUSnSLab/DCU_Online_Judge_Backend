@@ -48,7 +48,7 @@ class UserProfileAPI(APIView):
         username = request.GET.get("username")
         try:
             if username:
-                user = get(username=username, is_disabled=False)
+                user = User.objects.get(username=username, is_disabled=False)
             else:
                 user = request.user
                 # api返回的是自己的信息，可以返real_name

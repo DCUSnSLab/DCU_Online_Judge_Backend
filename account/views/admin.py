@@ -16,6 +16,7 @@ from lecture.models import signup_class
 from problem.models import Problem
 
 from ..decorators import super_admin_required
+from lecture.models import ta_admin_class
 from ..models import AdminType, ProblemPermission, User, UserProfile
 from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserSerializer
 from ..serializers import ImportUserSeralizer, SignupSerializer
@@ -57,7 +58,7 @@ class UserAdminAPI(APIView):
         """
         data = request.data
         try:
-            user = get(id=data["id"])
+            user = User.objects.get(id=data["id"])
         except User.DoesNotExist:
             return self.error("User does not exist")
         if User.objects.filter(username=data["username"].lower()).exclude(id=user.id).exists():
@@ -112,69 +113,72 @@ class UserAdminAPI(APIView):
         수강과목이 있는 학생 목록을 가져오기 위한 기능
         """
 
-        user_id = request.GET.get("id")
 
+        user_id = request.GET.get("id")
         lecture_id = request.GET.get("lectureid")
 
         if lecture_id: # 특정 수강과목을 수강중인 학생 리스트업 하는 경우
-            try:
-                ulist = signup_class.objects.filter(lecture=lecture_id).select_related('lecture').order_by("realname") # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
-                ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
-            except signup_class.DoesNotExist:
-                return self.error("수강중인 학생이 없습니다.")
+            tauser = ta_admin_class.objects.filter(user__id=request.user.id, lecture__id=lecture_id)
+            if request.user.is_super_admin() or request.user.is_admin() or tauser[0].score_isallow:
+                try:
+                    ulist = signup_class.objects.filter(lecture=lecture_id).select_related('lecture').order_by("realname") # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
+                    ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
+                except signup_class.DoesNotExist:
+                    return self.error("수강중인 학생이 없습니다.")
 
-            #lb = LectureBuilder()
-            #lb.buildLecture(ulist[0].lecture)
-            #collect lecture info
-            plist = Problem.objects.filter(contest__lecture=lecture_id).prefetch_related('contest')
+                #lb = LectureBuilder()
+                #lb.buildLecture(ulist[0].lecture)
+                #collect lecture info
+                plist = Problem.objects.filter(contest__lecture=lecture_id).prefetch_related('contest')
 
-            #test
-            LectureInfo = lecDispatcher()
+                #test
+                LectureInfo = lecDispatcher()
 
-            cnt = 0
-            for us in ulist:
-                #inlit result values
-                us.totalPractice = 0
-                us.subPractice = 0
-                us.solvePractice = 0
+                cnt = 0
+                for us in ulist:
+                    #inlit result values
+                    us.totalPractice = 0
+                    us.subPractice = 0
+                    us.solvePractice = 0
 
-                us.totalAssign = 0
-                us.subAssign = 0
-                us.solveAssign = 0
+                    us.totalAssign = 0
+                    us.subAssign = 0
+                    us.solveAssign = 0
 
-                us.tryProblem = 0
-                us.solveProblem = 0
-                us.totalScore = 0
-                us.avgScore = 0
-                us.progress = 0
-                us.totalProblem = 0
-                us.maxScore = 0
-                us.lecDict = dict()
+                    us.tryProblem = 0
+                    us.solveProblem = 0
+                    us.totalScore = 0
+                    us.avgScore = 0
+                    us.progress = 0
+                    us.totalProblem = 0
+                    us.maxScore = 0
+                    us.lecDict = dict()
 
-                if us.user is not None and us.isallow is True:
-                    #print(us.user.id,us.user.realname)
-                    #print(us.score)
-                    #get data from db
-                    LectureInfo.fromDict(us.score)
-                    us.totalPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFCONTENTS]
-                    us.subPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSUBCONTENTS]
-                    us.solvePractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSOLVEDCONTENTS]
+                    if us.user is not None and us.isallow is True:
+                        #print(us.user.id,us.user.realname)
+                        #print(us.score)
+                        #get data from db
+                        LectureInfo.fromDict(us.score)
+                        us.totalPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFCONTENTS]
+                        us.subPractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSUBCONTENTS]
+                        us.solvePractice = LectureInfo.contAnalysis[ContestType.PRACTICE].Info.data[DataType.NUMOFSOLVEDCONTENTS]
 
-                    us.totalAssign = LectureInfo.contAnalysis[ContestType.ASSIGN].Info.data[DataType.NUMOFCONTENTS]
-                    us.subAssign = LectureInfo.contAnalysis[ContestType.ASSIGN].Info.data[DataType.NUMOFSUBCONTENTS]
-                    us.solveAssign = LectureInfo.contAnalysis[ContestType.ASSIGN].Info.data[DataType.NUMOFSOLVEDCONTENTS]
+                        us.totalAssign = LectureInfo.contAnalysis[ContestType.ASSIGN].Info.data[DataType.NUMOFCONTENTS]
+                        us.subAssign = LectureInfo.contAnalysis[ContestType.ASSIGN].Info.data[DataType.NUMOFSUBCONTENTS]
+                        us.solveAssign = LectureInfo.contAnalysis[ContestType.ASSIGN].Info.data[DataType.NUMOFSOLVEDCONTENTS]
 
-                    us.tryProblem = LectureInfo.Info.data[DataType.NUMOFTOTALSUBPROBLEMS]
-                    us.solveProblem = LectureInfo.Info.data[DataType.NUMOFTOTALSOLVEDPROBLEMS]
-                    us.totalScore = LectureInfo.Info.data[DataType.SCORE]
-                    us.avgScore = LectureInfo.Info.data[DataType.AVERAGE]
-                    us.progress = LectureInfo.Info.data[DataType.PROGRESS]
+                        us.tryProblem = LectureInfo.Info.data[DataType.NUMOFTOTALSUBPROBLEMS]
+                        us.solveProblem = LectureInfo.Info.data[DataType.NUMOFTOTALSOLVEDPROBLEMS]
+                        us.totalScore = LectureInfo.Info.data[DataType.SCORE]
+                        us.avgScore = LectureInfo.Info.data[DataType.AVERAGE]
+                        us.progress = LectureInfo.Info.data[DataType.PROGRESS]
 
-                us.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]
-                us.maxScore = LectureInfo.Info.data[DataType.POINT]
-                cnt += 1
+                    us.totalProblem = LectureInfo.Info.data[DataType.NUMOFTOTALPROBLEMS]
+                    us.maxScore = LectureInfo.Info.data[DataType.POINT]
+                    cnt += 1
 
-            return self.success(self.paginate_data(request, ulist, SignupSerializer))
+                return self.success(self.paginate_data(request, ulist, SignupSerializer))
+            return self.success()
 
         """
         User list api / Get user by id
@@ -182,7 +186,7 @@ class UserAdminAPI(APIView):
 
         if user_id:
             try:
-                user = get(id=user_id)
+                user = User.objects.get(id=user_id)
             except User.DoesNotExist:
                 return self.error("User does not exist")
             return self.success(UserAdminSerializer(user).data)
