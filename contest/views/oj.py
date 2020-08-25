@@ -55,7 +55,7 @@ class ContestAPI(APIView):
             #print("Lecture allow : ", lecsign[0].isallow)
             contest.visible = True
         else:
-            if request.user.is_super_admin(): # 문제 접근을 위한 visible 값 수정
+            if request.user.is_super_admin() or request.user.is_semi_admin(): # 문제 접근을 위한 visible 값 수정
                 contest.visible = True
             else:
                 contest.visible = False
@@ -88,8 +88,8 @@ class ContestListAPI(APIView):
                 contests = contests.filter(end_time__lt=cur)
             else:
                 contests = contests.filter(start_time__lte=cur, end_time__gte=cur)
-        for contest in contests:
-            contest.lecture_title = lecture.title
+        # for contest in contests:
+        #    contest.lecture_title = lecture.title
         return self.success(self.paginate_data(request, contests, ContestSerializer))
 
 

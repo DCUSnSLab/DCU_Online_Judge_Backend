@@ -37,3 +37,17 @@ class ta_admin_class(models.Model):
     lecture_isallow = models.BooleanField(default=False)
     code_isallow = models.BooleanField(default=False)
     score_isallow = models.BooleanField(default=False)
+
+
+    @property
+    def checklist(self):
+        from .serializers import PermitTA
+        checklist = list()
+        if self.lecture_isallow:
+            checklist.append(PermitTA.PROBLEM)
+        if self.code_isallow:
+            checklist.append(PermitTA.CODE)
+        if self.score_isallow:
+            checklist.append(PermitTA.SCORE)
+
+        return checklist

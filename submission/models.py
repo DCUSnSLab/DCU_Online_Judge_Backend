@@ -4,7 +4,7 @@ from utils.constants import ContestStatus
 from utils.models import JSONField
 from problem.models import Problem
 from contest.models import Contest
-from lecture.models import Lecture
+from lecture.models import Lecture, ta_admin_class
 from account.models import User
 
 from utils.shortcuts import rand_str
@@ -47,7 +47,8 @@ class Submission(models.Model):
     lecture = models.ForeignKey(Lecture, null=True, on_delete=models.CASCADE)
 
     def check_user_permission(self, user, check_share=True):
-        if self.user_id == user.id or user.is_super_admin() or user.can_mgmt_all_problem() or self.problem.created_by_id == user.id:
+        ta_user = ta_admin_class.objects.filter(lecture__id=self.lecture_id, user__id=user.id)
+        if self.user_id == user.id or user.is_super_admin() or user.can_mgmt_all_problem() or self.problem.created_by_id == user.id or ta_user[0].code_isallow:
             return True
 
         if check_share:

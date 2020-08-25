@@ -51,6 +51,13 @@ class Contest(models.Model):
             return lecture
         return None
 
+    @lecture_title.setter
+    def lecture_title(self, val):
+        if val:
+            self.lecture_title = val
+        else:
+            raise ValueError("Check value")
+
     # 是否有权查看problem 的一些统计信息 诸如submission_number, accepted_number 等
     def problem_details_permission(self, user):
         return self.rule_type == ContestRuleType.ACM or \

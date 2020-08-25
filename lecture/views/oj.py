@@ -4,7 +4,7 @@ from utils.shortcuts import datetime2str, check_is_id
 from utils.api import APIView
 
 from account.models import User
-from ..models import Lecture, signup_class
+from ..models import Lecture, signup_class, ta_admin_class
 from ..serializers import LectureSerializer, SignupClassSerializer
 
 class LectureAPI(APIView):
@@ -88,11 +88,24 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
                 return self.error("no lecture exist")
 
         try:
-            signuplist = signup_class.objects.select_related("lecture").order_by("lecture__title")
+            signuplist = signup_class.objects.all()
+
         except:
             return self.error("no lecture exist")
 
-        signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
+        if request.user.is_semi_admin():
+            TAUserLecList = ta_admin_class.objects.filter(user=request.user.id).select_related("lecture").order_by("lecture__title")
+            TALec = ''
+            for lec in TAUserLecList:
+                if TALec == '':
+                    TALec = signuplist.filter(lecture__id=lec.lecture_id).order_by('lecture_id').distinct('lecture_id')
+                else:
+                    TALec = TALec.union(signuplist.filter(lecture__id=lec.lecture_id).order_by('lecture_id').distinct('lecture_id'))
+
+            #test = signuplist.filter(lecture=test.lecture)
+            signuplist = TALec
+        else:
+            signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
 
         for signup in signuplist:
             print(signup.lecture.created_by.realname)
@@ -109,7 +122,7 @@ class LectureApplyAPI(APIView):
         schoolssn = data.get("user_schoolssn")
         print(data)
         lecture = Lecture.objects.get(id=lecture_id)
-        user = get(id=user_id)
+        user = User.objects.get(id=user_id)
         try:
             su = signup_class.objects.get(lecture=lecture, realname=realname, schoolssn=schoolssn)
             su.user = user
