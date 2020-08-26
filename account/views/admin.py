@@ -112,8 +112,6 @@ class UserAdminAPI(APIView):
         """
         수강과목이 있는 학생 목록을 가져오기 위한 기능
         """
-
-
         user_id = request.GET.get("id")
         lecture_id = request.GET.get("lectureid")
 
