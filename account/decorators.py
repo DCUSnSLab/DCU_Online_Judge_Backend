@@ -110,8 +110,8 @@ def ensure_created_by(obj, user):
     e = APIError(msg=f"{obj.__class__.__name__} does not exist")
     if not user.is_admin_role():
         raise e
-    tauser = ta_admin_class.objects.get(user=user, lecture__created_by__id=obj.created_by_id)
-    if user.is_super_admin() or tauser.lecture_isallow:
+    tauser = ta_admin_class.objects.filter(user=user, lecture__created_by__id=obj.created_by_id)
+    if user.is_super_admin() or tauser[0].lecture_isallow:
         return
     elif not tauser.lecture_isallow:
         raise e
