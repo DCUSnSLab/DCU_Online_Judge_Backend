@@ -57,9 +57,9 @@ class LectureAPI(APIView):
             tauser_lec = ''
             for lec_list in tauser:
                 extract_lec = lectures.filter(id=lec_list.lecture.id)
-                if tauser_lec == '' and lec_list.lecture_isallow:
+                if tauser_lec == '' and lec_list.lecture_isallow or lec_list.score_isallow:
                     tauser_lec = extract_lec
-                elif tauser_lec != '' and lec_list.lecture_isallow:
+                elif tauser_lec != '' and lec_list.lecture_isallow or lec_list.score_isallow:
                     tauser_lec = tauser_lec.union(extract_lec)
             lectures = tauser_lec
 
@@ -67,7 +67,10 @@ class LectureAPI(APIView):
         if keyword:
             lectures = lectures.filter(title__contains=keyword)
 
-        return self.success(self.paginate_data(request, lectures, LectureAdminSerializer))
+        if lectures == '':
+            return self.success()
+        else:
+            return self.success(self.paginate_data(request, lectures, LectureAdminSerializer))
 
     def delete(self, request):
         lecture_id = request.GET.get("id")

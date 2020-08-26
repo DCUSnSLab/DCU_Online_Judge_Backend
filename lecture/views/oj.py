@@ -108,6 +108,7 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
             signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
 
         for signup in signuplist:
+            signup.isallow = True
             print(signup.lecture.created_by.realname)
 
         return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))

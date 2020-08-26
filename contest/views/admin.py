@@ -5,7 +5,7 @@ from ipaddress import ip_network
 
 import dateutil.parser
 from django.http import FileResponse
-
+from django.db.models import Count
 from account.decorators import check_contest_permission, ensure_created_by
 from account.models import User
 from lecture.views.LectureBuilder import LectureBuilder, ContestBuilder, ProblemBuilder, UserBuilder
@@ -16,7 +16,7 @@ from utils.constants import CacheKey
 from utils.shortcuts import rand_str
 from utils.tasks import delete_files
 from problem.models import Problem
-from lecture.models import Lecture
+from lecture.models import Lecture, ta_admin_class
 from ..models import Contest, ContestAnnouncement, ACMContestRank
 from ..serializers import (ContestAnnouncementSerializer, ContestAdminSerializer,
                            CreateContestSeriaizer, CreateContestAnnouncementSerializer,
@@ -138,9 +138,20 @@ class ContestAPI(APIView):
            contests = contests.filter(created_by=request.user)
 
         elif request.user.is_semi_admin():
-            user_permit_lec = Lecture.objects.filter(permit_to__has_keys=[str(request.user.id)])
-            print(user_permit_lec)
+            # user_permit_lec = Lecture.objects.filter(permit_to__has_keys=[str(request.user.id)])
+            user_permit_lec = ta_admin_class.objects.filter(user__id=request.user.id)
+            taCont = ''
+            for lec in user_permit_lec:
+                if taCont == '' and lec.lecture_isallow:
+                    taCont = contests.filter(lecture=lec.lecture)
+                elif lec.lecture_isallow:
+                    taCont = taCont.union(contests.filter(lecture=lec.lecture))
+            contests = taCont
+
+            #print(user_permit_lec)
             #user_permit_lec
+        if contests == '' or contests.count() < 1:
+            return self.success()
 
         keyword = request.GET.get("keyword")
         if keyword:
@@ -155,12 +166,12 @@ class ContestAPI(APIView):
         # for idx in del_list: # 이후 해당 리스트에 존재하는 id들을
         #     contests = contests.exclude(id=idx) # contests 쿼리셋에서 제외한다.
 
-        for contest in contests: # 수강과목이 존재하는 강의는 출력하지 않습니다.
-            try:
-                lecture_title = Lecture.objects.get(contest=contest.id)
-                contest.lecture_title = lecture_title.title
-            except Exception as e:
-                print("Contest Get Error:",e)
+        # for contest in contests: # 수강과목이 존재하는 강의는 출력하지 않습니다.
+        #     try:
+        #         lecture_title = Lecture.objects.get(contest=contest.id)
+        #         contest.lecture_title = lecture_title.title
+        #     except Exception as e:
+        #         print("Contest Get Error:",e)
 
         return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
