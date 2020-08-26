@@ -23,6 +23,9 @@ class LectureAPI(APIView):
 class LectureListAPI(APIView):
     def get(self, request):
         print("LectureListAPI Called")
+        from datetime import datetime
+        year = datetime.today().year
+        semester = (8>=datetime.today().month>=3) and 1 or 2
 
         if not request.user.is_authenticated:
             return self.error("로그인 후 사용 가능합니다.")
@@ -30,7 +33,7 @@ class LectureListAPI(APIView):
         if request.user.is_super_admin(): # 관리자 계정의 개설 과목 출력
             print("관리자입니다.")
             try:
-                lectures = Lecture.objects.all().order_by("title")
+                lectures = Lecture.objects.filter(year=year, semester=semester).order_by("title")
                 return self.success(self.paginate_data(request, lectures, LectureSerializer))
             except:
                 return self.error("no lecture exist")
@@ -38,7 +41,7 @@ class LectureListAPI(APIView):
         keyword = request.GET.get("keyword")
 
         try:
-            lectures = Lecture.objects.prefetch_related("signup_class_set__user").order_by('title').exclude(signup_class__user=request.user)
+            lectures = Lecture.objects.filter(year=year, semester=semester).prefetch_related("signup_class_set__user").order_by('title').exclude(signup_class__user=request.user)
         except:
             return self.error("no lecture exist")
 
@@ -72,14 +75,8 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
         if request.user.is_super_admin():
             print("관리자입니다.")
             try:
-                if sortyear == '1':
-                    print("sorted")
-                    signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct('lecture_id')
-                else:
-                    print("normal")
-                    signuplist = signup_class.objects.select_related("lecture").order_by('lecture_id').distinct('lecture_id')
+                signuplist = signup_class.objects.select_related("lecture").filter(lecture__year=str(sortyear), lecture__semester=str(sortsubj)).order_by('lecture_id').distinct('lecture_id')
                 for signup in signuplist:
-                    #print("Test ",signup.lecture.title, signup.lecture.id, signup.lecture.year)
                     signup.isallow = True
 
                 return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
@@ -88,13 +85,14 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
                 return self.error("no lecture exist")
 
         try:
-            signuplist = signup_class.objects.all()
+            # signuplist = signup_class.objects.all()
+            signuplist = signup_class.objects.select_related("lecture").filter(lecture__year=str(sortyear), lecture__semester=str(sortsubj))
 
         except:
             return self.error("no lecture exist")
 
         if request.user.is_semi_admin():
-            TAUserLecList = ta_admin_class.objects.filter(user=request.user.id).select_related("lecture").order_by("lecture__title")
+            TAUserLecList = ta_admin_class.objects.select_related("user").filter(user=request.user.id)
             TALec = ''
             for lec in TAUserLecList:
                 if TALec == '':
@@ -102,16 +100,19 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
                 else:
                     TALec = TALec.union(signuplist.filter(lecture__id=lec.lecture_id).order_by('lecture_id').distinct('lecture_id'))
 
-            #test = signuplist.filter(lecture=test.lecture)
-            signuplist = TALec
         else:
             signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
 
         for signup in signuplist:
             signup.isallow = True
-            print(signup.lecture.created_by.realname)
 
-        return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
+        if request.user.is_semi_admin():
+            signuplist = TALec.union(signuplist.filter(user=request.user.id, lecture__status=True))
+
+        # filter by year & semester
+        result = signuplist.filter(lecture__year=str(sortyear), lecture__semester=str(sortsubj))
+
+        return self.success(self.paginate_data(request, result, SignupClassSerializer))
 
 class LectureApplyAPI(APIView):
     def post(self, request):
