@@ -3,7 +3,7 @@ from problem.models import Problem
 from contest.models import Contest, ContestType, ContestStatus, ContestRuleType
 from utils.api import JSONResponse, APIError
 from .models import ProblemPermission
-from lecture.models import ta_admin_class
+from lecture.models import ta_admin_class, Lecture
 
 class BasePermissionDecorator(object):
     def __init__(self, func):
@@ -110,8 +110,11 @@ def ensure_created_by(obj, user):
     e = APIError(msg=f"{obj.__class__.__name__} does not exist")
     if not user.is_admin_role():
         raise e
-    tauser = ta_admin_class.objects.filter(user=user, lecture__created_by__id=obj.created_by_id)
-    if user.is_super_admin() or tauser[0].lecture_isallow:
+    if type(Lecture()) is type(obj) and not user.is_super_admin():
+        tauser = ta_admin_class.objects.get(user=user, lecture__id=obj.id)
+    elif type(Contest()) is type(obj) and not user.is_super_admin():
+        tauser = ta_admin_class.objects.get(user=user, lecture__id=obj.lecture_id)
+    if user.is_super_admin() or tauser.lecture_isallow:
         return
     elif not tauser.lecture_isallow:
         raise e
