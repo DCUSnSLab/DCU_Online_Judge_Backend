@@ -110,6 +110,9 @@ def ensure_created_by(obj, user):
     e = APIError(msg=f"{obj.__class__.__name__} does not exist")
     if not user.is_admin_role():
         raise e
+    else:
+        if obj.created_by == user:
+            return
     if type(Lecture()) is type(obj) and not user.is_super_admin():
         tauser = ta_admin_class.objects.get(user=user, lecture__id=obj.id)
     elif type(Contest()) is type(obj) and not user.is_super_admin():
