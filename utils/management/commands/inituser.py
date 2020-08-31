@@ -33,7 +33,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("User created"))
         elif action == "reset":
             try:
-                user = get(username=username)
+                user = User.objects.get(username=username)
                 user.set_password(password)
                 user.save()
                 self.stdout.write(self.style.SUCCESS(f"Password is rested"))

@@ -8,6 +8,7 @@ from django.http import FileResponse
 from django.db.models import Count
 from account.decorators import check_contest_permission, ensure_created_by
 from account.models import User
+from lecture.serializers import LectureSerializer
 from lecture.views.LectureBuilder import LectureBuilder, ContestBuilder, ProblemBuilder, UserBuilder
 from submission.models import Submission, JudgeStatus
 from utils.api import APIView, validate_serializer
@@ -402,20 +403,75 @@ class DownloadContestSubmissions(APIView):
         resp["Content-Disposition"] = f"attachment;filename={os.path.basename(zip_path)}"
         return resp
 
-class AddLectureContestAPI(APIView):
-    @validate_serializer(AddLectureContestSerializer)
-    def post(self, request):
+class AddLectureAPI(APIView):
+    #@validate_serializer(AddLectureContestSerializer)
+    def get(self, request):
         data = request.data
-        try:
-            contest = Contest.objects.get(id=data["contest_id"])
-            lecture = Lecture.objects.get(id=data["lecture_id"])
-        except (Contest.DoesNotExist):
-            return self.error("Contest does not exist 5")
+        user = request.user
 
-        print(lecture.id)
-        contest.pk = None
-        contest.lecture = lecture
-        contest.save()
+        if not data['lecture_id']:
+            return self.error("Lecture id is required")
+        try:
+            lecture = Lecture.objects.get(id=data['lecture_id'])
+            ensure_created_by(lecture, user)
+        except Lecture.DoesNotExist:
+            return self.error("Lecture does not exist")
+
+        if data['showPublic'] == 'true':
+            lecture_list = Lecture.objects.all()
+        else:
+            if user.is_super_admin():
+                lecture_list = Lecture.objects.all().filter(year=data['year'], semester=data['semester'])
+            elif user.is_admin():
+                lecture_list = Lecture.objects.filter(created_by__id=user.id, year=data['year'], semester=data['semester'])
+            #elif user.is_semi_admin():
+
+        keyword = request.GET.get('keyword')
+        if keyword:
+            lecture_list = lecture_list.filter(title__contains=keyword)
+
+        return self.success(self.paginate_data(request, lecture_list, LectureSerializer))
+
+    def post(self, request):
+        selectLectureID = request.GET.get('selectLectureID')
+        LectureID = request.GET.get('lecture_id')
+
+        from datetime import datetime
+        lecture = Lecture.objects.get(id=LectureID)
+        copyContList = Contest.objects.filter(lecture__id=selectLectureID)
+        date_str = datetime.today().strftime("%Y-%m-%d %H:%M:%S") + '+00'
+
+        from datetime import datetime
+        date_str = datetime.today().strftime("%Y-%m-%d %H:%M:%S") + '+00'
+
+        for contest in copyContList:
+            problems = Problem.objects.filter(contest=contest)
+
+            print("Contest 만든 사람 :", contest.created_by)
+            contest.pk = None
+            contest.created_by = lecture.created_by
+            contest.lecture = lecture
+            contest.start_time = date_str
+            contest.end_time = date_str
+            contest.save()
+
+            for problem in problems:
+                print(problem.title)
+                tags = problem.tags.all()
+                problem.pk = None
+                problem.created_by = contest.created_by
+                problem.contest = contest
+                problem.is_public = True
+                problem.visible = True
+                #problem._id = str(lecture.id)+"_"+problem._id
+                problem.submission_number = problem.accepted_number = 0
+                problem.statistic_info = {}
+                problem.save()
+
+                lb = ProblemBuilder(problem)
+                lb.MigrateContent()
+
+                problem.tags.set(tags)
 
         return self.success()
 
@@ -430,11 +486,17 @@ class AddLectureContestAPI(APIView):
         except (Contest.DoesNotExist):
             return self.error("Contest does not exist 4")
 
+        from datetime import datetime
+        date_str = datetime.today().strftime("%Y-%m-%d %H:%M:%S") + '+00'
+        #print(date_str)
+
         if len(select_prob):
             # Contest Copy
             contest.pk = None
             contest.created_by = lecture.created_by
             contest.lecture = lecture
+            contest.start_time = date_str
+            contest.end_time = date_str
             contest.save()
             # Select prob Copy
             for prob in select_prob:
@@ -465,6 +527,8 @@ class AddLectureContestAPI(APIView):
             contest.pk = None
             contest.created_by = lecture.created_by
             contest.lecture = lecture
+            contest.start_time = date_str
+            contest.end_time = date_str
             contest.save()
 
             for problem in problems:
