@@ -111,19 +111,22 @@ class ContestAPI(APIView):
         return self.success(ContestAdminSerializer(contest).data)
 
     def get(self, request):
+        contest_keyword = request.GET.get("keyword")
         contest_id = request.GET.get("id")
         contest_year = request.GET.get("year")
+        contest_semester = request.GET.get("semester")
+        show_publicProb = request.GET.get("publicProb")
 
-        if contest_year: # contest_year가 존재하는 경우 (Add From Public Contest 페이지 Dropdown 값)
-            contests = Contest.objects.all().order_by("-create_time")
-            if int(contest_year) > 2000: # 년도 값이 유효한 경우, (기본값인 0이 아닌 경우)
-                contests = contests.filter(create_time__year=contest_year) # 페이지로부터 년도에 관련된 값을 전달받은 경우, 해당 년도에 해당하는 contest들만 리턴한다.
+        #if contest_year: # contest_year가 존재하는 경우 (Add From Public Contest 페이지 Dropdown 값)
+        #    contests = Contest.objects.all().order_by("-create_time")
+        #    if int(contest_year) > 2000: # 년도 값이 유효한 경우, (기본값인 0이 아닌 경우)
+        #        contests = contests.filter(create_time__year=contest_year) # 페이지로부터 년도에 관련된 값을 전달받은 경우, 해당 년도에 해당하는 contest들만 리턴한다.
 
 
             #교수일 경우 교수 자신이 생성한 과목만 들고 올 수 있도록 활성화
-            if request.user.is_admin():
-                contests = contests.filter(created_by=request.user)
-            return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
+        #    if request.user.is_admin():
+        #        contests = contests.filter(created_by=request.user)
+        #    return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
         if contest_id:
             try:
@@ -136,6 +139,7 @@ class ContestAPI(APIView):
         contests = Contest.objects.all().order_by("-create_time")
         if request.user.is_admin(): # 요청자가 super admin이 아닌 경우, 본인이 생성한 실습, 과제, 대회만 출력하게 하는 부분
            contests = contests.filter(created_by=request.user)
+
 
         elif request.user.is_semi_admin():
             # user_permit_lec = Lecture.objects.filter(permit_to__has_keys=[str(request.user.id)])
@@ -154,11 +158,22 @@ class ContestAPI(APIView):
             return self.success()
 
         keyword = request.GET.get("keyword")
+
+        if show_publicProb:
+            contests = Contest.objects.all()
+
+        if contest_year:
+            contests = contests.filter(create_time__year=contest_year) # 페이지로부터 년도에 관련된 값을 전달받은 경우, 해당 년도에 해당하는 contest들만 리턴한다.
+
+        if contest_semester:
+            contests = contests.filter(lecture__semester=contest_semester)  # 페이지로부터 년도에 관련된 값을 전달받은 경우, 해당 년도에 해당하는 contest들만 리턴한다.
+
         if keyword:
-            contests = contests.filter(title__contains=keyword)
+            contests = contests.filter(lecture__title__contains=keyword)
 
         del_list = []
 
+        contests = contests.order_by("lecture__title", "title")
         for contest in contests:
             if contest.lecture == None: # 수강과목 id가 없는 경우
                 del_list.append(contest.id) # 별도의 list에 수강과목 id가 없는 강의의 id를 추가한다.
