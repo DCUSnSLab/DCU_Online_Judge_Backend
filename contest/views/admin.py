@@ -444,7 +444,7 @@ class AddLectureAPI(APIView):
         from datetime import datetime
         date_str = datetime.today().strftime("%Y-%m-%d %H:%M:%S") + '+00'
 
-        for contest in copyContList:
+        for contest in reversed(copyContList):
             problems = Problem.objects.filter(contest=contest)
 
             print("Contest 만든 사람 :", contest.created_by)
