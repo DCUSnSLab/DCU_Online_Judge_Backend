@@ -150,7 +150,7 @@ class _SysOptionsMeta(type):
     def _set_option(mcs, option_key: str, option_value):
         try:
             with transaction.atomic():
-                option = SysOptionsModel.objects.get(key=option_key)
+                option = SysOptionsModel.objects.select_for_update().get(key=option_key)
                 option.value = option_value
                 option.save()
         except SysOptionsModel.DoesNotExist:
@@ -161,7 +161,7 @@ class _SysOptionsMeta(type):
     def _increment(mcs, option_key):
         try:
             with transaction.atomic():
-                option = SysOptionsModel.objects.get(key=option_key)
+                option = SysOptionsModel.objects.select_for_update().get(key=option_key)
                 value = option.value + 1
                 option.value = value
                 option.save()

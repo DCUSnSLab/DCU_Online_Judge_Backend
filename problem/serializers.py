@@ -9,6 +9,7 @@ from utils.serializers import LanguageNameMultiChoiceField, SPJLanguageNameChoic
 
 from .models import Problem, ProblemRuleType, ProblemTag, ProblemIOMode
 from .utils import parse_problem_template
+from contest.serializers import ContestSerializer
 
 
 class TestCaseUploadForm(forms.Form):
@@ -112,6 +113,7 @@ class BaseProblemSerializer(serializers.ModelSerializer):
 
 
 class ProblemAdminSerializer(BaseProblemSerializer):
+    contest = ContestSerializer()
     class Meta:
         model = Problem
         fields = "__all__"

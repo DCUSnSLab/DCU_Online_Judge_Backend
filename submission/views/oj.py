@@ -118,7 +118,7 @@ class SubmissionAPI(APIView):
         if not submission_id:
             return self.error("Parameter id doesn't exist")
         try:
-            submission = Submission.objects.get(id=submission_id)
+            submission = Submission.objects.select_related("problem").get(id=submission_id)
         except Submission.DoesNotExist:
             return self.error("Submission doesn't exist")
         if not submission.check_user_permission(request.user):
@@ -139,7 +139,7 @@ class SubmissionAPI(APIView):
         share submission
         """
         try:
-            submission = Submission.objects.get(id=request.data["id"])
+            submission = Submission.objects.select_related("problem").get(id=request.data["id"])
         except Submission.DoesNotExist:
             return self.error("Submission doesn't exist")
         if not submission.check_user_permission(request.user, check_share=False):

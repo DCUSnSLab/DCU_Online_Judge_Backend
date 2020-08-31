@@ -202,7 +202,7 @@ class WaitStudentAddAPI(APIView):
                     signup_class.objects.create(lecture_id=lecture_id, user_id=None, isallow=False, realname=user[1], schoolssn=user[0])
 
                     try:# 기존 회원가입한 사용자 중, 등록한 학번과 동일한 학번을 가진 사용자를 가져온다.
-                        user =  User.objects.get(realname=user[1], schoolssn=user[0])
+                        user = User.objects.get(realname=user[1], schoolssn=user[0])
                         signuplist = signup_class.objects.filter(schoolssn=user.schoolssn, lecture_id=lecture_id)
                         for signup in signuplist:
                             signup.user = user
