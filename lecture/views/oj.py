@@ -25,7 +25,7 @@ class LectureListAPI(APIView):
         print("LectureListAPI Called")
         from datetime import datetime
         year = datetime.today().year
-        semester = (8>=datetime.today().month>=3) and 1 or 2
+        semester = (8>datetime.today().month>=3) and 1 or 2
 
         if not request.user.is_authenticated:
             return self.error("로그인 후 사용 가능합니다.")
