@@ -62,8 +62,16 @@ class UserProfileAPI(APIView):
     def put(self, request):
         data = request.data
         user_profile = request.user.userprofile
+        user = User.objects.get(id=request.user.id)
+
         for k, v in data.items():
             setattr(user_profile, k, v)
+        user.realname = data['realname']
+        #test = User.objects.filter(schoolssn=data['schoolssn']).exclude(schoolssn=user.schoolssn).exists()
+        if User.objects.filter(schoolssn=data['schoolssn']).exclude(schoolssn=user.schoolssn).exists():
+            return self.error("중복된 학번입니다.")
+        user.schoolssn = data['schoolssn']
+        user.save()
         user_profile.save()
         return self.success(UserProfileSerializer(user_profile, show_real_name=True).data)
 
