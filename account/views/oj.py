@@ -85,8 +85,12 @@ class UserProgress(APIView):
             return
         print(request.user)
 
+        from datetime import datetime
+        year = datetime.today().year
+        semester = (8 > datetime.today().month >= 3) and 1 or 2
+
         try:
-            lectures = signup_class.objects.filter(user_id=request.user, isallow=True).select_related('lecture')
+            lectures = signup_class.objects.filter(user_id=request.user, isallow=True, lecture__year=year, lecture__semester=semester).select_related('lecture')
             # ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
         except signup_class.DoesNotExist:
             return self.error("수강중인 학생이 없습니다.")
