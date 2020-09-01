@@ -41,7 +41,7 @@ class LectureListAPI(APIView):
         keyword = request.GET.get("keyword")
 
         try:
-            lectures = Lecture.objects.filter(year=year, semester=semester).prefetch_related("signup_class_set__user").order_by('title').exclude(signup_class__user=request.user)
+            lectures = Lecture.objects.filter(year=year, semester=semester, status=True).prefetch_related("signup_class_set__user").order_by('title').exclude(signup_class__user=request.user)
         except:
             return self.error("no lecture exist")
 
@@ -103,16 +103,16 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
         else:
             signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
 
-        for signup in signuplist:
-            signup.isallow = True
-
-        if request.user.is_semi_admin():
-            signuplist = TALec.union(signuplist.filter(user=request.user.id, lecture__status=True))
-
         # filter by year & semester
         result = signuplist.filter(lecture__year=str(sortyear), lecture__semester=str(sortsubj))
 
-        return self.success(self.paginate_data(request, result, SignupClassSerializer))
+        if request.user.is_semi_admin():
+            signuplist = TALec.union(result.filter(user=request.user.id, lecture__status=True))
+            for signup in signuplist:
+                if signup in TALec:
+                    signup.isallow = True
+
+        return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
 
 class LectureApplyAPI(APIView):
     def post(self, request):
