@@ -1,6 +1,6 @@
 import functools
 from problem.models import Problem
-from contest.models import Contest, ContestType, ContestStatus, ContestRuleType
+from contest.models import Contest, ContestType, ContestStatus, ContestRuleType, LectureContestType
 from utils.api import JSONResponse, APIError
 from .models import ProblemPermission
 from lecture.models import ta_admin_class, Lecture
@@ -104,6 +104,20 @@ def check_contest_permission(check_type="details"):
             return func(*args, **kwargs)
         return _check_permission
     return decorator
+
+def ensure_prob_access(obj, user):
+    e = APIError(msg=f"{obj.__class__.__name__} does not exist")
+
+    if isinstance(obj, Contest):
+        if obj.lecture_contest_type == LectureContestType.Competition and obj.status == ContestStatus.CONTEST_ENDED:
+            if not user.is_admin_role():
+                raise e
+            else:
+                if obj.created_by == user:
+                    return
+            if user.is_super_admin():
+                return
+            raise e
 
 
 def ensure_created_by(obj, user):

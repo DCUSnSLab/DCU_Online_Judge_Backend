@@ -1,7 +1,7 @@
 import random
 from django.db.models import Q, Count
 from utils.api import APIView
-from account.decorators import check_contest_permission
+from account.decorators import check_contest_permission, ensure_prob_access
 from ..models import ProblemTag, Problem, ProblemRuleType
 from contest.models import Contest
 from lecture.models import signup_class
@@ -93,6 +93,7 @@ class ContestProblemAPI(APIView):
     @check_contest_permission(check_type="problems")
     def get(self, request):
         problem_id = request.GET.get("problem_id")
+        ensure_prob_access(self.contest, request.user)
         if problem_id:
             try:
                 problem = Problem.objects.select_related("created_by").get(_id=problem_id, contest=self.contest, visible=True)
@@ -106,6 +107,8 @@ class ContestProblemAPI(APIView):
             return self.success(problem_data)
 
         contest_problems = Problem.objects.select_related("created_by").filter(contest=self.contest, visible=True)
+
+        #if self.contest.lecture_id and (self.contest.lecture_contest_type == '대회' and self.contest.status == -1):
         if self.contest.problem_details_permission(request.user):
             data = ProblemSerializer(contest_problems, many=True).data
             self._add_problem_status(request, data)
