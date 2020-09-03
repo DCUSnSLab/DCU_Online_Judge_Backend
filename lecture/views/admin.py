@@ -57,9 +57,9 @@ class LectureAPI(APIView):
             tauser_lec = ''
             for lec_list in tauser:
                 extract_lec = lectures.filter(id=lec_list.lecture.id)
-                if tauser_lec == '' and lec_list.lecture_isallow or lec_list.score_isallow:
+                if tauser_lec == '' and (lec_list.lecture_isallow or lec_list.score_isallow):
                     tauser_lec = extract_lec
-                elif tauser_lec != '' and lec_list.lecture_isallow or lec_list.score_isallow:
+                elif tauser_lec != '' and (lec_list.lecture_isallow or lec_list.score_isallow):
                     tauser_lec = tauser_lec.union(extract_lec)
             lectures = tauser_lec
 
