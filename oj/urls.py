@@ -24,4 +24,5 @@ urlpatterns = [
 
     url(r"^api/admin/", include("utils.urls")),
 	url(r"^api/", include("heartbeat.urls")),
+    url(r"^api/", include("qna.urls.oj")),
 ]

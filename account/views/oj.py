@@ -14,7 +14,7 @@ from otpauth import OtpAuth
 from lecture.views.LectureBuilder import UserBuilder
 from problem.models import Problem
 from contest.models import Contest
-from submission.models import Submission
+from utils.shortcuts import send_email
 from utils.constants import ContestRuleType
 from options.options import SysOptions
 from utils.api import APIView, validate_serializer, CSRFExemptAPIView
@@ -453,11 +453,18 @@ class ApplyResetPasswordAPI(APIView):
             "link": f"{SysOptions.website_base_url}/reset-password/{user.reset_password_token}"
         }
         email_html = render_to_string("reset_password_email.html", render_data)
-        send_email_async.send(from_name=SysOptions.website_name_shortcut,
-                              to_email=user.email,
-                              to_name=user.username,
-                              subject=f"Reset your password",
-                              content=email_html)
+        send_email(smtp_config=SysOptions.smtp_config,
+                   from_name=SysOptions.website_name_shortcut,
+                   to_name=user.username,
+                   to_email=user.email,
+                   subject=f"Reset your password",
+                   content=email_html)
+
+        # send_email_async.send(from_name=SysOptions.website_name_shortcut,
+        #                       to_email=user.email,
+        #                       to_name=user.username,
+        #                       subject=f"Reset your password",
+        #                       content=email_html)
         return self.success("Succeeded")
 
 
