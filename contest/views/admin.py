@@ -512,6 +512,24 @@ class AddLectureContestAPI(APIView):
                 # problem._id = str(lecture.id)+"_"+problem._id
                 problems.submission_number = problems.accepted_number = 0
                 problems.statistic_info = {}
+
+                # copy dataset create
+                while True:
+                    test_case_id = rand_str()  # create new id
+                    from django.conf import settings
+                    test_case_dir = os.path.join(settings.TEST_CASE_DIR, test_case_id)
+                    origin_test_case_dir = os.path.join(settings.TEST_CASE_DIR, problems.test_case_id)
+                    if not os.path.isdir(test_case_dir):
+                        os.mkdir(test_case_dir)
+                        import shutil
+                        shutil.copytree(origin_test_case_dir, test_case_dir)  # copy_dataset
+                        break
+
+                os.chmod(test_case_dir, 0o710)
+                print(problems.test_case_id, test_case_id)
+                problems.test_case_id = test_case_id
+                # copy dataset done
+
                 problems.save()
 
                 lb = ProblemBuilder(problems)
@@ -543,6 +561,24 @@ class AddLectureContestAPI(APIView):
                 #problem._id = str(lecture.id)+"_"+problem._id
                 problem.submission_number = problem.accepted_number = 0
                 problem.statistic_info = {}
+
+                # copy dataset create
+                while True:
+                    test_case_id = rand_str() # create new id
+                    from django.conf import settings
+                    test_case_dir = os.path.join(settings.TEST_CASE_DIR, test_case_id)
+                    origin_test_case_dir = os.path.join(settings.TEST_CASE_DIR, problem.test_case_id)
+                    if not os.path.isdir(test_case_dir):
+                        # os.mkdir(test_case_dir)
+                        import shutil
+                        shutil.copytree(origin_test_case_dir, test_case_dir) # copy_dataset
+                        break
+
+                os.chmod(test_case_dir, 0o710)
+                print(problem.test_case_id, test_case_id)
+                problem.test_case_id = test_case_id
+                # copy dataset done
+
                 problem.save()
 
                 lb = ProblemBuilder(problem)
