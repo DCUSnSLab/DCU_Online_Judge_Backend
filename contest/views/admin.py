@@ -558,7 +558,6 @@ class AddLectureContestAPI(APIView):
                 problem.contest = contest
                 problem.is_public = True
                 problem.visible = True
-                #problem._id = str(lecture.id)+"_"+problem._id
                 problem.submission_number = problem.accepted_number = 0
                 problem.statistic_info = {}
 
