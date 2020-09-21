@@ -18,7 +18,8 @@ from problem.models import Problem
 from ..decorators import super_admin_required
 from lecture.models import ta_admin_class
 from ..models import AdminType, ProblemPermission, User, UserProfile
-from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserSerializer
+from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserSerializer, UserSerializer, \
+    SimpleSignupSerializer
 from ..serializers import ImportUserSeralizer, SignupSerializer
 from django.db.models import Max
 from lecture.views.stdResult import RefLecture, SubmitLecture
@@ -113,7 +114,19 @@ class UserAdminAPI(APIView):
         수강과목이 있는 학생 목록을 가져오기 위한 기능
         """
         user_id = request.GET.get("id")
+
         lecture_id = request.GET.get("lectureid")
+        contest_id = request.GET.get("contestid")
+
+        if contest_id:
+            if request.user.is_super_admin():
+                try:
+                    ulist = signup_class.objects.filter(contest__id=contest_id).select_related('contest').order_by(
+                        "realname")  # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
+                    ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
+                except signup_class.DoesNotExist:
+                    return self.error("수강중인 학생이 없습니다.")
+                return self.success(self.paginate_data(request, ulist, SimpleSignupSerializer))
 
         if lecture_id: # 특정 수강과목을 수강중인 학생 리스트업 하는 경우
             tauser = ta_admin_class.objects.filter(user__id=request.user.id, lecture__id=lecture_id)

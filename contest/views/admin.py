@@ -5,7 +5,7 @@ from ipaddress import ip_network
 
 import dateutil.parser
 from django.http import FileResponse
-from django.db.models import Count
+from django.db.models import Count, Q
 from account.decorators import check_contest_permission, ensure_created_by
 from account.models import User
 from lecture.serializers import LectureSerializer
@@ -137,7 +137,8 @@ class ContestAPI(APIView):
             except Contest.DoesNotExist:
                 return self.error("Contest does not exist 9")
 
-        contests = Contest.objects.all().order_by("-create_time")
+        contests = Contest.objects.all()
+        #contests = contests.filter(Q(id=521) |Q(id=522))
         if request.user.is_admin(): # 요청자가 super admin이 아닌 경우, 본인이 생성한 실습, 과제, 대회만 출력하게 하는 부분
            contests = contests.filter(created_by=request.user)
 
@@ -170,11 +171,11 @@ class ContestAPI(APIView):
             contests = contests.filter(lecture__semester=contest_semester)  # 페이지로부터 년도에 관련된 값을 전달받은 경우, 해당 년도에 해당하는 contest들만 리턴한다.
 
         if keyword:
-            contests = contests.filter(lecture__title__contains=keyword)
+            contests = contests.filter(title__contains=keyword)
 
         del_list = []
 
-        contests = contests.order_by("lecture__title", "title")
+        contests = contests.order_by("lecture__title", "title", "-create_time")
         for contest in contests:
             if contest.lecture == None: # 수강과목 id가 없는 경우
                 del_list.append(contest.id) # 별도의 list에 수강과목 id가 없는 강의의 id를 추가한다.
