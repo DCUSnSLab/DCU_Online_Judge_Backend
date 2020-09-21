@@ -20,6 +20,7 @@ class Post(models.Model):
     submission = models.ForeignKey(Submission, null=True, on_delete=models.CASCADE)
     contest = models.ForeignKey(Contest, null=True, on_delete=models.CASCADE)
     problem = models.ForeignKey(Problem, null=True, on_delete=models.CASCADE)
+    private = models.BooleanField(default=True)
 
     def __str__(self):
         return self.title
@@ -32,10 +33,21 @@ class Post(models.Model):
 
 
 class Comment(models.Model):
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
+    post = models.ForeignKey(Post, null=True, on_delete=models.CASCADE)
     date_posted = models.DateTimeField(default=timezone.now)
     content = models.TextField()
-    author = models.CharField(max_length=200)
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    def __str__(self):
-        return self.title
+    @property
+    def permit(self):
+        if self.author.is_student():
+            return '학생'
+        elif self.author.is_semi_admin():
+            return '수업 조교'
+        elif self.author.is_admin():
+            return '교수'
+        else:
+            return '관리자'
+
+    class Meta:
+        db_table = "qna_comment"
