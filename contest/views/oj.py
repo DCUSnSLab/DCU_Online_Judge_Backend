@@ -6,7 +6,7 @@ from django.utils.timezone import now
 from django.core.cache import cache
 
 from problem.models import Problem
-from lecture.models import Lecture
+from lecture.models import Lecture, signup_class
 from utils.api import APIView, validate_serializer
 from utils.constants import CacheKey
 from utils.shortcuts import datetime2str, check_is_id
@@ -73,6 +73,15 @@ class ContestListAPI(APIView):
         except:
             print("lecture not exist")
         contests = Contest.objects.select_related("created_by").filter(visible=True, lecture=lectureid)
+        if lectureid is None:
+            if request.user.is_student():
+                access_contest = signup_class.objects.filter(user=request.user, lecture=None)
+                permit_cont = []
+                for cont in access_contest:
+                    if cont.contest in contests:
+                        permit_cont.append(cont.contest.id)
+                print('permit_cont')
+
         keyword = request.GET.get("keyword")
         rule_type = request.GET.get("rule_type")
         status = request.GET.get("status")

@@ -69,6 +69,12 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "realname", "schoolssn", "username", "email", "admin_type", "problem_permission",
                   "create_time", "last_login", "two_factor_auth", "open_api", "is_disabled"]
 
+class SimpleSignupSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    class Meta:
+        model = signup_class
+        fields = "__all__"
+
 ######################################################
 class SignupSerializer(serializers.ModelSerializer):
     user = UserSerializer()

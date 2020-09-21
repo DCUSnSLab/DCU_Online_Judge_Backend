@@ -175,9 +175,13 @@ class AdminLectureApplyAPI(APIView):
     def delete(self, request):
         id = request.GET.get("id")
         lecture_id = request.GET.get("lectureid")
+        contest_Id = request.GET.get("contestId")
         if id:
             print("test")
-            signup_class.objects.filter(id=id, lecture=lecture_id).delete()
+            if lecture_id:
+                signup_class.objects.filter(id=id, lecture=lecture_id).delete()
+            elif contest_Id:
+                signup_class.objects.filter(id=id, contest=contest_Id).delete()
             return self.success()
 
         return self.error("Invalid Parameter, id is required")
@@ -186,32 +190,65 @@ class WaitStudentAddAPI(APIView):
     def post(self, request):
         data = request.data
         print(type(data))
-        lecture_id = data["users"][0][1]
-        for user in data["users"]:
-            if user[0] != -1:
-                print(user[0])
-                print(user[1])
-                try: # 이미 수강신청한 사용자가 있는지 확인하고, 있는 경우 isallow를 true로 변경한다.
-                    user = signup_class.objects.get(lecture_id=lecture_id, realname=user[1], schoolssn=user[0])
-                    if user.user_id is None: # 이미 있다고 하더라고 실제 사용자 id가 없으면 건너뛴다.
-                        continue
-                    else:
-                        user.isallow = True # 해당 사용자의 isallow 값을 True로 변경하고 저장한다.
-                        user.save()
-                except:
-                    signup_class.objects.create(lecture_id=lecture_id, user_id=None, isallow=False, realname=user[1], schoolssn=user[0])
-
-                    try:# 기존 회원가입한 사용자 중, 등록한 학번과 동일한 학번을 가진 사용자를 가져온다.
-                        user = User.objects.get(realname=user[1], schoolssn=user[0])
-                        signuplist = signup_class.objects.filter(schoolssn=user.schoolssn, lecture_id=lecture_id)
-                        for signup in signuplist:
-                            signup.user = user
-                            signup.isallow = True
-                            signup.save()
-
-                        ub = UserBuilder(None)
-                        ub.buildLecture(signup.select_related('lecture').order_by('lecture'))
+        if data["users"][0][0] == 'contestId':
+            print('contest signup')
+            lecture_id = data["users"][0][1]
+            for user in data["users"]:
+                if user[0] != 'contestId' and user[0] != 'lectureId':
+                    print(user[0])
+                    print(user[1])
+                    try:  # 이미 수강신청한 사용자가 있는지 확인하고, 있는 경우 isallow를 true로 변경한다.
+                        user = signup_class.objects.get(contest_id=lecture_id, realname=user[1], schoolssn=user[0])
+                        if user.user_id is None:  # 이미 있다고 하더라고 실제 사용자 id가 없으면 건너뛴다.
+                            continue
+                        else:
+                            user.isallow = True  # 해당 사용자의 isallow 값을 True로 변경하고 저장한다.
+                            user.save()
                     except:
-                        print("no matching user")
+                        signup_class.objects.create(contest_id=lecture_id, user_id=None, isallow=False,
+                                                    realname=user[1], schoolssn=user[0])
+
+                        try:  # 기존 회원가입한 사용자 중, 등록한 학번과 동일한 학번을 가진 사용자를 가져온다.
+                            user = User.objects.get(realname=user[1], schoolssn=user[0])
+                            signuplist = signup_class.objects.filter(schoolssn=user.schoolssn, contest_id=lecture_id)
+                            for signup in signuplist:
+                                signup.user = user
+                                signup.isallow = True
+                                signup.save()
+
+                            ub = UserBuilder(None)
+                            ub.buildLecture(signup.select_related('contest').order_by('contest'))
+                        except:
+                            print("no matching user")
+
+        elif data["users"][0][0] == 'lectureId':
+            print('lecture signup')
+            lecture_id = data["users"][0][1]
+            for user in data["users"]:
+                if user[0] != 'contestId' and user[0] != 'lectureId':
+                    print(user[0])
+                    print(user[1])
+                    try: # 이미 수강신청한 사용자가 있는지 확인하고, 있는 경우 isallow를 true로 변경한다.
+                        user = signup_class.objects.get(lecture_id=lecture_id, realname=user[1], schoolssn=user[0])
+                        if user.user_id is None: # 이미 있다고 하더라고 실제 사용자 id가 없으면 건너뛴다.
+                            continue
+                        else:
+                            user.isallow = True # 해당 사용자의 isallow 값을 True로 변경하고 저장한다.
+                            user.save()
+                    except:
+                        signup_class.objects.create(lecture_id=lecture_id, user_id=None, isallow=False, realname=user[1], schoolssn=user[0])
+
+                        try:# 기존 회원가입한 사용자 중, 등록한 학번과 동일한 학번을 가진 사용자를 가져온다.
+                            user = User.objects.get(realname=user[1], schoolssn=user[0])
+                            signuplist = signup_class.objects.filter(schoolssn=user.schoolssn, lecture_id=lecture_id)
+                            for signup in signuplist:
+                                signup.user = user
+                                signup.isallow = True
+                                signup.save()
+
+                            ub = UserBuilder(None)
+                            ub.buildLecture(signup.select_related('lecture').order_by('lecture'))
+                        except:
+                            print("no matching user")
 
         return self.success()

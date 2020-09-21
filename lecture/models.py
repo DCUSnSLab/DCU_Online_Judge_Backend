@@ -2,7 +2,6 @@ from utils.constants import ContestRuleType  # noqa
 from django.db import models
 from django.utils.timezone import now
 from utils.models import JSONField
-
 from account.models import User
 from utils.models import RichTextField
 
@@ -23,7 +22,8 @@ class Lecture(models.Model):
 
 
 class signup_class(models.Model):
-    lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE)
+    lecture = models.ForeignKey(Lecture, null=True, on_delete=models.CASCADE)
+    contest = models.ForeignKey('contest.Contest', null=True, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
     status = models.BooleanField(default=False)
     isallow = models.BooleanField(default=False)
