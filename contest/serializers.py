@@ -13,6 +13,7 @@ class CreateContestSeriaizer(serializers.Serializer):
     lecture_contest_type = serializers.ChoiceField(choices=[LectureContestType.Training, LectureContestType.Assignment, LectureContestType.Competition])
     rule_type = serializers.ChoiceField(choices=[ContestRuleType.ACM, ContestRuleType.OI])
     password = serializers.CharField(allow_blank=True, max_length=32)
+    private = serializers.BooleanField()
     visible = serializers.BooleanField()
     real_time_rank = serializers.BooleanField()
     allowed_ip_ranges = serializers.ListField(child=serializers.CharField(max_length=32), allow_empty=True)
@@ -29,6 +30,7 @@ class EditContestSeriaizer(serializers.Serializer):
     password = serializers.CharField(allow_blank=True, allow_null=True, max_length=32)
     visible = serializers.BooleanField()
     real_time_rank = serializers.BooleanField()
+    private = serializers.BooleanField()
     allowed_ip_ranges = serializers.ListField(child=serializers.CharField(max_length=32))
     # lecture_id = serializers.IntegerField(allow_null=True)
 

@@ -39,8 +39,16 @@ class CommentAPI(APIView):
         comment_id = request.GET.get("id")
         if comment_id:
             comment = Comment.objects.get(id=comment_id)
-            comment.delete()
-            return self.success()
+            if comment.author == request.user or request.user.is_super_admin():
+                comment.delete()
+            elif comment.post.contest is not None:
+                if comment.post.contest.lecture.created_by == request.user:
+                    comment.delete()
+                else:
+                    return self.error("작성 본인 또는 관리자만 삭제할 수 있습니다.")
+            else:
+                return self.error("작성 본인 또는 관리자만 삭제할 수 있습니다.")
+        return self.success()
 
 
 
@@ -63,6 +71,23 @@ class QnAPostDetailAPI(APIView):
             question = Post.objects.get(id=questionID)
             ensure_qna_access(question, request.user)
             return self.success(PostDetailSerializer(question).data)
+
+    def delete(self, request):
+        questionID = request.GET.get("questionID")
+
+        if questionID:
+            question = Post.objects.get(id=questionID)
+            if question.author == request.user or request.user.is_super_admin():
+                question.delete()
+            elif question.contest is not None:
+                if question.contest.lecture.created_by == request.user:
+                    question.delete()
+                else:
+                    return self.error("작성 본인 또는 관리자만 삭제할 수 있습니다.")
+            else:
+                return self.error("작성 본인 또는 관리자만 삭제할 수 있습니다.")
+
+        return self.success()
 
 class QnAPostAPI(APIView):
     def post(self, request):
