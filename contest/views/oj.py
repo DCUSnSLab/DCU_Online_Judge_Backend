@@ -50,7 +50,19 @@ class ContestAPI(APIView):
         lecsign = LU.getSignupList(request.user.id, lid=contest.lecture_id)
         #print("lid = ", contest.lecture)
         if not contest.lecture:
-            contest.visible = True
+            if contest.private:
+                if request.user.is_super_admin():
+                    contest.visible = True
+                elif request.user.is_student() or request.user.is_semi_admin():
+                    PermitToCont = signup_class.objects.filter(user=request.user, contest=contest)
+                    if PermitToCont.exists():
+                        contest.visible = True
+                    else:
+                        return self.error("등록되지 않은 사용자 입니다.")
+                else:
+                    contest.visible = False
+            else:
+                contest.visible = True
         elif contest.lecture and len(lecsign) != 0 and lecsign[0].isallow:
             #print("Lecture allow : ", lecsign[0].isallow)
             contest.visible = True
