@@ -151,6 +151,25 @@ class SubmissionAPI(APIView):
         return self.success()
 
 
+class SubmissionLogAPI(APIView):
+    def get(self, request):
+        print("SubmissionLogAPI GET")
+        contestID = request.GET.get("contestID")
+        problemID = request.GET.get("problemID")
+        if contestID:
+            log = Submission.objects.filter(contest__id=contestID, problem___id=problemID, user=request.user)
+            if log.exists():
+                log = log.order_by('-create_time')[0]
+                return self.success(SubmissionModelSerializer(log).data)
+        elif problemID:
+            log = Submission.objects.filter(problem__id=problemID, user=request.user)
+            if log.exists():
+                log = log.order_by('-create_time')[0]
+                return self.success(SubmissionModelSerializer(log).data)
+        return self.error()
+        #SubmissionModelSerializer
+
+
 class SubmissionListAPI(APIView):
     def get(self, request):
         print("SubmissionListAPI GET")
