@@ -243,6 +243,8 @@ class ProblemAPI(ProblemBase):
         #problems = Problem.objects.filter(contest_id__isnull=True).order_by("-create_time")
         if showPublic == 'true':
             problems = Problem.objects.all().order_by("-create_time")
+            if not request.user.is_super_admin():
+                problems = Problem.objects.filter(contest__private=False)
         else:
             problems = Problem.objects.filter(contest__created_by__id=user.id)
 
