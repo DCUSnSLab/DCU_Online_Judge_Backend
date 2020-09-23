@@ -8,8 +8,6 @@ __pycache__/
 # Distribution / packaging
 .Python
 
-oj/production_settings.py
-oj/dev_settings.py
 # 모든 마이그레이션 파일은 제외하지만, 마이그레이션 파일 생셩을 위한 init 파일은 제외하지 않는다.
 # migrations/**
 # !migrations/__init__.py

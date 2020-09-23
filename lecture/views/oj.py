@@ -1,5 +1,7 @@
 from django.utils.timezone import now
 from django.db.models import Count
+
+from contest.models import Contest
 from utils.shortcuts import datetime2str, check_is_id
 from utils.api import APIView
 
@@ -8,6 +10,15 @@ from ..models import Lecture, signup_class, ta_admin_class
 from ..serializers import LectureSerializer, SignupClassSerializer
 
 class LectureAPI(APIView):
+    def post(self, request):
+        data = request.data
+        contestID = data.get("contestID")
+        if contestID:
+            lectrue = Contest.objects.get(id=contestID)
+            lectrue = lectrue.lecture.id
+            return self.success(lectrue)
+        return self.error()
+
     def get(self, request):
         id = request.GET.get("id")
         if not id or not check_is_id(id):
