@@ -112,29 +112,12 @@ class QnAPostAPI(APIView):
         return self.success(PostListSerializer(qna).data)
 
     def get(self, request):
-        # problemID = request.GET.get("problemID")
         lectureID = request.GET.get("LectureID")
         allQuestion = request.GET.get("all")
-        #contestID = request.GET.get("contestID")
 
         if allQuestion == 'all':
             visible = False if (request.GET.get("visible") == 'false') else True
             PostList = Post.objects.filter(solved=visible, private=False).order_by("-date_posted")
-            #if request.user.is_super_admin():
-            #    return self.success(self.paginate_data(request, PostList, PostListSerializer))
-            #elif request.user.is_admin():
-            #    PostList = PostList.filter(contest__lecture__created_by=request.user)
-            #elif request.user.is_semi_admin():
-            #    ta_lec_list = ta_admin_class.objects.filter(user=request.user)
-            #    TA_PostList = ''
-            #    for ta_lec in ta_lec_list:
-            #        if TA_PostList == '':
-            #            TA_PostList = PostList.filter(contest__lecture=ta_lec.lecture)
-            #        else:
-            #            TA_PostList = TA_PostList.union(PostList.filter(contest__lecture=ta_lec.lecture))
-            #    PostList = TA_PostList
-
-            #PostList = PostList.order_by("-date_posted")
 
             return self.success(self.paginate_data(request, PostList, PostListSerializer))
 
