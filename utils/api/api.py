@@ -113,7 +113,6 @@ class APIView(View):
     def server_error(self, data):
         return self.error(err=data, msg="server error")
 
-
     def paginate_data(self, request, query_set, object_serializer=None):
         """
         :param request: django的request
