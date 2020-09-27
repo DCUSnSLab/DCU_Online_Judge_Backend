@@ -17,6 +17,7 @@ class Post(models.Model):
     date_posted = models.DateTimeField(default=timezone.now)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     solved = models.BooleanField(default=False)
+    proceeding = models.BooleanField(default=True)
     submission = models.ForeignKey(Submission, null=True, on_delete=models.CASCADE)
     contest = models.ForeignKey(Contest, null=True, on_delete=models.CASCADE)
     problem = models.ForeignKey(Problem, null=True, on_delete=models.CASCADE)
