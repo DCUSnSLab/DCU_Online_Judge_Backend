@@ -17,7 +17,6 @@ from ..serializers import PostListSerializer, PostDetailSerializer, CommentSeria
 class CommentAPI(APIView):
     def get(self, request):
         questionID = request.GET.get("questionID")
-        offset = int(request.GET.get("offset", "0"))
 
         if questionID:
             question = Post.objects.get(id=questionID)
