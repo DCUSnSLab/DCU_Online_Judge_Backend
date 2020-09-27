@@ -17,11 +17,18 @@ from ..serializers import PostListSerializer, PostDetailSerializer, CommentSeria
 class CommentAPI(APIView):
     def get(self, request):
         questionID = request.GET.get("questionID")
+        offset = int(request.GET.get("offset", "0"))
 
         if questionID:
             question = Post.objects.get(id=questionID)
-            comment = Comment.objects.filter(post=question).order_by("-date_posted")
+            comment = Comment.objects.filter(post=question).order_by("date_posted")
             ensure_qna_access(question, request.user)
+            offset = int(request.GET.get("offset", "0"))
+            limit = int(request.GET.get("limit", "10"))
+            if offset == -1:
+                import math
+                page = math.ceil(comment.count() / limit)
+                return self.success(page)
             return self.success(self.paginate_data(request, comment, CommentSerializer))
 
     def post(self, request):
@@ -124,7 +131,7 @@ class QnAPostAPI(APIView):
         elif lectureID:
             lecture = Lecture.objects.get(id=lectureID)
             visible = False if (request.GET.get("visible") == 'false') else True
-            PostList = Post.objects.filter(contest__lecture=lecture, solved=visible)
+            PostList = Post.objects.filter(contest__lecture=lecture, solved=visible).order_by("-date_posted")
             if request.user.is_admin_role():
                 return self.success(self.paginate_data(request, PostList, PostListSerializer))
 

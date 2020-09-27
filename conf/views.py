@@ -134,6 +134,7 @@ class JudgeServerHeartbeatAPI(CSRFExemptAPIView):
     def post(self, request):
         data = request.data
         client_token = request.META.get("HTTP_X_JUDGE_SERVER_TOKEN")
+        test = SysOptions.judge_server_token.encode("utf-8")
         if hashlib.sha256(SysOptions.judge_server_token.encode("utf-8")).hexdigest() != client_token:
             return self.error("Invalid token")
 
