@@ -23,6 +23,13 @@ class Post(models.Model):
     problem = models.ForeignKey(Problem, null=True, on_delete=models.CASCADE)
     private = models.BooleanField(default=True)
 
+    @property
+    def lecture(self):
+        if self.private is None:
+            return None
+        else:
+            return self.contest.lecture.id
+
     def __str__(self):
         return self.title
 
