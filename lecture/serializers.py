@@ -38,7 +38,11 @@ class TAAdminSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class LectureSerializer(LectureAdminSerializer):
+    class Meta:
+        model = Lecture
+        fields = "__all__"
 
+class SimpleLectureSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lecture
         fields = "__all__"

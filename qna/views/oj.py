@@ -6,7 +6,7 @@ from problem.models import Problem
 from django.db.models import Q
 from contest.models import Contest
 from submission.models import Submission
-from ..serializers import PostListSerializer, PostDetailSerializer, CommentSerializer
+from ..serializers import PostListSerializer, PostDetailSerializer, CommentSerializer, PostListPushSerializer
 
 '''
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
@@ -39,6 +39,8 @@ class CommentAPI(APIView):
             question = Post.objects.get(id=questionID)
             ensure_qna_access(question, request.user)
             comment = Comment.objects.create(post=question, content=comment, author=request.user)
+            question.proceeding = not question.proceeding
+            question.save()
             return self.success(CommentSerializer(comment).data)
 
     def delete(self, request):
@@ -96,6 +98,36 @@ class QnAPostDetailAPI(APIView):
         return self.success()
 
 class QnAPostAPI(APIView):
+    def put(self, request):
+        """
+        edit announcement
+        """
+        data = request.data
+        PostList = Post.objects.filter(proceeding=True).exclude(solved=True)
+
+        if request.user.is_super_admin():
+            return self.success(self.post_paginate_data(request, PostList, PostListPushSerializer))
+        elif request.user.is_semi_admin():
+
+            taAdmin = ta_admin_class.objects.filter(user=request.user)
+            Plist = ''
+
+            for ta in taAdmin:
+                if Plist == '':
+                    Plist = PostList.filter(contest__lecture=ta.lecture)
+                else:
+                    Plist = Plist.union(PostList.filter(contest__lecture=ta.lecture))
+
+            PostList = Plist.filter(proceeding=True).exclude(solved=True)
+
+        elif request.user.is_admin():
+            PostList = Post.objects.filter(contest__lecture__created_by=request.user, proceeding=True).exclude(solved=True)
+
+        elif request.user.is_student():
+            PostList = Post.objects.filter(author=request.user, proceeding=False).exclude(solved=True)
+
+        return self.success(self.post_paginate_data(request, PostList, PostListPushSerializer))
+
     def post(self, request):
         data = request.data
         try:

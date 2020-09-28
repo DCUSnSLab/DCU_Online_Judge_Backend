@@ -111,6 +111,9 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
                 else:
                     TALec = TALec.union(signuplist.filter(lecture__id=lec.lecture_id).order_by('lecture_id').distinct('lecture_id'))
 
+        elif request.user.is_admin():
+            signuplist = signuplist.filter(lecture__created_by=request.user, lecture__status=True).order_by('lecture_id').distinct('lecture_id')
+
         else:
             signuplist = signuplist.filter(user=request.user.id, lecture__status=True)
 

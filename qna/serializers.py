@@ -4,6 +4,7 @@ from utils.api import serializers
 from .models import Post, Comment
 from account.serializers import UserSerializer
 from contest.serializers import ContestAdminSerializer
+from lecture.serializers import SimpleLectureSerializer
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -26,3 +27,6 @@ class PostListSerializer(serializers.ModelSerializer):
 
 class PostDetailSerializer(PostListSerializer):
     submission = SubmissionModelSerializer()
+
+class PostListPushSerializer(PostListSerializer):
+    lecture = serializers.IntegerField()
