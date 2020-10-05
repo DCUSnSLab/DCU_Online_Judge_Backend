@@ -40,7 +40,8 @@ class SubmissionAPI(APIView):
         if contest.status == ContestStatus.CONTEST_ENDED:
             return self.error("The contest have ended")
         if not request.user.is_contest_admin(contest):
-            user_ip = ipaddress.ip_address(request.session.get("ip"))
+            #user_ip = ipaddress.ip_address(request.session.get("ip"))
+            user_ip = ipaddress.ip_address(request.data.get("ip"))
             if contest.allowed_ip_ranges:
                 if not any(user_ip in ipaddress.ip_network(cidr, strict=False) for cidr in contest.allowed_ip_ranges):
                     return self.error("Your IP is not allowed in this contest")
