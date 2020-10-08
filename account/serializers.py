@@ -75,6 +75,14 @@ class SimpleSignupSerializer(serializers.ModelSerializer):
         model = signup_class
         fields = "__all__"
 
+class ContestSignupSerializer(serializers.ModelSerializer):
+    totalScore = serializers.IntegerField()
+    lecDict = serializers.DictField()
+
+    class Meta:
+        model = signup_class
+        fields = "__all__"
+
 ######################################################
 class SignupSerializer(serializers.ModelSerializer):
     user = UserSerializer()

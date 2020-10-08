@@ -7,6 +7,7 @@ from django.db.models import Q
 from django.http import HttpResponse
 from django.contrib.auth.hashers import make_password
 
+from contest.models import Contest, OIContestRank
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
 from lecture.views.LectureBuilder import LectureBuilder
 from submission.models import Submission
@@ -19,11 +20,56 @@ from ..decorators import super_admin_required
 from lecture.models import ta_admin_class
 from ..models import AdminType, ProblemPermission, User, UserProfile
 from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserSerializer, UserSerializer, \
-    SimpleSignupSerializer
+    SimpleSignupSerializer, ContestSignupSerializer
 from ..serializers import ImportUserSeralizer, SignupSerializer
 from django.db.models import Max
 from lecture.views.stdResult import RefLecture, SubmitLecture
 
+class PublicContInfoAPI(APIView):
+    def get(self, request):
+        """
+        :param request:
+        :return:
+        """
+        user_id = request.GET.get("id")
+
+        lecture_id = request.GET.get("lectureid")
+        contest_id = request.GET.get("contest_id")
+
+        if contest_id:
+            contest = Contest.objects.get(id=contest_id)
+            problems = Problem.objects.filter(contest=contest).order_by("-create_time")
+            prob_dict = dict()
+            for prob in problems:
+                prob_dict[prob._id] = 0
+
+            OIContestRK = OIContestRank.objects.filter(contest=contest,
+                                                       user__is_disabled=False). \
+                select_related("user").order_by("user.realname")
+            try:
+                ulist = signup_class.objects.filter(contest__id=contest_id).select_related('contest').order_by(
+                    "realname")  # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
+                ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
+
+            except signup_class.DoesNotExist:
+                return self.error("수강중인 학생이 없습니다.")
+
+            cnt = 0
+            for us in ulist:
+                us.totalScore = 0
+                us.lecDict = prob_dict.copy()
+                try:
+                    getUser = OIContestRK.get(user__realname=us.realname)
+                    us.totalScore = getUser.total_score
+                    #us.lecDict = getUser.submission_info
+                    for key, value in getUser.submission_info.items():
+                        sub_prob = Problem.objects.get(id=key)
+                        us.lecDict[sub_prob._id] = value
+                except:
+                    pass
+
+            return self.success(self.paginate_data(request, ulist, ContestSignupSerializer))
+        return self.success()
 
 class UserAdminAPI(APIView):
     @validate_serializer(ImportUserSeralizer)
