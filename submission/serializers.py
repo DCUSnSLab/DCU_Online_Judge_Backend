@@ -8,7 +8,6 @@ class CreateSubmissionSerializer(serializers.Serializer):
     problem_id = serializers.IntegerField()
     language = LanguageNameChoiceField()
     code = serializers.CharField(max_length=1024 * 1024)
-    ip = serializers.CharField(max_length=64)
     contest_id = serializers.IntegerField(required=False)
     captcha = serializers.CharField(required=False)
     lecture_id = serializers.IntegerField(required=False)
