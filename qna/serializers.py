@@ -29,4 +29,4 @@ class PostDetailSerializer(PostListSerializer):
     submission = SubmissionModelSerializer()
 
 class PostListPushSerializer(PostListSerializer):
-    lecture = serializers.IntegerField()
+    lecture = serializers.IntegerField(default=None)
