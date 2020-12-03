@@ -38,7 +38,7 @@ class CommentAPI(APIView):
 
         if questionID:
             question = Post.objects.get(id=questionID)
-            ensure_qna_access(question, request.user)
+            #ensure_qna_access(question, request.user)
             comment = Comment.objects.create(post=question, content=comment, author=request.user)
             question.proceeding = not question.proceeding
             question.save()
