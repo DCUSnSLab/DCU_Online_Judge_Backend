@@ -123,12 +123,10 @@ def ensure_qna_access(obj, user):
     e = APIError(msg=f"{obj.__class__.__name__} does not exist")
     if obj.author == user:
         return
-    elif obj.contest is None:
+    elif user.is_admin_role():
         return
     elif obj.contest.lecture.created_by == user:
         return
-    elif not user.is_admin_role():
-        raise e
 
 def ensure_created_by(obj, user):
     e = APIError(msg=f"{obj.__class__.__name__} does not exist")

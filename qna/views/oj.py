@@ -17,6 +17,7 @@ from ..serializers import PostListSerializer, PostDetailSerializer, CommentSeria
 class CommentAPI(APIView):
     def get(self, request):
         questionID = request.GET.get("questionID")
+        offset = int(request.GET.get("offset", "0"))
 
         if questionID:
             question = Post.objects.get(id=questionID)
@@ -77,7 +78,7 @@ class QnAPostDetailAPI(APIView):
 
         if questionID:
             question = Post.objects.get(id=questionID)
-            ensure_qna_access(question, request.user)
+            #ensure_qna_access(question, request.user)
             return self.success(PostDetailSerializer(question).data)
 
     def delete(self, request):
@@ -155,7 +156,7 @@ class QnAPostAPI(APIView):
 
         if allQuestion == 'all':
             visible = False if (request.GET.get("visible") == 'false') else True
-            PostList = Post.objects.filter(solved=visible, private=False).order_by("-date_posted")
+            PostList = Post.objects.filter(solved=visible, contest=None, problem=None, private=False).order_by("-date_posted")
 
             return self.success(self.paginate_data(request, PostList, PostListSerializer))
 
