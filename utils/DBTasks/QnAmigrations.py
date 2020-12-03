@@ -22,7 +22,7 @@ for qna in post:
     print(qna.title)
     if post_comment.exists():
         post_comment = post_comment[0]
-        if post_comment.author.is_admin_role():
+        if post_comment.author.is_admin() or post_comment.author.is_semi_admin() or post_comment.author.is_super_admin() :
             qna.proceeding = False
         else:
             qna.proceeding = True
