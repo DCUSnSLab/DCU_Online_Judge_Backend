@@ -66,13 +66,13 @@ class User(AbstractBaseUser):
         return self.admin_type == AdminType.SUPER_ADMIN
 
     def is_admin_role(self):
-        return self.admin_type in [AdminType.ADMIN, AdminType.SUPER_ADMIN]
+        return self.admin_type in [AdminType.ADMIN, AdminType.SUPER_ADMIN, AdminType.TA_ADMIN]
 
     def can_mgmt_all_problem(self):
         return self.problem_permission == ProblemPermission.ALL
 
     def is_contest_admin(self, contest):
-        return self.is_authenticated and (contest.created_by == self or self.admin_type == AdminType.SUPER_ADMIN)
+        return self.is_authenticated and (contest.created_by == self or self.admin_type == AdminType.SUPER_ADMIN or self.admin_type == AdminType.TA_ADMIN)
 
     class Meta:
         db_table = "user"
