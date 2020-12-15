@@ -72,7 +72,7 @@ class SubmissionAPI(APIView):
         except Problem.DoesNotExist:
             return self.error("Problem not exist")
         if data["language"] not in problem.languages:
-            return self.error(f"{data['language']} is now allowed in the problem")
+            return self.error(f"언어 선택에 오류가 있습니다. 다시 확인해주세요. 선택된 언어 : {data['language']}")
 
         if data.get("contest_id"): # Contest에 소속된 문제인 경우,
             contest = Contest.objects.get(id=data.get("contest_id"))

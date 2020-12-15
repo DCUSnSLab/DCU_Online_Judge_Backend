@@ -1,0 +1,216 @@
+import errno
+import shutil
+import sys
+import os
+import numpy as np
+import pandas as pd
+from subprocess import Popen, PIPE
+#from sqlmanager import SQLManager
+from submission.models import Submission
+from django.db.models import Max
+import json
+
+class PlagChecker:
+    data = None
+
+    def __init__(self, _lid=-1, _cid=-1, _pid=-1):
+        self.CheckRoomPath = './data/copykiller/checkroom'
+        self.ResultRoomPath = './data/copykiller/resultroom'
+        self.lid = _lid
+        self.cid = _cid
+        self.pid = _pid
+
+        self.subDirName = ""
+        self.chkRoom_SubDirPath = ""
+        self.ResRoom_SubDirPath = ""
+
+        self.selectedLang = ""
+        self.DataRowCnt = 0
+        self.DataExist = False
+
+        #subdatas = {userID : submission ID}
+        self.subIDlist = dict()
+        self.matchlist = dict()
+
+    def runChecker(self):
+        data = self.loadSubmissionData()
+        print(data)
+        self.makeSourceFiles(data)
+        self.doChecker()
+
+        return self.ResRoom_SubDirPath
+
+        #if bool(self.matchlist):
+        #    self.pushMatches(self.matchlist)
+
+    def loadSubmissionData(self):
+        print("Connecting SQL Server")
+        #SM = SQLManager()
+        print("Load Data")
+        #sdataQuery = "submission.id, submission.create_time, submission.user_id, submission.username, " \
+        #              "submission.code, submission.result, submission.info, submission.language, submission.shared, " \
+        #              "submission.statistic_info, submission.ip, " \
+        #              "submission.contest_id, submission.problem_id, submission.lecture_id," \
+        #              "public.user.schoolssn"
+        data = Submission.objects.filter(lecture=self.lid, contest=self.cid, problem=self.pid)
+        #print(data.columns)
+        #print(data['code'])
+        #data = self.DataSelector(data)
+        self.DataRowCnt = data.count()
+
+        if self.DataRowCnt != 0:
+            self.DataExist = True
+            #Check Language
+            self.selectedLang = self.LanguageInterface(data[0].language)
+
+            #store sub info
+            for sd in data:
+                self.subIDlist[sd.user.id] = sd.id
+        #Debug
+        print("Data Loaded")
+        print("Lecture ID : %s, Contest ID : %s, Problem ID : %s, Total Sub count : %d, Selected Language: %s"%(str(self.lid), str(self.cid), str(self.pid), data.count(), self.selectedLang))
+
+        return data
+
+    def testset(self, d):
+        return d[d['create_time'] == d['create_time'].max()]
+
+    def DataSelector(self, data):
+        #data = data.groupby('user_id').apply(self.testset)
+        data = data.values('user', 'contest', 'problem').annotate(latest_created_at=Max('create_time'))
+        return data
+
+    def makeSourceFiles(self, data):
+        filechecker = True
+        #make base directory
+        if self.checkDirectory(self.CheckRoomPath):
+            #make submission dir
+            print('make sub directory')
+            if self.lid == -1:
+                lidname = 'x'
+            else:
+                lidname = str(self.lid)
+
+            self.subDirName = '/sub_' + lidname + '_' + str(self.cid) + '_' + str(self.pid)
+            self.chkRoom_SubDirPath = self.CheckRoomPath + self.subDirName
+            self.ResRoom_SubDirPath = self.ResultRoomPath + self.subDirName
+
+            #Make Submission Dir
+            if self.checkDirectory(self.chkRoom_SubDirPath, True):
+                print('make files..')
+                rcnt = 1
+                for rdata in data:
+                    uid = str(rdata.user.schoolssn)
+                    siddir = self.chkRoom_SubDirPath + '/sid_' + str(self.lid) + "_" + str(uid)
+                    if self.checkDirectory(siddir) is True:
+
+                        filename = siddir + '/code_' + str(self.lid) + "_" + uid + self.languageChecker(rdata.language)
+                        self.makeText(filename, rdata.code)
+                        rcnt += 1
+                    else:
+                        filechecker = False
+            else:
+                filechecker = True
+        else:
+            filechecker = True
+
+        return filechecker
+
+    def checkDirectory(self, name, delExist = False):
+        try:
+            if os.path.isdir(name) and delExist:
+                shutil.rmtree(os.path.join(name))
+
+            if not os.path.isdir(name):
+                os.makedirs(os.path.join(name))
+            return True
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                print("Failed to create directory")
+            return False
+
+    def makeText(self, fullpath, data):
+        text = open(fullpath, 'w')
+        text.write(data)
+        text.close()
+
+    def languageChecker(self, data):
+        ret = "."
+        if data == 'C':
+            ret += 'c'
+        elif data == 'C++':
+            ret += 'cpp'
+        elif data == 'Python3' or data == 'Python2':
+            ret += 'py'
+        elif data == 'Java':
+            ret += 'java'
+        else:
+            ret += 'no'
+        return ret
+
+    def LanguageInterface(self, lang):
+        ret = ""
+        if lang == 'C':
+            ret += 'c/c++'
+        elif lang == 'C++':
+            ret += 'c/c++'
+        elif lang == 'Python3' or lang == 'Python2':
+            ret += 'python3'
+        elif lang == 'Java':
+            ret += 'java11'
+        else:
+            ret += 'no'
+        return ret
+
+    def doChecker(self):
+        import os
+        p = Popen(['java', '-jar', os.getcwd()+'/utils/PlagiarismChecker/Plag/jplag/jplag-2.12.1-SNAPSHOT-jar-with-dependencies.jar', '-l', self.selectedLang, '-s', self.chkRoom_SubDirPath, '-r', self.ResRoom_SubDirPath], stdin=PIPE, stdout=PIPE)
+        stdout = p.communicate()[0]
+        print('STDOUT:{}'.format(stdout))
+        self.matchClassifier(stdout)
+        #cmd = 'java -jar ./jplag/jplag-2.12.1-SNAPSHOT-jar-with-dependencies.jar -l c/c++ -s ../checkroom/'
+        #os.system(cmd)
+
+    def matchClassifier(self, data):
+        class_text = 'Comparing '
+        tlist = str(data).split("\\n")
+
+        print("enter text")
+        for tdata in tlist:
+            if class_text in tdata:
+                uid1 = int(tdata.split("sid_")[1].split("-")[0])
+                uid2 = int(tdata.split("sid_")[2].split(":")[0])
+                score = float(tdata.split("sid_")[2].split(": ")[1].replace("\\r",""))
+
+                if not self.matchlist.get(uid1):
+                    self.matchlist[uid1] = dict()
+                self.matchlist[uid1][uid2] = score
+
+                if not self.matchlist.get(uid2):
+                    self.matchlist[uid2] = dict()
+                self.matchlist[uid2][uid1] = score
+
+                #print(uid1, uid2, score)
+
+        #print(self.matchlist)
+
+    def DISTtoJSON(self, ddata):
+        #convert to json
+        app_json = json.dumps(ddata)
+        return app_json
+
+def singleLecture(lec, cont, prob):
+#if __name__ == '__main__':
+    # lecture = lec # [64, 67, 68]
+    # contest = cont # [245, 246, 233]
+    # problem = prob
+    # prob1 = [1072, 1078, 1000]
+    # prob2 = [1069, 1075, 997]
+    # prob3 = [1071, 1077, 999]
+    # prob4 = [1073, 1079, 1001]
+    # prob5 = [1074, 1080, 1008]
+    # prob6 = [1070, 1076, 998]
+
+    #for i in range(0,3):
+    PC = PlagChecker(_lid=lec, _cid=cont, _pid=prob)
+    return PC.runChecker()
