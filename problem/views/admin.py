@@ -18,7 +18,7 @@ from judge.dispatcher import SPJCompiler
 from lecture.views.LectureBuilder import LectureBuilder, ProblemBuilder
 from options.options import SysOptions
 from submission.models import Submission, JudgeStatus
-from utils.api import APIView, CSRFExemptAPIView, validate_serializer, APIError
+from utils.api import APIView, CSRFExemptAPIView, validate_serializer, APIError, HttpResponse
 from utils.constants import Difficulty
 from utils.shortcuts import rand_str, natural_sort_key
 from utils.tasks import delete_files
@@ -490,6 +490,38 @@ class MakeContestProblemPublicAPIView(APIView):
         problem.save()
         problem.tags.set(tags)
         return self.success()
+
+class CopyKiller(CSRFExemptAPIView):
+    request_parsers = ()
+
+    def get(self, request):
+        id = request.GET.get("id")
+
+        try:
+            problem = Problem.objects.get(id=id)
+        except Problem.DoesNotExist:
+            return self.error("Problem does not exist")
+
+        import utils.PlagiarismChecker.Plag.plagchecker as copyKiller
+        import os
+        file_locate = copyKiller.singleLecture(problem.contest.lecture.id, problem.contest.id, problem.id)
+
+        locate = os.getcwd() + file_locate[1:]
+        if os.path.isfile(locate+ "/copy.zip"):
+            os.remove(locate+ "/copy.zip")
+        file_name = os.path.join(locate, "copy.zip")
+        name_list = os.listdir(locate)
+        with zipfile.ZipFile(file_name, "w") as file:
+            for files in name_list:
+                file.write(f"{locate}/{files}", files)
+        response = StreamingHttpResponse(FileWrapper(open(file_name, "rb")),
+                                         content_type="application/octet-stream")
+
+        response["Content-Disposition"] = f"attachment; filename={problem.id}_copykiller.zip"
+        response["Content-Length"] = os.path.getsize(file_name)
+
+        print('response')
+        return response
 
 
 class AddContestProblemAPI(APIView):
