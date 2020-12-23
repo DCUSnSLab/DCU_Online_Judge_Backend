@@ -30,6 +30,7 @@ from ..serializers import (CreateContestProblemSerializer, CompileSPJSerializer,
                            ExportProblemRequestSerialzier, UploadProblemForm, ImportProblemSerializer,
                            FPSProblemSerializer)
 from ..utils import TEMPLATE_BASE, build_problem_template
+import logging
 
 
 class TestCaseZipProcessor(object):
@@ -499,13 +500,17 @@ class CopyKiller(CSRFExemptAPIView):
 
         try:
             problem = Problem.objects.get(id=id)
+            logging.info(id+" copykiller start")
         except Problem.DoesNotExist:
+            logging.info("id is not common")
             return self.error("Problem does not exist")
 
         import utils.PlagiarismChecker.Plag.plagchecker as copyKiller
         import os
-        file_locate = copyKiller.singleLecture(problem.contest.lecture.id, problem.contest.id, problem.id)
-
+        try:
+            file_locate = copyKiller.singleLecture(problem.contest.lecture.id, problem.contest.id, problem.id)
+        except:
+            logging.error("do not start to copykiller")
         locate = os.getcwd() + file_locate[1:]
         if os.path.isfile(locate+ "/copy.zip"):
             os.remove(locate+ "/copy.zip")
