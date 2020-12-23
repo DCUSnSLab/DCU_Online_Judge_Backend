@@ -200,17 +200,5 @@ class PlagChecker:
         return app_json
 
 def singleLecture(lec, cont, prob):
-#if __name__ == '__main__':
-    # lecture = lec # [64, 67, 68]
-    # contest = cont # [245, 246, 233]
-    # problem = prob
-    # prob1 = [1072, 1078, 1000]
-    # prob2 = [1069, 1075, 997]
-    # prob3 = [1071, 1077, 999]
-    # prob4 = [1073, 1079, 1001]
-    # prob5 = [1074, 1080, 1008]
-    # prob6 = [1070, 1076, 998]
-
-    #for i in range(0,3):
     PC = PlagChecker(_lid=lec, _cid=cont, _pid=prob)
     return PC.runChecker()
