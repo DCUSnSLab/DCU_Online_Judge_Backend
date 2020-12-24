@@ -500,17 +500,13 @@ class CopyKiller(CSRFExemptAPIView):
 
         try:
             problem = Problem.objects.get(id=id)
-            logging.info(id+" copykiller start")
         except Problem.DoesNotExist:
-            logging.info("id is not common")
             return self.error("Problem does not exist")
 
         import utils.PlagiarismChecker.Plag.plagchecker as copyKiller
         import os
-        try:
-            file_locate = copyKiller.singleLecture(problem.contest.lecture.id, problem.contest.id, problem.id)
-        except:
-            logging.error("do not start to copykiller")
+        file_locate = copyKiller.singleLecture(problem.contest.lecture.id, problem.contest.id, problem.id)
+
         locate = os.getcwd() + file_locate[1:]
         if os.path.isfile(locate+ "/copy.zip"):
             os.remove(locate+ "/copy.zip")
