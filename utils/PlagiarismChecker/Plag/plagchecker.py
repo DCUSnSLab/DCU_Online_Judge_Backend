@@ -13,9 +13,10 @@ import json
 class PlagChecker:
     data = None
 
-    def __init__(self, _lid=-1, _cid=-1, _pid=-1):
+    def __init__(self, _lid=-1, _cid=-1, _pid=-1, _multi=False):
         self.CheckRoomPath = './data/copykiller/checkroom'
         self.ResultRoomPath = './data/copykiller/resultroom'
+        self.multi = _multi
         self.lid = _lid
         self.cid = _cid
         self.pid = _pid
@@ -29,7 +30,6 @@ class PlagChecker:
         self.DataExist = False
 
         #subdatas = {userID : submission ID}
-        self.subIDlist = dict()
         self.matchlist = dict()
 
     def runChecker(self):
@@ -40,22 +40,17 @@ class PlagChecker:
 
         return self.ResRoom_SubDirPath
 
-        #if bool(self.matchlist):
-        #    self.pushMatches(self.matchlist)
+    def runMultiChecker(self):
+        data = self.loadSubmissionDatas()
+        print(data)
+        self.makeMultiLectureSourceFiles(data)
+        self.doChecker()
+
+        return self.ResRoom_SubDirPath
 
     def loadSubmissionData(self):
-        print("Connecting SQL Server")
-        #SM = SQLManager()
-        print("Load Data")
-        #sdataQuery = "submission.id, submission.create_time, submission.user_id, submission.username, " \
-        #              "submission.code, submission.result, submission.info, submission.language, submission.shared, " \
-        #              "submission.statistic_info, submission.ip, " \
-        #              "submission.contest_id, submission.problem_id, submission.lecture_id," \
-        #              "public.user.schoolssn"
         data = Submission.objects.filter(lecture=self.lid, contest=self.cid, problem=self.pid)
-        #print(data.columns)
-        #print(data['code'])
-        #data = self.DataSelector(data)
+
         self.DataRowCnt = data.count()
 
         if self.DataRowCnt != 0:
@@ -63,12 +58,22 @@ class PlagChecker:
             #Check Language
             self.selectedLang = self.LanguageInterface(data[0].language)
 
-            #store sub info
-            for sd in data:
-                self.subIDlist[sd.user.id] = sd.id
-        #Debug
-        print("Data Loaded")
-        print("Lecture ID : %s, Contest ID : %s, Problem ID : %s, Total Sub count : %d, Selected Language: %s"%(str(self.lid), str(self.cid), str(self.pid), data.count(), self.selectedLang))
+        return data
+
+    def loadSubmissionDatas(self):
+        data = list()
+
+        for lec, cont, prob in zip(self.lid, self.cid, self.pid):
+            sub = Submission.objects.filter(lecture=lec, contest=cont, problem=prob)
+
+            self.DataRowCnt = sub.count()
+
+            if self.DataRowCnt != 0:
+                self.DataExist = True
+                # Check Language
+                self.selectedLang = self.LanguageInterface(sub[0].language)
+
+                data.append(sub)
 
         return data
 
@@ -79,6 +84,45 @@ class PlagChecker:
         #data = data.groupby('user_id').apply(self.testset)
         data = data.values('user', 'contest', 'problem').annotate(latest_created_at=Max('create_time'))
         return data
+
+    def makeMultiLectureSourceFiles(self, data):
+        filechecker = True
+        #make base directory
+        if self.checkDirectory(self.CheckRoomPath):
+            #make submission dir
+            print('make sub directory')
+            if self.lid == -1:
+                lidname = 'x'
+            else:
+                lidname = str(self.lid[0])
+
+            self.subDirName = '/sub_' + lidname + '_' + str(self.cid[0]) + '_' + str(self.pid[0])
+            self.chkRoom_SubDirPath = self.CheckRoomPath + self.subDirName
+            self.ResRoom_SubDirPath = self.ResultRoomPath + self.subDirName
+
+            #Make Submission Dir
+            if self.checkDirectory(self.chkRoom_SubDirPath, True):
+                print('make files..')
+                rcnt = 0
+                for lec in data:
+                    for rdata in lec:
+                        uid = str(rdata.user.schoolssn)
+                        if rcnt == 0:
+                            siddir = self.chkRoom_SubDirPath + '/target_sid_' + str(self.lid[rcnt]) + "_" + str(uid)
+                        else:
+                            siddir = self.chkRoom_SubDirPath + '/sid_' + str(self.lid[rcnt]) + "_" + str(uid)
+                        if self.checkDirectory(siddir) is True:
+                            filename = siddir + '/code_' + str(self.lid[rcnt]) + "_" + uid + self.languageChecker(rdata.language)
+                            self.makeText(filename, rdata.code)
+                        else:
+                            filechecker = False
+                    rcnt += 1
+            else:
+                filechecker = True
+        else:
+            filechecker = True
+
+        return filechecker
 
     def makeSourceFiles(self, data):
         filechecker = True
@@ -167,7 +211,7 @@ class PlagChecker:
         p = Popen(['java', '-jar', os.getcwd()+'/utils/PlagiarismChecker/Plag/jplag/jplag-2.12.1-SNAPSHOT-jar-with-dependencies.jar', '-l', self.selectedLang, '-s', self.chkRoom_SubDirPath, '-r', self.ResRoom_SubDirPath], stdin=PIPE, stdout=PIPE)
         stdout = p.communicate()[0]
         print('STDOUT:{}'.format(stdout))
-        self.matchClassifier(stdout)
+        #self.matchClassifier(stdout)
         #cmd = 'java -jar ./jplag/jplag-2.12.1-SNAPSHOT-jar-with-dependencies.jar -l c/c++ -s ../checkroom/'
         #os.system(cmd)
 
@@ -202,3 +246,7 @@ class PlagChecker:
 def singleLecture(lec, cont, prob):
     PC = PlagChecker(_lid=lec, _cid=cont, _pid=prob)
     return PC.runChecker()
+
+def multiLecture(lecList, contList, probList):
+    PC = PlagChecker(_lid=lecList, _cid=contList, _pid=probList, _multi=True)
+    return PC.runMultiChecker()

@@ -492,20 +492,68 @@ class MakeContestProblemPublicAPIView(APIView):
         problem.tags.set(tags)
         return self.success()
 
+
+class CopyKillerAPIView(APIView):
+    def post(self, request):
+        data = request.data
+        keyword = data.get("keyword")
+        id = data.get("id")
+
+        count = 1
+        if keyword:
+            problems = Problem.objects.filter(title__contains=keyword)
+            result = list()
+            for prob in problems:
+                return_dict = dict()
+                return_dict['value'] = count
+                return_dict['id'] = prob.id
+
+                if prob.contest is None:
+                    continue
+                    # return_dict['desc'] = '공개문제' + '_' + str(prob.title)
+                elif prob.contest.lecture is None:
+                    continue
+                    # return_dict['desc'] = '경진대회' + '_' + str(prob.title)
+                elif prob.contest.lecture is not None and prob.contest.lecture.created_by.realname is not None and prob.id != id:
+                    return_dict['desc'] = str(prob.contest.lecture.created_by.realname) + ' - ' + str(prob.contest.lecture.title) + '_' + str(prob.title)
+                else:
+                    continue
+                count = count + 1
+                result.append(return_dict)
+
+        return self.success(result)
+
+
 class CopyKiller(CSRFExemptAPIView):
     request_parsers = ()
 
     def get(self, request):
-        id = request.GET.get("id")
+        id = request.GET.getlist("id")
 
-        try:
-            problem = Problem.objects.get(id=id)
-        except Problem.DoesNotExist:
-            return self.error("Problem does not exist")
+        if len(id) > 0:
+            try:
+                problem = Problem.objects.get(id=id[0])
+            except Problem.DoesNotExist:
+                return self.error("Problem does not exist")
 
         import utils.PlagiarismChecker.Plag.plagchecker as copyKiller
         import os
-        file_locate = copyKiller.singleLecture(problem.contest.lecture.id, problem.contest.id, problem.id)
+
+        file_locate = ''
+
+        if len(id) == 1:
+            file_locate = copyKiller.singleLecture(problem.contest.lecture.id, problem.contest.id, problem.id)
+        else:
+            _lecList = list()
+            _contList = list()
+            _probList = id
+
+            for val in _probList:
+                prob = Problem.objects.get(id=val)
+                _lecList.append(prob.contest.lecture.id)
+                _contList.append(prob.contest.id)
+
+            file_locate = copyKiller.multiLecture(_lecList, _contList, _probList)
 
         locate = os.getcwd() + file_locate[1:]
         if os.path.isfile(locate+ "/copy.zip"):
