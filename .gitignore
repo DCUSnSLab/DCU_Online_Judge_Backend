@@ -73,6 +73,8 @@ data/log/*
 data/test_case/*
 !data/test_case/.gitkeep
 data/ssl/*
+data/copykiller/*
+!data/copykiller/.gitkeep
 !data/ssl/.gitkeep
 data/public/upload/*
 !data/public/upload/.gitkeep
