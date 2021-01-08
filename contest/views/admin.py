@@ -156,8 +156,6 @@ class ContestAPI(APIView):
 
             #print(user_permit_lec)
             #user_permit_lec
-        if contests == '' or contests.count() < 1:
-            return self.success()
 
         keyword = request.GET.get("keyword")
 
@@ -179,6 +177,9 @@ class ContestAPI(APIView):
         for contest in contests:
             if contest.lecture == None: # 수강과목 id가 없는 경우
                 del_list.append(contest.id) # 별도의 list에 수강과목 id가 없는 강의의 id를 추가한다.
+
+        if contests == '' or contests.count() < 1:
+            return self.success()
 
         # for idx in del_list: # 이후 해당 리스트에 존재하는 id들을
         #     contests = contests.exclude(id=idx) # contests 쿼리셋에서 제외한다.
