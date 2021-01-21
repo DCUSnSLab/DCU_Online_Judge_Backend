@@ -87,7 +87,7 @@ class UserProgress(APIView):
 
         from datetime import datetime
         year = datetime.today().year
-        semester = (8 > datetime.today().month >= 3) and 1 or 2
+        semester = (8 > datetime.today().month >= 3) and 1 or (3 > datetime.today().month >= 1) and 3 or 2
 
         try:
             lectures = signup_class.objects.filter(user_id=request.user, isallow=True, lecture__year=year, lecture__semester=semester).select_related('lecture')
@@ -145,7 +145,7 @@ class UserProgress(APIView):
             lec.maxScore = LectureInfo.Info.data[DataType.POINT]
 
             try:
-                contestlist = Contest.objects.filter(lecture=lec.lecture.id, end_time__gte=now()).order_by('end_time')
+                contestlist = Contest.objects.filter(lecture=lec.lecture.id, start_time__lte=now(), end_time__gte=now()).order_by('end_time')
             except:
                 print("contest no exists")
 
