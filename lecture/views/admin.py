@@ -7,8 +7,12 @@ import dateutil.parser
 from django.http import FileResponse
 
 from account.decorators import ensure_created_by
+from problem.models import Problem
+from submission.models import Submission
 from utils.api import APIView, validate_serializer
-from django.db.models import Q
+from django.db.models import Q, Max
+
+from .LectureAnalysis import lecDispatcher
 from .LectureBuilder import UserBuilder
 from ..models import Lecture, signup_class, ta_admin_class
 from ..serializers import (CreateLectureSerializer, EditLectureSerializer, LectureAdminSerializer, LectureSerializer, TAAdminSerializer, EditTAuserSerializer, PermitTA, )
@@ -156,10 +160,60 @@ class TAAdminLectureAPI(APIView):
 
 
 class AdminLectureApplyAPI(APIView):
+    def put(self, request):
+        data = request.data
+        try:
+            print("Try")
+            lectures = signup_class.objects.filter(lecture__id=data['lectureID'])
+            lid = -1
+            total = lectures.count()
+            cnt = 0
+            for lec in lectures:
+                cnt += 1
+
+                if not lec.isallow:
+                    continue
+
+                if lec.user.admin_type == AdminType.SUPER_ADMIN or lec.user.admin_type == AdminType.ADMIN:
+                    continue
+
+                if lid != lec.lecture_id:
+                    lid = lec.lecture_id
+
+                    plist = Problem.objects.filter(contest__lecture=lec.lecture_id).prefetch_related('contest')
+
+                    # test
+                    LectureInfo = lecDispatcher()
+                    for p in plist:
+                        LectureInfo.migrateProblem(p)
+
+                    # get Submission
+                    sublist = Submission.objects.filter(lecture=lec.lecture_id)
+
+                ldates = sublist.filter(user=lec.user).values('contest', 'problem').annotate(
+                    latest_created_at=Max('create_time'))
+                sdata = sublist.filter(create_time__in=ldates.values('latest_created_at')).order_by('-create_time')
+                LectureInfo.cleanDataForScorebard()
+
+                for submit in sdata:
+                    LectureInfo.associateSubmission(submit)
+
+                lec.score = LectureInfo.toDict()
+                lec.save()
+
+                print("(", cnt, "/", total, ")", lec.lecture_id, lec.id, lec.user.realname, lec.user.username,
+                      lec.lecture.title, 'Completedd')
+
+        except:
+            print("exception")
+
+        return self.success()
+
     def post(self, request):
         data = request.data
 
-        if data.get("lecture_id") and data.get("user_id"):
+        if data.get("lecture_id") and data.get\
+                    ("user_id"):
             appy = signup_class.objects.get(lecture_id=data.get("lecture_id"), user_id=data.get("user_id"))
             #print(appy)
             appy.isallow = True
