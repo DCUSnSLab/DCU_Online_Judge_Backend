@@ -126,6 +126,10 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
                 if signup in TALec:
                     signup.isallow = True
 
+        elif request.user.is_admin():
+            for signup in signuplist:
+                signup.isallow = True
+
         return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
 
 class LectureApplyAPI(APIView):
