@@ -156,10 +156,17 @@ class QnAPostAPI(APIView):
     def get(self, request):
         lectureID = request.GET.get("LectureID")
         allQuestion = request.GET.get("all")
+        problemID = request.GET.get("problemID")
 
         if allQuestion == 'all':
             visible = False if (request.GET.get("visible") == 'false') else True
             PostList = Post.objects.filter(solved=visible, contest=None, problem=None, private=False).order_by("-date_posted")
+
+            return self.success(self.paginate_data(request, PostList, PostListSerializer))
+
+        elif problemID:
+            lecture = Lecture.objects.get(id=lectureID)
+            PostList = Post.objects.filter(contest__lecture=lecture, private=False).order_by("-date_posted")
 
             return self.success(self.paginate_data(request, PostList, PostListSerializer))
 
