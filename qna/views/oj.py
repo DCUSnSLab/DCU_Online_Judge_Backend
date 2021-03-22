@@ -76,6 +76,20 @@ class QnAPostDetailAPI(APIView):
             question.save()
             return self.success(question.solved)
 
+    def put(self, request):
+        questionID = request.GET.get("questionID")
+        OpenQnA = request.GET.get("OpenQnA")
+        if questionID:
+            question = Post.objects.get(id=questionID)
+            if request.user.is_admin() or request.user.is_super_admin():
+                if OpenQnA == 'true':
+                    question.private = False
+                else:
+                    question.private = True
+                question.save()
+                return self.success()
+        return self.error()
+
     def get(self, request):
         questionID = request.GET.get("questionID")
 
@@ -166,7 +180,8 @@ class QnAPostAPI(APIView):
 
         elif problemID:
             lecture = Lecture.objects.get(id=lectureID)
-            PostList = Post.objects.filter(contest__lecture=lecture, private=False).order_by("-date_posted")
+            problem = Problem.objects.get(id=problemID)
+            PostList = Post.objects.filter(contest__lecture=lecture, problem=problem, private=False).order_by("-date_posted")
 
             return self.success(self.paginate_data(request, PostList, PostListSerializer))
 
@@ -174,8 +189,11 @@ class QnAPostAPI(APIView):
             lecture = Lecture.objects.get(id=lectureID)
             visible = False if (request.GET.get("visible") == 'false') else True
             PostList = Post.objects.filter(contest__lecture=lecture, solved=visible).order_by("-date_posted")
-            if request.user.is_admin_role():
+            if request.user.is_admin() or request.user.is_super_admin():
                 return self.success(self.paginate_data(request, PostList, PostListSerializer))
+            elif request.user.is_semi_admin():
+                if ta_admin_class.objects.filter(Q(lecture=lecture, user=request.user)):
+                    return self.success(self.paginate_data(request, PostList, PostListSerializer))
 
             PostList = PostList.filter(Q(author=request.user) | Q(private=False)).order_by("-date_posted")
             return self.success(self.paginate_data(request, PostList, PostListSerializer))

@@ -30,6 +30,11 @@ class Post(models.Model):
         else:
             return self.contest.lecture.id
 
+    @property
+    def comment(self):
+        comment = Comment.objects.filter(post=self.id).count()
+        return comment
+
     def __str__(self):
         return self.title
 
