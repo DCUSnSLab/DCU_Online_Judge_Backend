@@ -19,6 +19,7 @@ class CommentSerializer(serializers.ModelSerializer):
 class PostListSerializer(serializers.ModelSerializer):
     author = UserSerializer()
     problem = ProblemAdminSerializer()
+    comment = serializers.IntegerField(default=None)
 
     class Meta:
         model = Post
