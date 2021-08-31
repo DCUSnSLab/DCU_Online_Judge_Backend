@@ -35,6 +35,7 @@ VENDOR_APPS = [
     'rest_framework',
     'django_dramatiq',
     'django_dbconn_retry',
+    'django_crontab',
 ]
 
 if production_env:
@@ -54,6 +55,10 @@ LOCAL_APPS = [
     'judge',
     'lecture',
     'qna',
+]
+
+CRONJOBS = [
+    ('0 5 * * *', 'utils.DBTasks.migrateLecture', '>> /mnt/log/cron_log.log')
 ]
 
 INSTALLED_APPS = VENDOR_APPS + LOCAL_APPS
