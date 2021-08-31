@@ -66,6 +66,7 @@ class User(AbstractBaseUser):
         return self.admin_type == AdminType.SUPER_ADMIN
 
     def is_admin_role(self):
+        print(self.admin_type)
         return self.admin_type in [AdminType.ADMIN, AdminType.SUPER_ADMIN, AdminType.TA_ADMIN]
 
     def can_mgmt_all_problem(self):
