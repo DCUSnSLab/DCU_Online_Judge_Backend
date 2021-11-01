@@ -35,7 +35,6 @@ VENDOR_APPS = [
     'rest_framework',
     'django_dramatiq',
     'django_dbconn_retry',
-    'django_crontab',
 ]
 
 if production_env:
