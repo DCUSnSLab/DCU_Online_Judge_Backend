@@ -68,6 +68,8 @@ do
     sleep 8
 done
 
+/usr/sbin/sshd
+
 addgroup -g 12003 spj
 adduser -u 12000 -S -G spj server
 
