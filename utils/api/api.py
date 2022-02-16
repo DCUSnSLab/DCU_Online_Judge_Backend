@@ -146,8 +146,8 @@ class APIView(View):
 
     def paginate_data(self, request, query_set, object_serializer=None):
         """
-        :param request: django的request
-        :param query_set: django model的query set或者其他list like objects
+        :param request: django request
+        :param query_set: django model의 query set 또는 objects 와 같은 목록
         :param object_serializer: 用来序列化query set, 如果为None, 则直接对query set切片
         :return:
         """

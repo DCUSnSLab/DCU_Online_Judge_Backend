@@ -22,9 +22,17 @@ class LectureAPI(APIView):
     @validate_serializer(CreateLectureSerializer)
     def post(self, request):
         data = request.data
-        data["created_by"] = request.user
-        lecture = Lecture.objects.create(**data)
-        signup_class.objects.create(lecture=lecture, user=request.user, status=False, isallow=True) # 수강 과목 생성 시, 본인이 생성한 수강과목에 대해 별도의 수강신청 없이 접근할 수 있도록
+        proxy_created_by = data.pop("created_by_id")
+        if proxy_created_by is not None:
+            proxy_user = User.objects.get(id=proxy_created_by)
+            data["created_by"] = proxy_user
+            lecture = Lecture.objects.create(**data)
+            signup_class.objects.create(lecture=lecture, user=proxy_user, status=False,
+                                        isallow=True)  # 수강 과목 생성 시, 본인이 생성한 수강과목에 대해 별도의 수강신청 없이 접근할 수 있도록
+        else:
+            data["created_by"] = request.user
+            lecture = Lecture.objects.create(**data)
+            signup_class.objects.create(lecture=lecture, user=request.user, status=False, isallow=True) # 수강 과목 생성 시, 본인이 생성한 수강과목에 대해 별도의 수강신청 없이 접근할 수 있도록
         # lecture_signup_class 테이블에 값을 생성한다.
         return self.success(LectureAdminSerializer(lecture).data)
 
