@@ -169,7 +169,7 @@ class UserAdminAPI(APIView):
 
         if admin_type is not None: # 프론트엔드의 Lecture.vue 파일에서 호출하는 경우
             if request.user.is_super_admin():
-                print("if request.user.is_super_admin():")
+                print("if request.user.is_super_admin  ():")
 
                 adminuserlist = User.objects.filter(admin_type=admin_type) | User.objects.filter(admin_type='Super Admin')
 
