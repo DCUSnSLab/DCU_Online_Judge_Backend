@@ -163,8 +163,20 @@ class UserAdminAPI(APIView):
 
         lecture_id = request.GET.get("lectureid")
         contest_id = request.GET.get("contestid")
+        admin_type = request.GET.get("admin_type")
 
-        if contest_id:
+        print("ADMIN :", admin_type)
+
+        if admin_type is not None: # 프론트엔드의 Lecture.vue 파일에서 호출하는 경우
+            if request.user.is_super_admin():
+                print("if request.user.is_super_admin  ():")
+
+                adminuserlist = User.objects.filter(admin_type=admin_type) | User.objects.filter(admin_type='Super Admin')
+
+                #adminuserlist = User.objects.all()
+                return self.success(self.paginate_data(request, adminuserlist, UserAdminSerializer))
+
+        elif contest_id:
             if request.user.is_super_admin():
                 try:
                     ulist = signup_class.objects.filter(contest__id=contest_id).select_related('contest').order_by(

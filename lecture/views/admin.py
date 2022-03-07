@@ -14,6 +14,7 @@ from django.db.models import Q, Max
 
 from .LectureAnalysis import lecDispatcher
 from .LectureBuilder import UserBuilder
+from contest.models import Contest
 from ..models import Lecture, signup_class, ta_admin_class
 from ..serializers import (CreateLectureSerializer, EditLectureSerializer, LectureAdminSerializer, LectureSerializer, TAAdminSerializer, EditTAuserSerializer, PermitTA, )
 from account.models import User, AdminType
@@ -22,9 +23,18 @@ class LectureAPI(APIView):
     @validate_serializer(CreateLectureSerializer)
     def post(self, request):
         data = request.data
-        data["created_by"] = request.user
-        lecture = Lecture.objects.create(**data)
-        signup_class.objects.create(lecture=lecture, user=request.user, status=False, isallow=True) # 수강 과목 생성 시, 본인이 생성한 수강과목에 대해 별도의 수강신청 없이 접근할 수 있도록
+        proxy_created_by = data.pop("created_by_id")
+        if proxy_created_by is not None: # created_by_id가 요청을 한 사용자가 아닌 별도로 명시된 사용자인 경우
+            proxy_user = User.objects.get(id=proxy_created_by)
+            data["created_by"] = proxy_user
+            lecture = Lecture.objects.create(**data)
+            signup_class.objects.create(lecture=lecture, user=proxy_user, status=False,
+                                        isallow=True)  # 수강 과목 생성 시, 본인이 생성한 수강과목에 대해 별도의 수강신청 없이 접근할 수 있도록
+
+        else:
+            data["created_by"] = request.user
+            lecture = Lecture.objects.create(**data)
+            signup_class.objects.create(lecture=lecture, user=request.user, status=False, isallow=True) # 수강 과목 생성 시, 본인이 생성한 수강과목에 대해 별도의 수강신청 없이 접근할 수 있도록
         # lecture_signup_class 테이블에 값을 생성한다.
         return self.success(LectureAdminSerializer(lecture).data)
 
@@ -32,8 +42,16 @@ class LectureAPI(APIView):
     @validate_serializer(EditLectureSerializer)
     def put(self, request):
         data = request.data
+        lecture_id = data.pop("id")
+        proxy_created_by = data.pop("created_by_id")
         try:
-            lecture = Lecture.objects.get(id=data.pop("id"))
+            lecture = Lecture.objects.get(id=lecture_id)
+            if proxy_created_by is not None:  # created_by_id가 요청을 한 사용자가 아닌 별도로 명시된 사용자인 경우
+                proxy_user = User.objects.get(id=proxy_created_by)
+                contests = Contest.objects.all().filter(lecture=lecture_id)
+                for contest in contests:
+                    contest.created_by = proxy_user
+                    contest.save()
             ensure_created_by(lecture, request.user)
         except Lecture.DoesNotExist:
             return self.error("no lecture exist")
