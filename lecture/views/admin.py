@@ -48,6 +48,10 @@ class LectureAPI(APIView):
             lecture = Lecture.objects.get(id=lecture_id)
             if proxy_created_by is not None:  # created_by_id가 요청을 한 사용자가 아닌 별도로 명시된 사용자인 경우
                 proxy_user = User.objects.get(id=proxy_created_by)
+                lecture.created_by = proxy_user
+                print("proxy")
+
+                print(proxy_created_by)
                 contests = Contest.objects.all().filter(lecture=lecture_id)
                 for contest in contests:
                     contest.created_by = proxy_user
@@ -130,6 +134,8 @@ class TAAdminLectureAPI(APIView):
 
     def post(self, request):
         data = request.data
+        print("name")
+        print(data.get("Name"))
         if data.get("add"):
             user = User.objects.get(id=data.get("User"))
             if user.admin_type == AdminType.ADMIN:
@@ -144,7 +150,7 @@ class TAAdminLectureAPI(APIView):
         #DataType
         try:
             if data.get("searchType") == '이름':
-                    user = User.objects.filter(realname=data.get("Name"))
+                user = User.objects.filter(realname=data.get("Name"))
             else:
                 user = User.objects.filter(schoolssn=data.get("Name"))
         except User.DoesNotExist:
