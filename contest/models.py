@@ -71,6 +71,13 @@ class Contest(models.Model):
         ordering = ("-start_time",)
 
 
+class ContestUser(models.Model):   # 대회 및 사용자 간 관계형 테이블 생성 (working by soojung)
+    contest = models.ForeignKey(Contest, null=True, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    start_time = models.DateTimeField(null=True)
+    end_time = models.DateTimeField(null=True)
+
+
 class AbstractContestRank(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE)

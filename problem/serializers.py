@@ -10,7 +10,12 @@ from utils.serializers import LanguageNameMultiChoiceField, SPJLanguageNameChoic
 from .models import Problem, ProblemRuleType, ProblemTag, ProblemIOMode
 from .utils import parse_problem_template
 from contest.serializers import ContestSerializer
+from contest.models import ContestUser
 
+class ContestExitSerializer(serializers.ModelSerializer):  # working by soojung
+    class Meta:
+        model = ContestUser
+        fields = "__all__"
 
 class TestCaseUploadForm(forms.Form):
     spj = forms.CharField(max_length=12)

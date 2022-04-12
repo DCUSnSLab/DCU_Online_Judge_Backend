@@ -15,11 +15,10 @@ from account.models import AdminType
 from account.decorators import login_required, check_contest_permission
 
 from utils.constants import ContestRuleType, ContestStatus
-from ..models import ContestAnnouncement, Contest, OIContestRank, ACMContestRank
+from ..models import ContestAnnouncement, Contest, OIContestRank, ACMContestRank, ContestUser
 from ..serializers import ContestAnnouncementSerializer
 from ..serializers import ContestSerializer, ContestPasswordVerifySerializer
 from ..serializers import OIContestRankSerializer, ACMContestRankSerializer
-
 
 class ContestAnnouncementListAPI(APIView):
     @check_contest_permission(check_type="announcements")
@@ -36,6 +35,7 @@ class ContestAnnouncementListAPI(APIView):
 
 class ContestAPI(APIView):
     def get(self, request):
+        print("ContestAPI Called")
         id = request.GET.get("id")
 
         if not id or not check_is_id(id):
@@ -49,21 +49,19 @@ class ContestAPI(APIView):
         #print("lid = ",contest.lecture_id)
         lecsign = LU.getSignupList(request.user.id, lid=contest.lecture_id)
         #print("lid = ", contest.lecture)
-        if not contest.lecture:
-            if contest.private:
-                if request.user.is_super_admin():
+        if not contest.lecture:     # 강의가 아닌 경우
+            if contest.private:     # 비공개 대회인 경우
+                if request.user.is_super_admin():   # 관리자인 경우 True
                     contest.visible = True
-                elif request.user.is_student() or request.user.is_semi_admin():
+                elif request.user.is_student() or request.user.is_semi_admin():     # 학생이나 준관리자인 경우 True
                     PermitToCont = signup_class.objects.filter(user=request.user, contest=contest)
                     if PermitToCont.exists():
                         contest.visible = True
                     else:
                         return self.error("등록되지 않은 사용자 입니다.")
-                else:
+                else:       # 아무 권한도 아닌 경우 False
                     contest.visible = False
-            else:
-                contest.visible = True
-        elif contest.lecture and len(lecsign) != 0 and lecsign[0].isallow:
+        elif contest.lecture and len(lecsign) != 0 and lecsign[0].isallow:  # 강의가 맞고 & 강의 내 등록된 학생인 경우 True
             #print("Lecture allow : ", lecsign[0].isallow)
             contest.visible = True
         else:
@@ -71,12 +69,30 @@ class ContestAPI(APIView):
                 contest.visible = True
             else:
                 contest.visible = False
+        # tuple 생성
+        if contest.lecture_contest_type == '대회':
+            user = ContestUser.objects.filter(contest_id=id, user_id=request.user.id)
+            if not user:
+                ContestUser.objects.create(contest_id=id, user_id=request.user.id)
+
+        # working by soojung
+        # try:  # 이미 제출한 사용자인지 확인하고, 있는 경우 contest.visible을 False로 변경한다.
+        #     user = ContestUser.objects.get(contest_id=contest, user_id=request.user.id)
+        #     if user:
+        #         if user.is_submitted:
+        #             contest.visible = False
+        #         else:
+        #             contest.visible = True
+        # except:
+        #         self.error("Contest %s doesn't exist" % contest)
+
         data = ContestSerializer(contest).data
         data["now"] = datetime2str(now())
         return self.success(data)
 
 class ContestListAPI(APIView):
     def get(self, request):
+        print("ContestListAPI Called")
         # contests = Contest.objects.get(lecture=request.get('lecture_id'))
         # return self.success(self.paginate_data(request, contests, ContestSerializer))
         lectureid = request.GET.get('lectureid')
@@ -144,6 +160,54 @@ class ContestAccessAPI(APIView):
         return self.success({"access": int(contest_id) in request.session.get("accessible_contests", [])})
 
 
+class ContestExitAPI(APIView):   # working by soojung
+    def get(self, request):
+        print("User info : ")
+        print(request.user)
+        print("User id : ")
+        print(request.user.id)
+        contest_id = request.GET.get("contest_id")
+        if not contest_id:
+            return self.error("Invalid parameter, contest_id is required")
+        # is_submitted 칼럼 값을 True 변경
+        user = ContestUser.objects.get(contest_id=contest_id, user_id=request.user.id)
+        if user.end_time is None:
+            ContestUser.objects.filter(contest_id=contest_id, user_id=request.user.id).update(end_time=now())
+        return self.success(True)
+        #
+        # contest_id = request.GET.get("contest_id")
+        # if not contest_id:
+        #     return self.error()
+        # return self.success({"access": int(contest_id) in request.session.get("accessible_contests", [])})
+        #
+        # data = request.data
+        # data["created_by"] = request.user
+        # lecture = Lecture.objects.create(**data)
+        # signup_class.objects.create(lecture_id=data["lecture_id"], user=request.user)
+        # return self.success(ContestAnnouncementSerializer(data, many=True).data)
+    # def get(self, request):
+    #     print("User info : ")
+    #     print(request.user)
+    #     print("User id : ")
+    #     print(request.user.id)
+    #
+    #
+    #     data = request.data
+    #     data["created_by"] = request.user
+    #     contest = Contest.objects.create(**data)
+    #     ContestSubmitUser.objects.create(contest=contest, user=request.user)
+    #     return self.success(LectureAdminSerializer(lecture).data)
+    #
+    #     # try:
+    #     #     csu = ContestSubmitUser.objects.filter(user_id=request.user.id)
+    #     #     if csu:
+    #     #         print(csu)
+    #     #     else:
+    #     #         print("해당 학생은 제출하지 않았습니다.")
+    #     # except ContestSubmitUser.DoesNotExist:
+    #     #     return self.error("아무도 제출하지 않았습니다.")
+
+
 class ContestRankAPI(APIView):
     def get_rank(self):
         if self.contest.rule_type == ContestRuleType.ACM:
@@ -165,6 +229,7 @@ class ContestRankAPI(APIView):
         return string
 
     @check_contest_permission(check_type="ranks")
+
     def get(self, request):
         download_csv = request.GET.get("download_csv")
         force_refresh = request.GET.get("force_refresh")
