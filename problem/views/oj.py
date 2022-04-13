@@ -5,8 +5,9 @@ from account.decorators import check_contest_permission, ensure_prob_access
 from ..models import ProblemTag, Problem, ProblemRuleType
 from contest.models import Contest
 from lecture.models import signup_class
-from ..serializers import ProblemSerializer, TagSerializer, ProblemSafeSerializer
-from contest.models import ContestRuleType
+from ..serializers import ProblemSerializer, TagSerializer, ProblemSafeSerializer, ContestExitSerializer  # working by soojung
+from contest.models import ContestRuleType, ContestUser
+from django.utils.timezone import now
 
 
 class ProblemTagAPI(APIView):
@@ -46,6 +47,10 @@ class ProblemAPI(APIView):
     def get(self, request):
         # 问题详情页
         problem_id = request.GET.get("problem_id")
+        print()
+        print(problem_id)
+        print()
+
         if problem_id:
             try:
                 problem = Problem.objects.select_related("created_by").get(_id=problem_id, contest_id__isnull=True, visible=True)
@@ -115,6 +120,21 @@ class ContestProblemAPI(APIView):
         else:
             data = ProblemSafeSerializer(contest_problems, many=True).data
         return self.success(data)
+
+class ContestExitAccessAPI(APIView):     # working by soojung
+    def get(self, request):
+        print("ContestExitAccessAPI called")
+        contest_id = request.GET.get("contest_id")
+        if not contest_id:
+            return self.error("Invalid parameter, contest_id is required")
+        try:
+            user = ContestUser.objects.get(contest_id=contest_id, user_id=request.user.id)
+            if user:
+                if user.start_time is None:
+                    ContestUser.objects.filter(contest_id=contest_id, user_id=request.user.id).update(start_time=now())
+                return self.success(ContestExitSerializer(user).data)
+        except:
+            self.error("Contest %s doesn't exist" % contest)
 
 class ProblemResponsibility(APIView):
     def get(self, request):

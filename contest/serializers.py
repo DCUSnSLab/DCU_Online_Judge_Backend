@@ -4,7 +4,6 @@ from .models import Contest, ContestAnnouncement, ContestRuleType, LectureContes
 from problem.models import Problem
 from .models import ACMContestRank, OIContestRank
 
-
 class CreateContestSeriaizer(serializers.Serializer):
     title = serializers.CharField(max_length=128)
     description = serializers.CharField()

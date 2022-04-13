@@ -34,6 +34,7 @@ class LectureAPI(APIView):
 class LectureListAPI(APIView):
     def get(self, request):
         print("LectureListAPI Called")
+        print("LectureListAPI Called 2")
         from datetime import datetime
         year = datetime.today().year
         semester = (8>datetime.today().month>=3) and 1 or ((3>datetime.today().month>=1) and 3 or 2)
@@ -93,7 +94,7 @@ class TakingLectureListAPI(APIView): # 수강중인 과목 목록
                 return self.success(self.paginate_data(request, signuplist, SignupClassSerializer))
             except:
                 print(self.error())
-                return self.error("no lecture exist")
+                return self.error("no lecture exist!!")     # error !!
 
         try:
             # signuplist = signup_class.objects.all()
