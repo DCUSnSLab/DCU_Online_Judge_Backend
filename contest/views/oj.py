@@ -11,7 +11,7 @@ from utils.api import APIView, validate_serializer
 from utils.constants import CacheKey
 from utils.shortcuts import datetime2str, check_is_id
 from lecture.views.oj import LectureUtil
-from account.models import AdminType
+from account.models import AdminType, User
 from account.decorators import login_required, check_contest_permission
 
 from utils.constants import ContestRuleType, ContestStatus
@@ -70,10 +70,11 @@ class ContestAPI(APIView):
             else:
                 contest.visible = False
         # tuple 생성
-        if contest.lecture_contest_type == '대회':
-            user = ContestUser.objects.filter(contest_id=id, user_id=request.user.id)
-            if not user:
-                ContestUser.objects.create(contest_id=id, user_id=request.user.id)
+        if contest.lecture_contest_type == '대회' and contest.status == ContestStatus.CONTEST_UNDERWAY:
+            if not request.user.is_admin() and not request.user.is_super_admin():
+                user = ContestUser.objects.filter(contest_id=id, user_id=request.user.id)
+                if not user:
+                    ContestUser.objects.create(contest_id=id, user_id=request.user.id, start_time=None, end_time=None)
 
         # working by soojung
         # try:  # 이미 제출한 사용자인지 확인하고, 있는 경우 contest.visible을 False로 변경한다.
@@ -141,7 +142,6 @@ class ContestPasswordVerifyAPI(APIView):
             return self.error("Contest does not exist 11")
         if contest.password != data["password"]:
             return self.error("Wrong password")
-
         # password verify OK.
         if "accessible_contests" not in request.session:
             request.session["accessible_contests"] = []
@@ -159,54 +159,38 @@ class ContestAccessAPI(APIView):
             return self.error()
         return self.success({"access": int(contest_id) in request.session.get("accessible_contests", [])})
 
-
-class ContestExitAPI(APIView):   # working by soojung
+class ContestExitAPI(APIView):   # working by soojung (대회 퇴실 API)
     def get(self, request):
-        print("User info : ")
-        print(request.user)
-        print("User id : ")
-        print(request.user.id)
         contest_id = request.GET.get("contest_id")
-        if not contest_id:
-            return self.error("Invalid parameter, contest_id is required")
-        # is_submitted 칼럼 값을 True 변경
-        user = ContestUser.objects.get(contest_id=contest_id, user_id=request.user.id)
-        if user.end_time is None:
-            ContestUser.objects.filter(contest_id=contest_id, user_id=request.user.id).update(end_time=now())
-        return self.success(True)
-        #
-        # contest_id = request.GET.get("contest_id")
+        user_id = request.user.id
         # if not contest_id:
-        #     return self.error()
-        # return self.success({"access": int(contest_id) in request.session.get("accessible_contests", [])})
-        #
-        # data = request.data
-        # data["created_by"] = request.user
-        # lecture = Lecture.objects.create(**data)
-        # signup_class.objects.create(lecture_id=data["lecture_id"], user=request.user)
-        # return self.success(ContestAnnouncementSerializer(data, many=True).data)
-    # def get(self, request):
-    #     print("User info : ")
-    #     print(request.user)
-    #     print("User id : ")
-    #     print(request.user.id)
-    #
-    #
-    #     data = request.data
-    #     data["created_by"] = request.user
-    #     contest = Contest.objects.create(**data)
-    #     ContestSubmitUser.objects.create(contest=contest, user=request.user)
-    #     return self.success(LectureAdminSerializer(lecture).data)
-    #
-    #     # try:
-    #     #     csu = ContestSubmitUser.objects.filter(user_id=request.user.id)
-    #     #     if csu:
-    #     #         print(csu)
-    #     #     else:
-    #     #         print("해당 학생은 제출하지 않았습니다.")
-    #     # except ContestSubmitUser.DoesNotExist:
-    #     #     return self.error("아무도 제출하지 않았습니다.")
+        #     return self.error("Invalid parameter, contest_id is required")
+        try:
+            if ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).exists():
+                user = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+                if user.end_time is None:   # 퇴실 전
+                    ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).update(end_time=now())
+                    return self.success("퇴실 완료")
+        except:   # ContestUser 테이블 내 레코드가 존재하지 않는 경우
+            return self.error("User didn't approach Contest %s" % contest_id)
 
+class ContestTimeOverExitAPI(APIView):  # working by soojung (대회 시간 종료 시 자동 퇴실 API)
+    def get(self, request):
+        contest_id = request.GET.get("contest_id")
+        contest = Contest.objects.get(id=contest_id)
+        user_id = request.user.id
+        user = User.objects.get(id=user_id)
+        # if not contest_id:
+        #     return self.error("Invalid parameter, contest_id is required")
+
+        if user.is_student() or user.is_semi_admin():
+            if ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).exists():
+                if contest.status == ContestStatus.CONTEST_ENDED:  # 시험 시간이 종료된 경우
+                    CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+                    if CU.end_time is None:   # 퇴실 전
+                        ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).update(end_time=contest.end_time)
+                        return self.success("시험 종료, 퇴실 완료")
+        return self.success()
 
 class ContestRankAPI(APIView):
     def get_rank(self):
