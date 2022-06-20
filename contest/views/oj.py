@@ -1,4 +1,7 @@
 import io
+import os
+import re
+import xlsxwriter
 
 import xlsxwriter
 from django.http import HttpResponse
@@ -6,19 +9,22 @@ from django.utils.timezone import now
 from django.core.cache import cache
 
 from problem.models import Problem
-from lecture.models import Lecture, signup_class
+from lecture.models import Lecture, signup_class, ta_admin_class
 from utils.api import APIView, validate_serializer
 from utils.constants import CacheKey
-from utils.shortcuts import datetime2str, check_is_id
+from utils.shortcuts import datetime2str, check_is_id, rand_str
 from lecture.views.oj import LectureUtil
 from account.models import AdminType, User
-from account.decorators import login_required, check_contest_permission
+from account.decorators import login_required, check_contest_permission, super_admin_required
 
 from utils.constants import ContestRuleType, ContestStatus
 from ..models import ContestAnnouncement, Contest, OIContestRank, ACMContestRank, ContestUser
 from ..serializers import ContestAnnouncementSerializer
 from ..serializers import ContestSerializer, ContestPasswordVerifySerializer
 from ..serializers import OIContestRankSerializer, ACMContestRankSerializer
+from account.serializers import ImportUserSeralizer, EditUserSerializer, SignupSerializer, UserAdminSerializer, contestSignupSerializer
+from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher, LectureDictionaryKeys
+from lecture.views.LectureBuilder import LectureBuilder
 
 class ContestAnnouncementListAPI(APIView):
     @check_contest_permission(check_type="announcements")
@@ -32,6 +38,70 @@ class ContestAnnouncementListAPI(APIView):
             data = data.filter(id__gt=max_id)
         return self.success(ContestAnnouncementSerializer(data, many=True).data)
 
+class ContestUserAPI(APIView):
+    # @super_admin_required
+    def get(self, request):
+        """
+        수강과목이 있는 학생 목록을 가져오기 위한 기능
+        """
+        user_id = request.GET.get("id")
+        lecture_id = request.GET.get("lectureid")
+        contest_id = request.GET.get("contestid")
+        print(lecture_id)
+        print(contest_id)
+
+        tauser = ta_admin_class.objects.filter(user__id=request.user.id, lecture__id=lecture_id)
+        if request.user.is_super_admin() or request.user.is_admin() or tauser[0].score_isallow:
+            try:
+                ulist = signup_class.objects.filter(lecture=lecture_id).select_related('lecture').order_by(
+                    "realname")  # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
+                ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
+            except signup_class.DoesNotExist:
+                return self.error("수강중인 학생이 없습니다.")
+            # test
+            LectureInfo = lecDispatcher()
+            cnt = 0
+            for us in ulist:
+                us.totalScore = 0
+                us.exit_status = False
+
+                if us.user is not None and us.isallow is True:
+                    LectureInfo.fromDict(us.score)
+                    # us.totalScore = LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id].Info.data[DataType.SCORE]
+                    # print(LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id])
+                    cu = ContestUser.objects.get(contest_id=contest_id, user_id=us.user)
+                    if cu.end_time is not None:
+                        us.exit_status = True
+                    else:
+                        us.exit_status = False
+                    print(us.exit_status)
+
+                cnt += 1
+            return self.success(self.paginate_data(request, ulist, contestSignupSerializer))
+        return self.success()
+
+class ContestExitStudentAPI(APIView):
+    def post(self, request):
+        data = request.data
+
+        if data.get("contest_id") and data.get("user_id"):
+            CU = ContestUser.objects.get(contest_id=data.get("contest_id"), user_id=data.get("user_id"))
+            if CU.end_time is None:
+                CU.end_time = now()
+            else:
+                CU.end_time = None
+            CU.save()
+            # appy = signup_class.objects.get(lecture_id=data.get("lecture_id"), user_id=data.get("user_id"))
+            # #print(appy)
+            # appy.isallow = True
+            # appy.save()
+            #
+            # lectures = signup_class.objects.filter(isallow=True, lecture_id=data.get("lecture_id"), user_id=data.get("user_id")).select_related('lecture').order_by('lecture')
+            # ub = UserBuilder(None) # 사용자 정보 생성 후 lecture_signup_class에 추가하는 부분
+            # ub.buildLecture(lectures) # 이하동일
+            # #print("modified")
+
+        return self.success()
 
 class ContestAPI(APIView):
     def get(self, request):
@@ -191,6 +261,17 @@ class ContestTimeOverExitAPI(APIView):  # working by soojung (대회 시간 종�
                         ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).update(end_time=contest.end_time)
                         return self.success("시험 종료, 퇴실 완료")
         return self.success()
+
+class ContestScoreInfoAPI(APIView): # working by soojung (대회 내 학생 점수 정보 API)
+    def get(self, request):
+        contest_id = request.GET.get("contest_id")
+        user_id = request.user.id
+
+        if OIContestRank.objects.filter(contest_id=contest_id, user_id=user_id).exists():
+            rank = OIContestRank.objects.get(contest_id=contest_id, user_id=user_id)
+            return self.success(OIContestRankSerializer(rank).data)
+        else:
+            return self.success()
 
 class ContestRankAPI(APIView):
     def get_rank(self):

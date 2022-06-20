@@ -122,9 +122,9 @@ class ContestProblemAPI(APIView):
             data = ProblemSafeSerializer(contest_problems, many=True).data
         return self.success(data)
 
-class ContestExitAccessAPI(APIView):     # working by soojung
+class ContestExitInfoAPI(APIView):     # working by soojung
     def get(self, request):
-        print("ContestExitAccessAPI called")
+        print("ContestExitInfoAPI called")
         # ensure_prob_detail_access(self.contest, request.user)   # working by soojung
         contest_id = request.GET.get("contest_id")
         contest = Contest.objects.get(id=contest_id)

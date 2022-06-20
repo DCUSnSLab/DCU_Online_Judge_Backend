@@ -175,6 +175,7 @@ class UserAdminAPI(APIView):
                 return self.success(self.paginate_data(request, ulist, SimpleSignupSerializer))
 
         if lecture_id: # 특정 수강과목을 수강중인 학생 리스트업 하는 경우
+
             tauser = ta_admin_class.objects.filter(user__id=request.user.id, lecture__id=lecture_id)
             if request.user.is_super_admin() or request.user.is_admin() or tauser[0].score_isallow:
                 try:
