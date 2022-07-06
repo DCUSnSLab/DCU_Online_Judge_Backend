@@ -5,9 +5,8 @@ from contest.serializers import ContestSerializer, UserContestSerializer
 
 from .models import AdminType, ProblemPermission, User, UserProfile
 from lecture.models import signup_class
-from contest.models import Contest
+from contest.models import Contest, ContestUser
 from lecture.serializers import LectureSerializer
-
 
 class UserLoginSerializer(serializers.Serializer):
     username = serializers.CharField()
@@ -101,6 +100,17 @@ class SignupSerializer(serializers.ModelSerializer):
     avgScore = serializers.FloatField()
     progress = serializers.FloatField()
     lecDict = serializers.DictField()
+
+    class Meta:
+        model = signup_class
+        fields = "__all__"
+
+class contestSignupSerializer(serializers.ModelSerializer):    # working by soojung
+    user = UserSerializer()
+    lecture = LectureSerializer()
+    totalScore = serializers.IntegerField()
+    exit_status = serializers.BooleanField()
+
     class Meta:
         model = signup_class
         fields = "__all__"

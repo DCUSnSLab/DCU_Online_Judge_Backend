@@ -119,6 +119,21 @@ def ensure_prob_access(obj, user):
                 return
             raise e
 
+# def ensure_prob_detail_access(obj, user):  # working by soojung
+#     e = APIError(msg=f"{obj.__class__.__name__} does not exist")
+#
+#     if isinstance(obj, Contest):
+#         CU = ContestUser.objects.get(contest_id=obj, user_id=user)
+#         if obj.lecture_contest_type == LectureContestType.Competition and obj.status == ContestStatus.CONTEST_UNDERWAY:
+#             if not user.is_admin_role():
+#                 if CU.end_time:
+#                     raise e
+#                 else:
+#                     return
+#             else:
+#                 return
+#             raise e
+
 def ensure_qna_access(obj, user):
     e = APIError(msg=f"{obj.__class__.__name__} does not exist")
     if obj.author == user:

@@ -1,6 +1,6 @@
 from utils.api import UsernameSerializer, serializers
 
-from .models import Contest, ContestAnnouncement, ContestRuleType, LectureContestType
+from .models import Contest, ContestAnnouncement, ContestRuleType, LectureContestType, ContestUser
 from problem.models import Problem
 from .models import ACMContestRank, OIContestRank
 
