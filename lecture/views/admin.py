@@ -14,7 +14,7 @@ from django.db.models import Q, Max
 
 from .LectureAnalysis import lecDispatcher
 from .LectureBuilder import UserBuilder
-from contest.models import Contest
+from contest.models import Contest, ContestUser
 from ..models import Lecture, signup_class, ta_admin_class
 from ..serializers import (CreateLectureSerializer, EditLectureSerializer, LectureAdminSerializer, LectureSerializer, TAAdminSerializer, EditTAuserSerializer, PermitTA, )
 from account.models import User, AdminType
@@ -237,8 +237,7 @@ class AdminLectureApplyAPI(APIView):
     def post(self, request):
         data = request.data
 
-        if data.get("lecture_id") and data.get\
-                    ("user_id"):
+        if data.get("lecture_id") and data.get("user_id"):
             appy = signup_class.objects.get(lecture_id=data.get("lecture_id"), user_id=data.get("user_id"))
             #print(appy)
             appy.isallow = True
@@ -248,6 +247,11 @@ class AdminLectureApplyAPI(APIView):
             ub = UserBuilder(None) # 사용자 정보 생성 후 lecture_signup_class에 추가하는 부분
             ub.buildLecture(lectures) # 이하동일
             #print("modified")
+
+            contests = Contest.objects.filter(lecture_id=data.get("lecture_id"), lecture_contest_type="대회")
+            if contests.exists():
+                for contest in contests:
+                    ContestUser.objects.create(contest_id=contest.id, user_id=data.get("user_id"), start_time=None, end_time=None)
 
         return self.success()
 

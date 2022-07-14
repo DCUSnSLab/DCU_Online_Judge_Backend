@@ -53,7 +53,7 @@ class ContestUserAPI(APIView):
         tauser = ta_admin_class.objects.filter(user__id=request.user.id, lecture__id=lecture_id)
         if request.user.is_super_admin() or request.user.is_admin() or tauser[0].score_isallow:
             try:
-                ulist = signup_class.objects.filter(lecture=lecture_id).select_related('lecture').order_by(
+                ulist = signup_class.objects.filter(lecture=lecture_id, isallow=True).select_related('lecture').order_by(
                     "realname")  # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
                 ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
             except signup_class.DoesNotExist:
@@ -139,12 +139,12 @@ class ContestAPI(APIView):
                 contest.visible = True
             else:
                 contest.visible = False
-        # tuple 생성
-        if contest.lecture_contest_type == '대회' and contest.status == ContestStatus.CONTEST_UNDERWAY:
-            if not request.user.is_admin() and not request.user.is_super_admin():
-                user = ContestUser.objects.filter(contest_id=id, user_id=request.user.id)
-                if not user:
-                    ContestUser.objects.create(contest_id=id, user_id=request.user.id, start_time=None, end_time=None)
+        # # tuple 생성
+        # if contest.lecture_contest_type == '대회' and contest.status == ContestStatus.CONTEST_UNDERWAY:
+        #     if not request.user.is_admin() and not request.user.is_super_admin():
+        #         user = ContestUser.objects.filter(contest_id=id, user_id=request.user.id)
+        #         if not user:
+        #             ContestUser.objects.create(contest_id=id, user_id=request.user.id, start_time=None, end_time=None)
 
         # working by soojung
         # try:  # 이미 제출한 사용자인지 확인하고, 있는 경우 contest.visible을 False로 변경한다.
