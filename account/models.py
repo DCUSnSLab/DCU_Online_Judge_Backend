@@ -30,8 +30,10 @@ class User(AbstractBaseUser):
     realname = models.TextField(null=True)
     email = models.TextField(null=True)
     create_time = models.DateTimeField(auto_now_add=True, null=True)
-    Phonenum = models.TextField(null=True)
+    phonenum = models.TextField(null=True)
     # for Student
+    schoolssn = models.IntegerField(default=0)
+    # One of UserType
     admin_type = models.TextField(default=AdminType.REGULAR_USER)
     problem_permission = models.TextField(default=ProblemPermission.NONE)
     reset_password_token = models.TextField(null=True)
