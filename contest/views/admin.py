@@ -66,7 +66,7 @@ class ContestAPI(APIView):
 
         if data["lecture_contest_type"] == '대회':  # 해당 과목 내 모든 학생에 대한 tuple 생성
             contest_id = Contest.objects.latest('id')
-            students = signup_class.objects.filter(lecture_id=data["lecture_id"], isallow=True, schoolssn__isnull=False)
+            students = signup_class.objects.filter(lecture_id=data["lecture_id"], contest_id=contest_id, isallow=True, schoolssn__isnull=False)
             for student in students:
                 ContestUser.objects.create(contest_id=contest_id.id, user_id=student.user_id, start_time=None, end_time=None)
         return self.success(ContestAdminSerializer(contest).data)

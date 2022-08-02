@@ -32,7 +32,6 @@ class PublicContInfoAPI(APIView):
         :return:
         """
         user_id = request.GET.get("id")
-
         lecture_id = request.GET.get("lectureid")
         contest_id = request.GET.get("contest_id")
 
@@ -160,10 +159,15 @@ class UserAdminAPI(APIView):
         수강과목이 있는 학생 목록을 가져오기 위한 기능
         """
         user_id = request.GET.get("id")
-
         lecture_id = request.GET.get("lectureid")
         contest_id = request.GET.get("contestid")
         admin_type = request.GET.get("admin_type")
+
+        print(request.GET)
+        print(user_id)
+        print(lecture_id)
+        print(contest_id)
+        print(admin_type)
 
         print("ADMIN :", admin_type)
 

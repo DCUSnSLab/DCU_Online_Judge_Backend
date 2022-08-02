@@ -67,6 +67,7 @@ class LectureAPI(APIView):
 
     def get(self, request):
         lecture_id = request.GET.get("id")
+
         if lecture_id:
             try:
                 lecture = Lecture.objects.get(id=lecture_id)
@@ -272,7 +273,9 @@ class AdminLectureApplyAPI(APIView):
 class WaitStudentAddAPI(APIView):
     def post(self, request):
         data = request.data
+        print('what')
         print(type(data))
+        print(data)
         if data["users"][0][0] == 'contestId':
             print('contest signup')
             lecture_id = data["users"][0][1]
@@ -290,7 +293,6 @@ class WaitStudentAddAPI(APIView):
                     except:
                         signup_class.objects.create(contest_id=lecture_id, user_id=None, isallow=False,
                                                     realname=user[1], schoolssn=user[0])
-
                         try:  # 기존 회원가입한 사용자 중, 등록한 학번과 동일한 학번을 가진 사용자를 가져온다.
                             user = User.objects.get(realname=user[1], schoolssn=user[0])
                             signuplist = signup_class.objects.filter(schoolssn=user.schoolssn, contest_id=lecture_id)
@@ -301,6 +303,8 @@ class WaitStudentAddAPI(APIView):
 
                             ub = UserBuilder(None)
                             ub.buildLecture(signup.select_related('contest').order_by('contest'))
+                            # ContestUser.objects.create(contest_id=data["users"][0][1], user_id=user.id, start_time=None,
+                            #                            end_time=None)
                         except:
                             print("no matching user")
 
@@ -331,6 +335,8 @@ class WaitStudentAddAPI(APIView):
 
                             ub = UserBuilder(None)
                             ub.buildLecture(signup.select_related('lecture').order_by('lecture'))
+                            # ContestUser.objects.create(contest_id=data["users"][0][0], user_id=user.id, start_time=None,
+                            #                            end_time=None)
                         except:
                             print("no matching user")
 
