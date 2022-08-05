@@ -63,10 +63,16 @@ class ContestAPI(APIView):
             except ValueError:
                 return self.error(f"{ip_range} is not a valid cidr network")
         contest = Contest.objects.create(**data)
-
         if data["lecture_contest_type"] == '대회':  # 해당 과목 내 모든 학생에 대한 tuple 생성
             contest_id = Contest.objects.latest('id')
-            students = signup_class.objects.filter(lecture_id=data["lecture_id"], contest_id=contest_id, isallow=True, schoolssn__isnull=False)
+            # print('wowowowow')
+            # print(data["lecture_id"])
+            # print(contest_id)
+            # print('wowowowow')
+            students = signup_class.objects.filter(lecture_id=data["lecture_id"], isallow=True, schoolssn__isnull=False)
+            # print('wowwow')
+            # print(students)
+            # print('wowowowow')
             for student in students:
                 ContestUser.objects.create(contest_id=contest_id.id, user_id=student.user_id, start_time=None, end_time=None)
         return self.success(ContestAdminSerializer(contest).data)

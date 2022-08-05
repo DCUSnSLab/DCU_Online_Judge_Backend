@@ -263,8 +263,14 @@ class AdminLectureApplyAPI(APIView):
         if id:
             print("test")
             if lecture_id:
+                # 과목 삭제 시, ContestUser 내 해당 과목의 대회와 관련된 행 삭제 (working)
+                # sc = signup_class.objects.get(id=id, contest=contest_Id)
+                # user_id = sc.user_id
                 signup_class.objects.filter(id=id, lecture=lecture_id).delete()
             elif contest_Id:
+                sc = signup_class.objects.get(id=id, contest=contest_Id)
+                user_id = sc.user_id
+                ContestUser.objects.filter(user_id=user_id, contest_id=contest_Id).delete()
                 signup_class.objects.filter(id=id, contest=contest_Id).delete()
             return self.success()
 
@@ -273,9 +279,6 @@ class AdminLectureApplyAPI(APIView):
 class WaitStudentAddAPI(APIView):
     def post(self, request):
         data = request.data
-        print('what')
-        print(type(data))
-        print(data)
         if data["users"][0][0] == 'contestId':
             print('contest signup')
             lecture_id = data["users"][0][1]
@@ -300,11 +303,10 @@ class WaitStudentAddAPI(APIView):
                                 signup.user = user
                                 signup.isallow = True
                                 signup.save()
-
+                            if not ContestUser.objects.filter(contest_id=lecture_id, user_id=user.id):
+                                ContestUser.objects.create(contest_id=lecture_id, user_id=user.id, start_time=None, end_time=None)
                             ub = UserBuilder(None)
                             ub.buildLecture(signup.select_related('contest').order_by('contest'))
-                            # ContestUser.objects.create(contest_id=data["users"][0][1], user_id=user.id, start_time=None,
-                            #                            end_time=None)
                         except:
                             print("no matching user")
 
