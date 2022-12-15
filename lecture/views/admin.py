@@ -187,8 +187,8 @@ class AdminLectureApplyAPI(APIView):
     def put(self, request):
         data = request.data
         try:
-            print("Try")
-            lectures = signup_class.objects.filter(lecture__id=data['lectureID'])
+            print("Try asdfljkawsjdlaiwjxeglawsdjg")
+            lectures = signup_class.objects.filter(lecture__id=data['lectureId'])
             lid = -1
             total = lectures.count()
             cnt = 0
@@ -228,8 +228,9 @@ class AdminLectureApplyAPI(APIView):
                 print("(", cnt, "/", total, ")", lec.lecture_id, lec.id, lec.user.realname, lec.user.username,
                       lec.lecture.title, 'Completedd')
 
-        except:
+        except Exception as e:
             print("exception")
+            print(traceback.format_exc())
 
         return self.success()
 
