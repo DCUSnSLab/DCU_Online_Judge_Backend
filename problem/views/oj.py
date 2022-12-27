@@ -135,6 +135,7 @@ class ContestExitInfoAPI(APIView):     # working by soojung
         try:
             if user.is_student() or user.is_semi_admin():
                 CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+                print(CU)
                 if CU:
                     if CU.start_time is None:
                         ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).update(start_time=now())
