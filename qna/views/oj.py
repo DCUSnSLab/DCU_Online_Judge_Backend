@@ -7,7 +7,10 @@ from django.db.models import Q
 from contest.models import Contest
 from submission.models import Submission
 from ..serializers import PostListSerializer, PostDetailSerializer, CommentSerializer, PostListPushSerializer
+import openai
 
+OPENAI_API_KEY='use your own key'
+openai.api_key=OPENAI_API_KEY
 '''
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
     date_posted = models.DateTimeField(default=timezone.now)
@@ -205,3 +208,13 @@ class QnAPostAPI(APIView):
                 PostList = Post.objects.filter(contest__lecture=lecture, solved=visible).order_by("-date_posted")
                 return self.success(self.paginate_data(request, PostList, PostListSerializer))
 
+class AIhelperAPI(APIView):
+    def get(self, request):
+        # get code form submission data
+        code = request.GET.get('code')
+        # send chatGPT and get answer
+        response = openai.Completion.create(
+            model="text-davinci-003",
+            prompt=code
+        )
+        return self.success(response.choices[0].text)
