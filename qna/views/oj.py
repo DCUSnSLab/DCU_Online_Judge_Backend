@@ -7,10 +7,10 @@ from django.db.models import Q
 from contest.models import Contest
 from submission.models import Submission
 from ..serializers import PostListSerializer, PostDetailSerializer, CommentSerializer, PostListPushSerializer
-import openai
+# import openai
 
-OPENAI_API_KEY='use your own key'
-openai.api_key=OPENAI_API_KEY
+# OPENAI_API_KEY='use your own key'
+# openai.api_key=OPENAI_API_KEY
 '''
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
     date_posted = models.DateTimeField(default=timezone.now)
@@ -200,7 +200,6 @@ class QnAPostAPI(APIView):
 
             PostList = PostList.filter(Q(author=request.user) | Q(private=False)).order_by("-date_posted")
             return self.success(self.paginate_data(request, PostList, PostListSerializer))
-
         else:
             if request.user.is_super_admin():
                 lecture = Lecture.objects.get(id=lectureID)
@@ -211,10 +210,16 @@ class QnAPostAPI(APIView):
 class AIhelperAPI(APIView):
     def get(self, request):
         # get code form submission data
-        code = request.GET.get('code')
+        print('AIhelperAPI called')
+        id = request.GET.get("id")
+        code = request.GET.get("code")
+        content = request.GET.get("content")
+        print(code)
+
         # send chatGPT and get answer
-        response = openai.Completion.create(
-            model="text-davinci-003",
-            prompt=code
-        )
-        return self.success(response.choices[0].text)
+        # response = openai.Completion.create(
+        #     model="text-davinci-003",
+        #     prompt=code
+        # )
+        return self.success()
+
