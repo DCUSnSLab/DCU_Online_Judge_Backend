@@ -222,5 +222,5 @@ class AIhelperAPI(APIView):
             model="text-davinci-003",
             prompt=code
         )
-        code_deleted_response=response[:response.find("```")] + "코드는 정답자에게만 공개됩니다."
+        code_deleted_response=response[:response.find("```")] + "코드는 보이지 않습니다."
         return self.success(code_deleted_response)
