@@ -7,10 +7,10 @@ from django.db.models import Q
 from contest.models import Contest
 from submission.models import Submission
 from ..serializers import PostListSerializer, PostDetailSerializer, CommentSerializer, PostListPushSerializer
-# import openai
+import openai
 
-# OPENAI_API_KEY='use your own key'
-# openai.api_key=OPENAI_API_KEY
+OPENAI_API_KEY='use your own key'
+openai.api_key=OPENAI_API_KEY
 '''
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
     date_posted = models.DateTimeField(default=timezone.now)
@@ -200,6 +200,7 @@ class QnAPostAPI(APIView):
 
             PostList = PostList.filter(Q(author=request.user) | Q(private=False)).order_by("-date_posted")
             return self.success(self.paginate_data(request, PostList, PostListSerializer))
+
         else:
             if request.user.is_super_admin():
                 lecture = Lecture.objects.get(id=lectureID)
@@ -217,9 +218,9 @@ class AIhelperAPI(APIView):
         print(code)
 
         # send chatGPT and get answer
-        # response = openai.Completion.create(
-        #     model="text-davinci-003",
-        #     prompt=code
-        # )
-        return self.success()
-
+        response = openai.Completion.create(
+            model="text-davinci-003",
+            prompt=code
+        )
+        code_deleted_response=response[:response.find("```")] + "코드는 정답자에게만 공개됩니다."
+        return self.success(code_deleted_response)
