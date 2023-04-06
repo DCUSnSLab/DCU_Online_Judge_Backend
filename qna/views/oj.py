@@ -213,14 +213,13 @@ class AIhelperAPI(APIView):
         # get code form submission data
         print('AIhelperAPI called')
         id = request.GET.get("id")
-        code = request.GET.get("code")
+        code = request.GET.get("code") + "\nwhat's worng in this code. Code must be wrapped in ```"
         content = request.GET.get("content")
         print(code)
-
+        messages = [{"role": "user", "content": f"{code}"}]
         # send chatGPT and get answer
-        response = openai.Completion.create(
-            model="text-davinci-003",
-            prompt=code
-        )
-        code_deleted_response=response[:response.find("```")] + "코드는 보이지 않습니다."
-        return self.success(code_deleted_response)
+        assistant_content = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
+        messages.append({"role": "assistant", "content": f"{assistant_content}"})
+        response = assistant_content[1]
+        # code_deleted_response=response[:response.find("```")] + "코드는 보이지 않습니다."
+        return self.success(response)
