@@ -219,5 +219,9 @@ class AIhelperAPI(APIView):
         # send chatGPT and get answer
         assistant_content = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
         messages.append({"role": "assistant", "content": f"{assistant_content}"})
-        code_deleted_response=assistant_content.choices[0].message.content[:assistant_content.choices[0].message.content.find("```")] + "코드는 보이지 않습니다."
+        # delete code in answer
+        if assistant_content.choices[0].message.content.find("```") != -1:
+            code_deleted_response=assistant_content.choices[0].message.content[:assistant_content.choices[0].message.content.find("```")] + "코드는 보이지 않습니다."
+        else:
+            code_deleted_response=assistant_content.choices[0].message.content
         return self.success(code_deleted_response)
