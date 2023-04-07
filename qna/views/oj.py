@@ -213,7 +213,7 @@ class AIhelperAPI(APIView):
         # get code form submission data
         # print('AIhelperAPI called')
         id = request.GET.get("id")
-        code = request.GET.get("code") + "\nwhat's worng in this code. Code must be wrapped in ```"
+        code = request.GET.get("code") + "\nwhat's worng in this code."
         content = request.GET.get("content")
         messages = [{"role": "user", "content": code}]
         # send chatGPT and get answer
