@@ -66,7 +66,8 @@ class UserProfileAPI(APIView):
 
         for k, v in data.items():
             setattr(user_profile, k, v)
-        user.realname = data['realname']
+        if data['realname']:
+            user.realname = data['realname']
         #test = User.objects.filter(schoolssn=data['schoolssn']).exclude(schoolssn=user.schoolssn).exists()
         if User.objects.filter(schoolssn=data['schoolssn']).exclude(schoolssn=user.schoolssn).exists():
             return self.error("중복된 학번입니다.")

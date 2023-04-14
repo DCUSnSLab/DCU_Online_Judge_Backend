@@ -13,6 +13,7 @@ class Lecture(models.Model):
     year = models.IntegerField()
     semester = models.IntegerField()
     status = models.BooleanField()
+    aihelper_status = models.BooleanField(default=False)
     password = models.TextField()
     isapply = models.BooleanField(default=False)
     isallow = models.BooleanField(default=False)
@@ -31,7 +32,6 @@ class signup_class(models.Model):
     schoolssn = models.IntegerField(default=None, null=True)
     score = JSONField(default=dict)
     etc = models.TextField(null=True)
-
 
 class ta_admin_class(models.Model):
     lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE)
