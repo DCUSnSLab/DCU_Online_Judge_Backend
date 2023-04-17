@@ -56,6 +56,9 @@ class CheckingAIhelperFlagAPI (APIView):
         contestID = data.get("contestID")
         if contestID:
             lecture = Contest.objects.get(id=contestID)
+            if lecture.lecture_contest_type=="대회":
+                aihelperflag = False
+                return self.success(aihelperflag)
             lecture = lecture.lecture.id
             aihelperflag = Lecture.objects.get(id=lecture)
             aihelperflag = aihelperflag.aihelper_status
