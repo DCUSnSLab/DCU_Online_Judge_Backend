@@ -89,6 +89,7 @@ class LectureAPI(APIView):
             lectures = tauser_lec
 
         keyword = request.GET.get("keyword")
+
         if keyword:
             lectures = lectures.filter(title__contains=keyword)
 

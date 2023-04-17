@@ -1,10 +1,11 @@
 import random
 from django.db.models import Q, Count
 from utils.api import APIView
-from account.decorators import check_contest_permission, ensure_prob_access
+from account.decorators import check_contest_permission, ensure_prob_access# , ensure_prob_detail_access
 from ..models import ProblemTag, Problem, ProblemRuleType
 from contest.models import Contest
 from lecture.models import signup_class
+from account.models import User
 from ..serializers import ProblemSerializer, TagSerializer, ProblemSafeSerializer, ContestExitSerializer  # working by soojung
 from contest.models import ContestRuleType, ContestUser
 from django.utils.timezone import now
@@ -121,20 +122,29 @@ class ContestProblemAPI(APIView):
             data = ProblemSafeSerializer(contest_problems, many=True).data
         return self.success(data)
 
-class ContestExitAccessAPI(APIView):     # working by soojung
+class ContestExitInfoAPI(APIView):     # working by soojung
     def get(self, request):
-        print("ContestExitAccessAPI called")
+        print("ContestExitInfoAPI called")
+        # ensure_prob_detail_access(self.contest, request.user)   # working by soojung
         contest_id = request.GET.get("contest_id")
+        contest = Contest.objects.get(id=contest_id)
+        user_id = request.user.id
+        user = User.objects.get(id=user_id)
         if not contest_id:
             return self.error("Invalid parameter, contest_id is required")
         try:
-            user = ContestUser.objects.get(contest_id=contest_id, user_id=request.user.id)
-            if user:
-                if user.start_time is None:
-                    ContestUser.objects.filter(contest_id=contest_id, user_id=request.user.id).update(start_time=now())
-                return self.success(ContestExitSerializer(user).data)
+            if user.is_student() or user.is_semi_admin():
+                CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+                if CU:
+                    if CU.start_time is None:
+                        ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).update(start_time=now())
+                    return self.success(ContestExitSerializer(CU).data)
+                else:
+                    return self.success()
+            else:
+                return self.success()
         except:
-            self.error("Contest %s doesn't exist" % contest)
+            return self.error("Contest %s doesn't exist" % contest)
 
 class ProblemResponsibility(APIView):
     def get(self, request):
