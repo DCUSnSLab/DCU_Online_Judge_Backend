@@ -132,6 +132,8 @@ class ContestExitInfoAPI(APIView):     # working by soojung
         user = User.objects.get(id=user_id)
         if not contest_id:
             return self.error("Invalid parameter, contest_id is required")
+        if not contest.lecture_contest_type=="대회":
+            return self.success()
         try:
             if user.is_student() or user.is_semi_admin():
                 CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
