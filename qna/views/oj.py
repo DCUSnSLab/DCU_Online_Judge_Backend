@@ -213,7 +213,6 @@ class AIhelperAPI(APIView):
         # get code form submission data
         # print('AIhelperAPI called')
         result = request.GET.get("result")
-        print(result, result.type)
         if result == '0':
             code = request.GET.get("code") + "\n이 코드를 최적화하고 가독성을 높여줘."
         elif result == '8':
