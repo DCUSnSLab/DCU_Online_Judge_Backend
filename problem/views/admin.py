@@ -451,8 +451,8 @@ class ContestProblemAPI(ProblemBase):
             return self.error("Problem does not exists")
         ensure_created_by(problem.contest, request.user)
         if Submission.objects.filter(problem=problem).exists():
-            return self.error("Can't delete the problem as it has submissions")
-
+            Submission.objects.filter(problem=problem).delete()
+            return self.error("관련 제출물이 삭제되었습니다. 문제도 삭제하시려면 삭제버튼을 한번 더 눌러주세요.")
         #d = os.path.join(settings.TEST_CASE_DIR, problem.test_case_id)
         #if os.path.isdir(d):
         #    shutil.rmtree(d, ignore_errors=True)

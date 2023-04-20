@@ -697,10 +697,15 @@ class ResContest(Content):
      '''
     def associateSubmission(self, submission):
         pid = submission.problem.id
+        print(pid)
+        subprob = None
         try:
             subprob = self.problems[pid]
         except KeyError:
-            subprob = self.problems[str(pid)]
+            try:
+                subprob = self.problems[str(pid)]
+            except:
+                pass
         except Exception as e:
             print("Exception ", e)
         if subprob is not None:

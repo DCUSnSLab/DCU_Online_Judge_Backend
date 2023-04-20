@@ -30,7 +30,6 @@ class LectureAPI(APIView):
             lecture = Lecture.objects.create(**data)
             signup_class.objects.create(lecture=lecture, user=proxy_user, status=False,
                                         isallow=True)  # 수강 과목 생성 시, 본인이 생성한 수강과목에 대해 별도의 수강신청 없이 접근할 수 있도록
-
         else:
             data["created_by"] = request.user
             lecture = Lecture.objects.create(**data)
@@ -187,8 +186,8 @@ class AdminLectureApplyAPI(APIView):
     def put(self, request):
         data = request.data
         try:
-            print("Try")
-            lectures = signup_class.objects.filter(lecture__id=data['lectureID'])
+            print("Try asdfljkawsjdlaiwjxeglawsdjg")
+            lectures = signup_class.objects.filter(lecture__id=data['lectureId'])
             lid = -1
             total = lectures.count()
             cnt = 0
@@ -228,8 +227,9 @@ class AdminLectureApplyAPI(APIView):
                 print("(", cnt, "/", total, ")", lec.lecture_id, lec.id, lec.user.realname, lec.user.username,
                       lec.lecture.title, 'Completedd')
 
-        except:
+        except Exception as e:
             print("exception")
+            print(traceback.format_exc())
 
         return self.success()
 
