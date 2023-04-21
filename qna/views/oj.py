@@ -226,9 +226,8 @@ class AIhelperAPI(APIView):
         messages.append({"role": "assistant", "content": f"{assistant_content}"})
         # delete code in answer when not
         if result != '0':
-            if assistant_content.choices[0].message.content.find("```") != -1 or assistant_content.choices[0].message.content.find("corrected code") != -1:
-                code_deleted_response=assistant_content.choices[0].message.content[:assistant_content.choices[0].message.content.find("```")]
-                code_deleted_response=code_deleted_response[:code_deleted_response.find("corrected code")] + "정답 코드는 보이지 않습니다."
-            else:
-                code_deleted_response=assistant_content.choices[0].message.content
+            code_deleted_response=assistant_content.choices[0].message.content[:assistant_content.choices[0].message.content.find("```")]
+            code_deleted_response=code_deleted_response[:code_deleted_response.find("corrected code")] + "정답 코드는 보이지 않습니다."
+        else:
+            code_deleted_response=assistant_content.choices[0].message.content
         return self.success(code_deleted_response)
