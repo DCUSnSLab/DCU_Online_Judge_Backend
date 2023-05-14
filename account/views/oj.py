@@ -22,6 +22,7 @@ from utils.captcha import Captcha
 from utils.shortcuts import rand_str, img2base64, datetime2str
 from ..decorators import login_required
 from ..models import User, UserProfile, AdminType
+from submission.models import Submission
 from ..serializers import (ApplyResetPasswordSerializer, ResetPasswordSerializer,
                            UserChangePasswordSerializer, UserLoginSerializer,
                            UserRegisterSerializer, UsernameOrEmailCheckSerializer,
@@ -31,7 +32,7 @@ from ..serializers import (TwoFactorAuthCodeSerializer, UserProfileSerializer,
 from ..tasks import send_email_async
 
 from lecture.models import signup_class, Lecture
-from django.db.models import Max
+from django.db.models import Max, Count
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
 
 
@@ -544,6 +545,16 @@ class UserRankAPI(APIView):
         else:
             profiles = profiles.filter(total_score__gt=0).order_by("-total_score")
         return self.success(self.paginate_data(request, profiles, RankInfoSerializer))
+
+class UserRankpointAPI(APIView):
+    def get(self, request):
+        user = User.objects.get(id=request.user.id)
+
+        filtered_submissions = Submission.objects.filter(username=user.username, result=0).values('problem_id').annotate(count=Count('problem_id')).filter(count=1)
+        count = len(filtered_submissions)
+        return self.success(count)
+
+
 
 
 class ProfileProblemDisplayIDRefreshAPI(APIView):
