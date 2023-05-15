@@ -552,6 +552,18 @@ class UserRankpointAPI(APIView):
         filtered_submissions = Submission.objects.filter(username=user.username, result=0).values('problem_id').annotate(count=Count('problem_id')).filter(count=1)
         count = len(filtered_submissions)
         user.rank_point = count
+        if count < 5:
+            user.rank_tear = "코생아"
+        elif count < 15:
+            user.rank_tear = "코린이"
+        elif count < 40:
+            user.rank_tear = "개발자"
+        elif count < 70:
+            user.rank_tear = "전문가"
+        elif count < 100:
+            user.rank_tear = "코딩왕"
+        elif count < 200:
+            user.rank_tear = "코딩신"
         user.save()
         return self.success(count)
 
