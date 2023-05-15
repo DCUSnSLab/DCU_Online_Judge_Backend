@@ -135,5 +135,5 @@ class GroupStudy(models.Model):
     host_user = models.ForeignKey(User, on_delete=models.CASCADE)
     room = models.TextField(null=True)
     people_number = models.IntegerField(default=0)
-    create_time = models.DateTimeField(auto_now_add=True)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
     end_time = models.DateTimeField(null=True)
