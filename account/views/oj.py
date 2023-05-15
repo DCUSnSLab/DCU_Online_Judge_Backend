@@ -549,9 +549,10 @@ class UserRankAPI(APIView):
 class UserRankpointAPI(APIView):
     def get(self, request):
         user = User.objects.get(id=request.user.id)
-
         filtered_submissions = Submission.objects.filter(username=user.username, result=0).values('problem_id').annotate(count=Count('problem_id')).filter(count=1)
         count = len(filtered_submissions)
+        user.rank_point = count
+        user.save()
         return self.success(count)
 
 
