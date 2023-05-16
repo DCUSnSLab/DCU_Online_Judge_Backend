@@ -4,9 +4,9 @@ from ..views.oj import (ApplyResetPasswordAPI, ResetPasswordAPI,
                         UserChangePasswordAPI, UserRegisterAPI, UserChangeEmailAPI,
                         UserLoginAPI, UserLogoutAPI, UsernameOrEmailCheck,
                         AvatarUploadAPI, TwoFactorAuthAPI, UserProfileAPI,
-                        UserRankAPI, CheckTFARequiredAPI, SessionManagementAPI,
+                        UserRankAPI, UserRankpointAPI, CheckTFARequiredAPI, SessionManagementAPI,
                         ProfileProblemDisplayIDRefreshAPI, OpenAPIAppkeyAPI, SSOAPI, SchoolssnCheck, UserProgress,
-                        UserRankpointAPI)
+                        ProfileRankpointAPI)
 
 from utils.captcha.views import CaptchaAPIView
 
@@ -27,9 +27,10 @@ urlpatterns = [
     url(r"^tfa_required/?$", CheckTFARequiredAPI.as_view(), name="tfa_required_check"),
     url(r"^two_factor_auth/?$", TwoFactorAuthAPI.as_view(), name="two_factor_auth_api"),
     url(r"^user_rank/?$", UserRankAPI.as_view(), name="user_rank_api"),
+    url(r"^user_pointrank/?$", UserRankpointAPI.as_view(), name="user_rank_api"),
     url(r"^sessions/?$", SessionManagementAPI.as_view(), name="session_management_api"),
     url(r"^open_api_appkey/?$", OpenAPIAppkeyAPI.as_view(), name="open_api_appkey_api"),
     url(r"^sso?$", SSOAPI.as_view(), name="sso_api"),
     url(r"^userprogress?$", UserProgress.as_view(), name="userprogress_api"),
-    url(r"^profile_rankpoint?$", UserRankpointAPI.as_view(), name="user_rank_point")
+    url(r"^profile_rankpoint?$", ProfileRankpointAPI.as_view(), name="user_rank_point")
 ]

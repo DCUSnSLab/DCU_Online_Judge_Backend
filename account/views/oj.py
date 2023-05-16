@@ -532,6 +532,19 @@ class SessionManagementAPI(APIView):
         else:
             return self.error("Invalid session_key")
 
+class UserRankpointAPI(APIView):
+    def get(self, request):
+        rule_type = request.GET.get("rule")
+        if rule_type not in ContestRuleType.choices():
+            rule_type = ContestRuleType.ACM
+        profiles = UserProfile.objects.filter(user__admin_type=AdminType.REGULAR_USER, user__is_disabled=False) \
+            .select_related("user")
+        if rule_type == ContestRuleType.ACM:
+            profiles = profiles.filter(submission_number__gt=0).order_by("-accepted_number", "submission_number")
+        else:
+            profiles = profiles.filter(total_score__gt=0).order_by("-total_score")
+        return self.success(self.paginate_data(request, profiles, RankInfoSerializer))
+
 
 class UserRankAPI(APIView):
     def get(self, request):
@@ -546,7 +559,7 @@ class UserRankAPI(APIView):
             profiles = profiles.filter(total_score__gt=0).order_by("-total_score")
         return self.success(self.paginate_data(request, profiles, RankInfoSerializer))
 
-class UserRankpointAPI(APIView):
+class ProfileRankpointAPI(APIView):
     def get(self, request):
         user = User.objects.get(id=request.user.id)
         filtered_submissions = Submission.objects.filter(username=user.username, result=0).values('problem_id').annotate(count=Count('problem_id')).filter(count=1)
