@@ -34,8 +34,6 @@ from lecture.models import signup_class, Lecture
 from django.db.models import Max
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
 
-# class GroupStudyAPI(APIView):
-
 class UserProfileAPI(APIView):
     @method_decorator(ensure_csrf_cookie)
     def get(self, request, **kwargs):
@@ -600,4 +598,3 @@ class GroupStudy(APIView):
         print(request.data)
         print('what')
         return self.success()
-

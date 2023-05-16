@@ -9,7 +9,7 @@ from submission.models import Submission
 from ..serializers import PostListSerializer, PostDetailSerializer, CommentSerializer, PostListPushSerializer
 import openai
 
-OPENAI_API_KEY='use your own key'
+OPENAI_API_KEY='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'
 openai.api_key=OPENAI_API_KEY
 '''
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
