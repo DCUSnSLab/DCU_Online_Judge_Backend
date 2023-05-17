@@ -1,5 +1,6 @@
 import ipaddress
 from git import Repo
+import os
 
 from django.db.models import Q
 from account.decorators import login_required, check_contest_permission
@@ -115,7 +116,8 @@ class SubmissionAPI(APIView):
             # git clone from userid
             print("git clone")
             print(request.user.username)
-            repo = Repo.clone_from("https://github.com/"+ str(request.user.username) +"/EduCoder.git", "EduCoder")
+            os.mkdir("temp")
+            repo = Repo.clone_from("https://github.com/"+ str(request.user.username) +"/EduCoder.git", "temp")
             repo.git.checkout("master")
             print(repo)
             # make code file
