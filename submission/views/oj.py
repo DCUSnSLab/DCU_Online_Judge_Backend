@@ -1,6 +1,7 @@
 import ipaddress
 from git import Repo
 import os
+import shutil
 
 from django.conf import settings
 from django.db.models import Q
@@ -119,7 +120,7 @@ class SubmissionAPI(APIView):
             print(request.user.username)
             git_dir = os.path.join(settings.GIT_PATH, request.user.username)
             #os.mkdir(git_dir)
-            os.rmdir(git_dir)
+            shutil.rmtree(git_dir)
             os.makedirs(git_dir, exist_ok=True)
             repo = Repo.clone_from("https://github.com/"+ str(request.user.username) +"/EduCoder.git", git_dir)
             print(repo)
