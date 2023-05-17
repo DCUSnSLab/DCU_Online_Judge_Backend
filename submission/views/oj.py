@@ -2,6 +2,7 @@ import ipaddress
 from git import Repo
 import os
 
+from django.conf import settings
 from django.db.models import Q
 from account.decorators import login_required, check_contest_permission
 from contest.models import Contest, ContestStatus, ContestRuleType
@@ -116,8 +117,10 @@ class SubmissionAPI(APIView):
             # git clone from userid
             print("git clone")
             print(request.user.username)
-            os.makedirs('temp', exist_ok=True)
-            repo = Repo.clone_from("https://github.com/"+ str(request.user.username) +"/EduCoder.git", "temp")
+            git_dir = os.path.join(settings.GIT_PATH, request.user.id)
+            os.mkdir(git_dir,exist_ok=True)
+            # os.makedirs('temp', exist_ok=True)
+            repo = Repo.clone_from("https://github.com/"+ str(request.user.username) +"/EduCoder.git", git_dir)
             repo.git.checkout("master")
             print(repo)
             # make code file
