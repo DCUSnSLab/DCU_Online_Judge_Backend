@@ -536,14 +536,14 @@ class UserRankpointAPI(APIView):
     def get(self, request):
         rule_type = request.GET.get("rule")
         if rule_type not in ContestRuleType.choices():
-            rule_type = ContestRuleType.ACM
-        profiles = UserProfile.objects.filter(user__admin_type=AdminType.REGULAR_USER, user__is_disabled=False) \
+            rule_type = ContestRuleType.POINT
+        rankpoint = UserProfile.objects.filter(user__admin_type=AdminType.REGULAR_USER, user__is_disabled=False) \
             .select_related("user")
-        if rule_type == ContestRuleType.ACM:
-            profiles = profiles.filter(submission_number__gt=0).order_by("-accepted_number", "submission_number")
+        if rule_type == ContestRuleType.POINT:
+            rankpoint = User.objects.filter(rankpoint)
         else:
-            profiles = profiles.filter(total_score__gt=0).order_by("-total_score")
-        return self.success(self.paginate_data(request, profiles, RankInfoSerializer))
+            rankpoint = User.objects.filter(rankpoint)
+        return self.success(self.paginate_data(request, rankpoint, RankInfoSerializer))
 
 
 class UserRankAPI(APIView):

@@ -23,6 +23,7 @@ class ContestStatus:
 class ContestRuleType(Choices):
     ACM = "ACM"
     OI = "OI"
+    POINT = "POINT"
 
 
 class CacheKey:
