@@ -117,7 +117,7 @@ class SubmissionAPI(APIView):
             # git clone from userid
             print("git clone")
             print(request.user.username)
-            git_dir = os.path.join(settings.GIT_PATH, request.user.id)
+            git_dir = os.path.join(settings.GIT_PATH, request.user.username)
             os.mkdir(git_dir,exist_ok=True)
             # os.makedirs('temp', exist_ok=True)
             repo = Repo.clone_from("https://github.com/"+ str(request.user.username) +"/EduCoder.git", git_dir)
