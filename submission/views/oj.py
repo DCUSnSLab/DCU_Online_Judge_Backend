@@ -121,6 +121,7 @@ class SubmissionAPI(APIView):
             #os.mkdir(git_dir)
             os.makedirs(git_dir, exist_ok=True)
             repo = Repo.clone_from("https://github.com/"+ str(request.user.username) +"/EduCoder.git", git_dir)
+            print(repo)
             repo.git.checkout("master")
             print(repo)
             # make code file
