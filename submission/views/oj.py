@@ -1,4 +1,5 @@
 import ipaddress
+from git import Repo
 
 from django.db.models import Q
 from account.decorators import login_required, check_contest_permission
@@ -111,6 +112,20 @@ class SubmissionAPI(APIView):
         if hide_id:
             return self.success()
         else:
+            # git clone from userid
+            repo = Repo.clone_from("https://github.com/"+{request.user.id}+"/EduCoder.git", "EduCoder")
+            repo.git.checkout("master")
+            print(repo)
+            # make code file
+            f = open("EduCoder/"+{problem.id}+".py", 'w')
+            f.write(submission.code)
+            f.close()
+            # git add
+            repo.git.add(A=True)
+            # git commit
+            repo.git.commit(m="commit")
+            # git push
+            repo.git.push()
             return self.success({"submission_id": submission.id})
 
     @login_required
