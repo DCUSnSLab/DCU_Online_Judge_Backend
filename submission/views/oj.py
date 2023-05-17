@@ -113,6 +113,8 @@ class SubmissionAPI(APIView):
             return self.success()
         else:
             # git clone from userid
+            print("git clone")
+            print(request.user.id)
             repo = Repo.clone_from("https://github.com/"+{request.user.id}+"/EduCoder.git", "EduCoder")
             repo.git.checkout("master")
             print(repo)
