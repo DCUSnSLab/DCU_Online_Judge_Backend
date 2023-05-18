@@ -259,7 +259,8 @@ class GithubPushAPI(APIView):
     def get(self, request):
         githubAPIURL = "https://api.github.com/repos/"+ str(request.user.username) +"/EduCoder/contents/"+request.GET["id"]+".txt"
         githubToken = request.GET.get("Githubtoken")
-        encoded = base64.b64encode(bytes(request.GET.get["code"], 'utf-8'))
+        code= request.GET.get("code")
+        encoded = base64.b64encode(bytes(code, 'utf-8'))
         git_dir = os.path.join(settings.GIT_PATH, "temp.txt")
         headers = {
             "Authorization": f'''Bearer {githubToken}''',
