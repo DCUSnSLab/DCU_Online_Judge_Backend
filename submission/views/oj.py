@@ -264,7 +264,7 @@ class GithubPushAPI(APIView):
             f.write(request.GET["code"])
             f.close()
         with open(git_dir,"r+") as f:
-            encodedData = base64.b64encode(f.read()).decode("utf-8")
+            # encodedData = base64.b64encode(f.read()).decode("utf-8")
 
             headers = {
                 "Authorization": f'''Bearer {githubToken}''',
@@ -272,7 +272,7 @@ class GithubPushAPI(APIView):
             }
             data = {
                 "message": "http://code.cu.ac.kr/problem/"+ request.GET["id"], # Put your commit message here.
-                "content": encodedData
+                "content": request.GET["code"]
             }
             r = requests.put(githubAPIURL, headers=headers, json=data)
             f.close()
