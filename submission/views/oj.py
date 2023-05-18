@@ -257,23 +257,16 @@ class SubmissionExistsAPI(APIView):
 
 class GithubPushAPI(APIView):
     def get(self, request):
-        githubAPIURL = "https://api.github.com/repos/"+ str(request.user.username) +"/EduCoder/contents/"+request.GET["id"]
+        githubAPIURL = "https://api.github.com/repos/"+ str(request.user.username) +"/EduCoder/contents/"+request.GET["id"]+".txt"
         githubToken = request.GET.get("Githubtoken")
         git_dir = os.path.join(settings.GIT_PATH, "temp.txt")
-        with open(git_dir,"w+") as f:
-            f.write(request.GET["code"])
-            f.close()
-        with open(git_dir,"r+") as f:
-            # encodedData = base64.b64encode(f.read()).decode("utf-8")
-
-            headers = {
-                "Authorization": f'''Bearer {githubToken}''',
-                "Content-type": "application/vnd.github+json"
-            }
-            data = {
-                "message": "http://code.cu.ac.kr/problem/"+ request.GET["id"], # Put your commit message here.
-                "content": request.GET["code"]
-            }
-            r = requests.put(githubAPIURL, headers=headers, json=data)
-            f.close()
+        headers = {
+            "Authorization": f'''Bearer {githubToken}''',
+            "Content-type": "application/vnd.github+json"
+        }
+        data = {
+            "message": "http://code.cu.ac.kr/problem/"+ request.GET["id"], # Put your commit message here.
+            "content": request.GET["code"]
+        }
+        r = requests.put(githubAPIURL, headers=headers, json=data)
         return self.success(r.text)
