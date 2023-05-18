@@ -1,5 +1,6 @@
 import ipaddress
 import requests
+import base64
 
 from django.conf import settings
 from django.db.models import Q
@@ -257,13 +258,14 @@ class GithubPushAPI(APIView):
     def get(self, request):
         githubAPIURL = "https://api.github.com/repos/"+ str(request.user.username) +"/EduCoder/contents/"+request.GET["id"]
         githubToken = request.GET.get("Githubtoken")
+        encodedData = base64.b64encode(request.GET.get("code").encode("utf-8"))
         headers = {
             "Authorization": f'''Bearer {githubToken}''',
             "Content-type": "application/vnd.github+json"
         }
         data = {
             "message": "http://code.cu.ac.kr/problem/"+ request.GET["id"], # Put your commit message here.
-            "content": request.GET.get("code")
+            "content": encodedData
         }
         r = requests.put(githubAPIURL, headers=headers, json=data)
         return self.success(r.text)
