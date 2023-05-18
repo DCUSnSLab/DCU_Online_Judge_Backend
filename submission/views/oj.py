@@ -1,4 +1,5 @@
 import ipaddress
+import requests
 
 from django.conf import settings
 from django.db.models import Q
@@ -251,3 +252,19 @@ class SubmissionExistsAPI(APIView):
         return self.success(request.user.is_authenticated and
                             Submission.objects.filter(problem_id=request.GET["problem_id"],
                                                       user_id=request.user.id).exists())
+
+class GithubPushAPI(APIView):
+    def get(self, request):
+        githubAPIURL = "https://api.github.com/repos/"+ str(request.user.username) +"/EduCoder/contents/"+request.GET["problemID"]
+        githubToken = request.GET.get("Githubtoken")
+        headers = {
+            "Authorization": f'''Bearer {githubToken}''',
+            "Content-type": "application/vnd.github+json"
+        }
+        data = {
+            "message": "http://code.cu.ac.kr/problem/"+ request.GET["problemID"], # Put your commit message here.
+            "content": request.GET.get("code")
+        }
+
+        r = requests.put(githubAPIURL, headers=headers, json=data)
+        return self.success(r.text)
