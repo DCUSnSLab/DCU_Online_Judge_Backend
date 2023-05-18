@@ -266,7 +266,7 @@ class GithubPushAPI(APIView):
         }
         data = {
             "message": "http://code.cu.ac.kr/problem/"+ request.GET["id"], # Put your commit message here.
-            "content": request.GET["code"]
+            "content": request.GET["code"].encode("base64")
         }
         r = requests.put(githubAPIURL, headers=headers, json=data)
         return self.success(r.text)
