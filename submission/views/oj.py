@@ -262,6 +262,8 @@ class GithubPushAPI(APIView):
         git_dir = os.path.join(settings.GIT_PATH, "temp.txt")
         with open(git_dir,"w+") as f:
             f.write(request.GET["code"])
+            f.close()
+        with open(git_dir,"r+") as f:
             encodedData = base64.b64encode(f.read()).decode("utf-8")
 
             headers = {
