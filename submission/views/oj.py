@@ -1,7 +1,4 @@
 import ipaddress
-from git import Repo
-import os
-import shutil
 
 from django.conf import settings
 from django.db.models import Q
@@ -115,27 +112,6 @@ class SubmissionAPI(APIView):
         if hide_id:
             return self.success()
         else:
-            # git clone from userid
-            print("git clone")
-            print(request.user.username)
-            git_dir = os.path.join(settings.GIT_PATH, request.user.username)
-            #os.mkdir(git_dir)
-            shutil.rmtree(git_dir, ignore_errors=True)
-            os.makedirs(git_dir, exist_ok=True)
-            repo = Repo.clone_from("https://github.com/"+ str(request.user.username) +"/EduCoder.git", git_dir)
-            print(repo)
-            repo.git.checkout("master")
-            print(repo)
-            # make code file
-            f = open("EduCoder/"+{problem.id}+".py", 'w')
-            f.write(submission.code)
-            f.close()
-            # git add
-            repo.git.add(A=True)
-            # git commit
-            repo.git.commit(m="commit")
-            # git push
-            repo.git.push()
             return self.success({"submission_id": submission.id})
 
     @login_required
