@@ -266,4 +266,4 @@ class GithubPushAPI(APIView):
             "content": request.GET.get("code")
         }
         r = requests.put(githubAPIURL, headers=headers, json=data)
-        return self.success(request.GET)
+        return self.success(r.text)
