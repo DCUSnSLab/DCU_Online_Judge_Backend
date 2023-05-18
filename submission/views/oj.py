@@ -2,6 +2,7 @@ import ipaddress
 import requests
 import base64
 
+import os
 from django.conf import settings
 from django.db.models import Q
 from account.decorators import login_required, check_contest_permission
@@ -258,14 +259,19 @@ class GithubPushAPI(APIView):
     def get(self, request):
         githubAPIURL = "https://api.github.com/repos/"+ str(request.user.username) +"/EduCoder/contents/"+request.GET["id"]
         githubToken = request.GET.get("Githubtoken")
-        encodedData = base64.b64encode(str(request.GET.get("code")))
-        headers = {
-            "Authorization": f'''Bearer {githubToken}''',
-            "Content-type": "application/vnd.github+json"
-        }
-        data = {
-            "message": "http://code.cu.ac.kr/problem/"+ request.GET["id"], # Put your commit message here.
-            "content": encodedData.decode("utf-8")
-        }
-        r = requests.put(githubAPIURL, headers=headers, json=data)
+        git_dir = os.path.join(settings.GIT_PATH, "tmp")
+        with open("file.py", "w") as f:
+            f.write(request.GET["code"])
+            encodedData = base64.b64encode(f.read()).decode("utf-8")
+
+            headers = {
+                "Authorization": f'''Bearer {githubToken}''',
+                "Content-type": "application/vnd.github+json"
+            }
+            data = {
+                "message": "http://code.cu.ac.kr/problem/"+ request.GET["id"], # Put your commit message here.
+                "content": encodedData
+            }
+            r = requests.put(githubAPIURL, headers=headers, json=data)
+            f.close()
         return self.success(r.text)
