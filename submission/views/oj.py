@@ -255,8 +255,6 @@ class SubmissionExistsAPI(APIView):
 
 class GithubPushAPI(APIView):
     def get(self, request):
-        print("GithubPushAPI GET")
-        print(request.GET)
         githubAPIURL = "https://api.github.com/repos/"+ str(request.user.username) +"/EduCoder/contents/"+request.GET["id"]
         githubToken = request.GET.get("Githubtoken")
         headers = {
@@ -267,6 +265,5 @@ class GithubPushAPI(APIView):
             "message": "http://code.cu.ac.kr/problem/"+ request.GET["id"], # Put your commit message here.
             "content": request.GET.get("code")
         }
-
         r = requests.put(githubAPIURL, headers=headers, json=data)
         return self.success(request.GET)
