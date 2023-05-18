@@ -257,16 +257,16 @@ class GithubPushAPI(APIView):
     def get(self, request):
         print("GithubPushAPI GET")
         print(request.GET)
-        githubAPIURL = "https://api.github.com/repos/"+ str(request.user.username) +"/EduCoder/contents/"+request.GET["problem"]
-        githubToken = request.GET.get("Githubtoken")
-        headers = {
-            "Authorization": f'''Bearer {githubToken}''',
-            "Content-type": "application/vnd.github+json"
-        }
-        data = {
-            "message": "http://code.cu.ac.kr/problem/"+ request.GET["problem"], # Put your commit message here.
-            "content": request.GET.get("code")
-        }
+        # githubAPIURL = "https://api.github.com/repos/"+ str(request.user.username) +"/EduCoder/contents/"+request.GET["problem"]
+        # githubToken = request.GET.get("Githubtoken")
+        # headers = {
+        #     "Authorization": f'''Bearer {githubToken}''',
+        #     "Content-type": "application/vnd.github+json"
+        # }
+        # data = {
+        #     "message": "http://code.cu.ac.kr/problem/"+ request.GET["problem"], # Put your commit message here.
+        #     "content": request.GET.get("code")
+        # }
 
-        r = requests.put(githubAPIURL, headers=headers, json=data)
-        return self.success(r.text)
+        # r = requests.put(githubAPIURL, headers=headers, json=data)
+        return self.success(request.GET)
