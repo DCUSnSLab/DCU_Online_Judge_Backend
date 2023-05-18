@@ -260,7 +260,7 @@ class GithubPushAPI(APIView):
         githubAPIURL = "https://api.github.com/repos/"+ str(request.user.username) +"/EduCoder/contents/"+request.GET["id"]
         githubToken = request.GET.get("Githubtoken")
         git_dir = os.path.join(settings.GIT_PATH, "temp.txt")
-        with open(git_dir,"w") as f:
+        with open(git_dir,"rw") as f:
             f.write(request.GET["code"])
             encodedData = base64.b64encode(f.read()).decode("utf-8")
 
