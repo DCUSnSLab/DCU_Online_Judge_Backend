@@ -537,12 +537,15 @@ class UserRankpointAPI(APIView):
         rule_type = request.GET.get("rule")
         if rule_type not in ContestRuleType.choices():
             rule_type = ContestRuleType.POINT
-        rankpoint = UserProfile.objects.filter(user__admin_type=AdminType.REGULAR_USER, user__is_disabled=False) \
+        rankpoint = User.objects.filter(admin_type=REGULAR_USER, is_disabled=False) \
+            .select_related("user")
+
+        profiles = UserProfile.objects.filter(user__admin_type=AdminType.REGULAR_USER, user__is_disabled=False) \
             .select_related("user")
         if rule_type == ContestRuleType.POINT:
-            rankpoint = User.objects.filter(rankpoint)
+            rankpoint = rankpoint.order_by("point", "tear")
         else:
-            rankpoint = User.objects.filter(rankpoint)
+            rankpoint = profiles.filter(total_score__gt=0).order_by("-total_score")
         return self.success(self.paginate_data(request, rankpoint, RankInfoSerializer))
 
 
@@ -580,8 +583,11 @@ class ProfileRankpointAPI(APIView):
         user.save()
         return self.success(count)
 
-
-
+class ProfileRanktearAPI(APIView):
+    def get(self, request):
+        user = User.objects.get(id=request.user.id)
+        tear = user.rank_tear
+        return self.success(tear)
 
 class ProfileProblemDisplayIDRefreshAPI(APIView):
     @login_required
