@@ -267,7 +267,7 @@ class GithubPushAPI(APIView):
             "Content-type": "application/vnd.github+json"
         }
         data = {
-            "message": "http://code.cu.ac.kr/problem/"+ request.GET["id"], # Put your commit message here.
+            "message": "http://code.cu.ac.kr/status/"+ request.GET["id"], # Put your commit message here.
             "content": encoded.decode("utf-8")
         }
         r = requests.put(githubAPIURL, headers=headers, json=data)
