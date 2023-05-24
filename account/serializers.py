@@ -67,7 +67,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "realname", "schoolssn", "username", "email", "admin_type", "problem_permission",
-                  "create_time", "last_login", "two_factor_auth", "open_api", "is_disabled"]
+                  "create_time", "last_login", "two_factor_auth", "open_api", "is_disabled", "rank_point", "rank_tear"]
 
 class SimpleSignupSerializer(serializers.ModelSerializer):
     user = UserSerializer()
@@ -183,4 +183,11 @@ class RankInfoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
+        fields = "__all__"
+
+class RankInfopointSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+
+    class Meta:
+        model = User
         fields = "__all__"

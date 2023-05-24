@@ -26,7 +26,7 @@ from submission.models import Submission
 from ..serializers import (ApplyResetPasswordSerializer, ResetPasswordSerializer,
                            UserChangePasswordSerializer, UserLoginSerializer,
                            UserRegisterSerializer, UsernameOrEmailCheckSerializer,
-                           RankInfoSerializer, UserChangeEmailSerializer, SSOSerializer, SignupSerializer, MainSignupSerializer)
+                           RankInfoSerializer, RankInfopointSerializer, UserChangeEmailSerializer, SSOSerializer, SignupSerializer, MainSignupSerializer)
 from ..serializers import (TwoFactorAuthCodeSerializer, UserProfileSerializer,
                            EditUserProfileSerializer, ImageUploadForm)
 from ..tasks import send_email_async
@@ -536,18 +536,12 @@ class UserRankpointAPI(APIView):
     def get(self, request):
         rule_type = request.GET.get("rule")
         if rule_type not in ContestRuleType.choices():
-            rule_type = ContestRuleType.POINT
+            rule_type = ContestRuleType.ACM
         rankpoint = User.objects.filter(admin_type=REGULAR_USER, is_disabled=False) \
             .select_related("user")
-
-        profiles = UserProfile.objects.filter(user__admin_type=AdminType.REGULAR_USER, user__is_disabled=False) \
-            .select_related("user")
-        if rule_type == ContestRuleType.POINT:
-            rankpoint = rankpoint.order_by("point", "tear")
-        else:
-            rankpoint = profiles.filter(total_score__gt=0).order_by("-total_score")
-        return self.success(self.paginate_data(request, rankpoint, RankInfoSerializer))
-
+        if rule_type == ContestRuleType.ACM:
+            rankpoint = rankpoint.filter(problem_permission=None).order_by("point", "tear")
+        return self.success(self.paginate_data(request, rankpoint, RankInfopointSerializer))
 
 class UserRankAPI(APIView):
     def get(self, request):
