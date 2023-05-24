@@ -257,7 +257,7 @@ class SubmissionExistsAPI(APIView):
 
 class GithubPushAPI(APIView):
     def get(self, request):
-        githubAPIURL = "https://api.github.com/repos/"+ request.GithubID +"/EduCoder/contents/"+request.GET["id"]+".txt"
+        githubAPIURL = "https://api.github.com/repos/"+ request.GET["GithubID"] +"/EduCoder/contents/"+request.GET["id"]+".txt"
         githubToken = request.GET.get("Githubtoken")
         code= request.GET.get("code")
         encoded = base64.b64encode(bytes(code, 'utf-8'))
