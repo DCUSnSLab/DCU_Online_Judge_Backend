@@ -32,7 +32,7 @@ from ..serializers import (TwoFactorAuthCodeSerializer, UserProfileSerializer,
 from ..tasks import send_email_async
 
 from lecture.models import signup_class, Lecture
-from django.db.models import Max, Count, Case, When
+from django.db.models import Count
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
 
 
@@ -560,21 +560,8 @@ class UserRankAPI(APIView):
 class ProfileRankpointAPI(APIView):
     def get(self, request):
         user = User.objects.get(id=request.user.id)
-        problem = Problem.objects.get.all()
         filtered_submissions = Submission.objects.filter(username=user.username, result=0).values('problem_id').annotate(count=Count('problem_id')).filter(count=1)
-        # filtered_submissions = Submission.objects.filter(username=user.username, result=0).values('problem_id').distinct().annotate(count=Count('problem_id')).filter(count=1)
-
-        # filtered_submissions = Submission.objects.filter(username=user.username, result=0).values(
-        #     'problem_id').annotate(count=Count('problem_id')).filter(count=1).annotate(difficulty_count=Case(
-        #     When(pproblem_id__difficulty='High', then=8),
-        #     When(problem_id__difficulty='Mid', then=4),
-        #     When(problem_id__difficulty='Low', then=1),
-        #     default=0,
-        #     output_field=models.IntegerField(),
-        # )).filter(difficulty_count__gt=0)
-
         count = len(filtered_submissions)
-
         user.rank_point = count
         if count < 5:
             user.rank_tear = "코생아"
