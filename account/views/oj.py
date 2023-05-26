@@ -32,7 +32,7 @@ from ..serializers import (TwoFactorAuthCodeSerializer, UserProfileSerializer,
 from ..tasks import send_email_async
 
 from lecture.models import signup_class, Lecture
-from django.db.models import Max, Count
+from django.db.models import Max, Count, Case, When
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
 
 
@@ -537,10 +537,11 @@ class UserRankpointAPI(APIView):
         rule_type = request.GET.get("rule")
         if rule_type not in ContestRuleType.choices():
             rule_type = ContestRuleType.ACM
-        rankpoint = User.objects.filter(admin_type=REGULAR_USER, is_disabled=False) \
+        rankpoint = User.objects.filter(admin_type=AdminType.REGULAR_USER, is_disabled__gt=False) \
             .select_related("user")
         if rule_type == ContestRuleType.ACM:
-            rankpoint = rankpoint.filter(problem_permission=None).order_by("point", "tear")
+            rankpoint = rankpoint.filter(problem_permission__gt=None).order_by("rank_point", "rank_tear")
+
         return self.success(self.paginate_data(request, rankpoint, RankInfopointSerializer))
 
 class UserRankAPI(APIView):
@@ -559,8 +560,21 @@ class UserRankAPI(APIView):
 class ProfileRankpointAPI(APIView):
     def get(self, request):
         user = User.objects.get(id=request.user.id)
+        problem = Problem.objects.get.all()
         filtered_submissions = Submission.objects.filter(username=user.username, result=0).values('problem_id').annotate(count=Count('problem_id')).filter(count=1)
+        # filtered_submissions = Submission.objects.filter(username=user.username, result=0).values('problem_id').distinct().annotate(count=Count('problem_id')).filter(count=1)
+
+        # filtered_submissions = Submission.objects.filter(username=user.username, result=0).values(
+        #     'problem_id').annotate(count=Count('problem_id')).filter(count=1).annotate(difficulty_count=Case(
+        #     When(pproblem_id__difficulty='High', then=8),
+        #     When(problem_id__difficulty='Mid', then=4),
+        #     When(problem_id__difficulty='Low', then=1),
+        #     default=0,
+        #     output_field=models.IntegerField(),
+        # )).filter(difficulty_count__gt=0)
+
         count = len(filtered_submissions)
+
         user.rank_point = count
         if count < 5:
             user.rank_tear = "코생아"
