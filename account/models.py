@@ -47,6 +47,8 @@ class User(AbstractBaseUser):
     open_api_appkey = models.TextField(null=True)
     is_disabled = models.BooleanField(default=False)
     is_allowed = models.BooleanField(default=False)
+    rank_point = models.IntegerField(default=False)
+    rank_tear = models.TextField(default="코생아")
 
     USERNAME_FIELD = "username"
     REQUIRED_FIELDS = []

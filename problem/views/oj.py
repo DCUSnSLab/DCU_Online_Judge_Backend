@@ -8,6 +8,7 @@ from lecture.models import signup_class
 from ..serializers import ProblemSerializer, TagSerializer, ProblemSafeSerializer, ContestExitSerializer  # working by soojung
 from contest.models import ContestRuleType, ContestUser
 from django.utils.timezone import now
+from account.models import User
 
 
 class ProblemTagAPI(APIView):
@@ -23,6 +24,24 @@ class PickOneAPI(APIView):
         if count == 0:
             return self.error("No problem to pick")
         return self.success(problems[random.randint(0, count - 1)]._id)
+
+class Random_By_LevelAPI(APIView):
+    def get(self, request):
+        user = User.objects.get(id=request.user.id)
+        if user.rank_point > 100:
+            problems = Problem.objects.filter(contest_id__isnull=True, visible=True, difficulty="High")
+            count = problems.count()
+        elif user.rank_point > 30:
+            problems = Problem.objects.filter(contest_id__isnull=True, visible=True, difficulty="Mid")
+            count = problems.count()
+        else:
+            problems = Problem.objects.filter(contest_id__isnull=True, visible=True, difficulty="Low")
+            count = problems.count()
+
+        if count == 0:
+            return self.error("No problem to pick")
+        return self.success(problems[random.randint(0, count - 1)]._id)
+
 
 
 class ProblemAPI(APIView):
