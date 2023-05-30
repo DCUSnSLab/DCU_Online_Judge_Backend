@@ -1,5 +1,9 @@
 import ipaddress
+import requests
+import base64
 
+import os
+from django.conf import settings
 from django.db.models import Q
 from account.decorators import login_required, check_contest_permission
 from contest.models import Contest, ContestStatus, ContestRuleType
@@ -250,3 +254,21 @@ class SubmissionExistsAPI(APIView):
         return self.success(request.user.is_authenticated and
                             Submission.objects.filter(problem_id=request.GET["problem_id"],
                                                       user_id=request.user.id).exists())
+
+class GithubPushAPI(APIView):
+    def get(self, request):
+        githubAPIURL = "https://api.github.com/repos/"+ request.GET["GithubID"] +"/" + request.GET["GithubRepo"] + "/contents/"+request.GET["id"]+".txt"
+        githubToken = request.GET.get("Githubtoken")
+        code= request.GET.get("code")
+        encoded = base64.b64encode(bytes(code, 'utf-8'))
+        git_dir = os.path.join(settings.GIT_PATH, "temp.txt")
+        headers = {
+            "Authorization": f'''Bearer {githubToken}''',
+            "Content-type": "application/vnd.github+json"
+        }
+        data = {
+            "message": "http://code.cu.ac.kr/status/"+ request.GET["id"], # Put your commit message here.
+            "content": encoded.decode("utf-8")
+        }
+        r = requests.put(githubAPIURL, headers=headers, json=data)
+        return self.success(r.text)

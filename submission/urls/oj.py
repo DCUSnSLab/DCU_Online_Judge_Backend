@@ -1,6 +1,6 @@
 from django.conf.urls import url
 
-from ..views.oj import SubmissionAPI, SubmissionListAPI, ContestSubmissionListAPI, SubmissionExistsAPI, SubmissionLogAPI
+from ..views.oj import SubmissionAPI, SubmissionListAPI, ContestSubmissionListAPI, SubmissionExistsAPI, SubmissionLogAPI, GithubPushAPI
 
 urlpatterns = [
     url(r"^submission/?$", SubmissionAPI.as_view(), name="submission_api"),
@@ -8,4 +8,5 @@ urlpatterns = [
     url(r"^submissionslog/?$", SubmissionLogAPI.as_view(), name="submission_log_api"),
     url(r"^submission_exists/?$", SubmissionExistsAPI.as_view(), name="submission_exists"),
     url(r"^contest_submissions/?$", ContestSubmissionListAPI.as_view(), name="contest_submission_list_api"),
+    url(r"^githubpush/?$", GithubPushAPI.as_view(), name="github_push_api"),
 ]
