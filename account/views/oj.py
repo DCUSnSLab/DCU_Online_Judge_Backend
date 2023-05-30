@@ -35,7 +35,6 @@ from lecture.models import signup_class, Lecture
 from django.db.models import Count
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
 
-
 class UserProfileAPI(APIView):
     @method_decorator(ensure_csrf_cookie)
     def get(self, request, **kwargs):
@@ -631,3 +630,9 @@ class SSOAPI(CSRFExemptAPIView):
         except User.DoesNotExist:
             return self.error("User does not exist")
         return self.success({"username": user.username, "avatar": user.userprofile.avatar, "admin_type": user.admin_type})
+
+class GroupStudy(APIView):
+    def get(self, request):
+        print(request.data)
+        print('what')
+        return self.success()
