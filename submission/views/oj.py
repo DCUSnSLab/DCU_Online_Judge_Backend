@@ -3,7 +3,6 @@ import requests
 import base64
 
 import os
-from django.conf import settings
 from django.db.models import Q
 from account.decorators import login_required, check_contest_permission
 from contest.models import Contest, ContestStatus, ContestRuleType
