@@ -260,7 +260,6 @@ class GithubPushAPI(APIView):
         githubToken = request.GET.get("Githubtoken")
         code= request.GET.get("code")
         encoded = base64.b64encode(bytes(code, 'utf-8'))
-        git_dir = os.path.join(settings.GIT_PATH, "temp.txt")
         headers = {
             "Authorization": f'''Bearer {githubToken}''',
             "Content-type": "application/vnd.github+json"
