@@ -3,7 +3,6 @@ import requests
 import base64
 
 import os
-from django.conf import settings
 from django.db.models import Q
 from account.decorators import login_required, check_contest_permission
 from contest.models import Contest, ContestStatus, ContestRuleType
@@ -261,7 +260,6 @@ class GithubPushAPI(APIView):
         githubToken = request.GET.get("Githubtoken")
         code= request.GET.get("code")
         encoded = base64.b64encode(bytes(code, 'utf-8'))
-        git_dir = os.path.join(settings.GIT_PATH, "temp.txt")
         headers = {
             "Authorization": f'''Bearer {githubToken}''',
             "Content-type": "application/vnd.github+json"

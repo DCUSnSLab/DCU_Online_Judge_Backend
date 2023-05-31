@@ -135,9 +135,6 @@ AUTH_USER_MODEL = 'account.User'
 TEST_CASE_DIR = os.path.join(DATA_DIR, "test_case")
 LOG_PATH = os.path.join(DATA_DIR, "log")
 
-GIT_PATH = os.path.join(DATA_DIR, "git")
-
-
 AVATAR_URI_PREFIX = "/public/avatar"
 AVATAR_UPLOAD_DIR = f"{DATA_DIR}{AVATAR_URI_PREFIX}"
 
