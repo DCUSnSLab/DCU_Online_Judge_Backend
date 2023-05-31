@@ -32,7 +32,7 @@ urlpatterns = [
     url(r"^open_api_appkey/?$", OpenAPIAppkeyAPI.as_view(), name="open_api_appkey_api"),
     url(r"^sso?$", SSOAPI.as_view(), name="sso_api"),
     url(r"^userprogress?$", UserProgress.as_view(), name="userprogress_api"),
-    url(r"^groupstudy/?$", GroupStudy.as_view(), name="groupstudy_api")
+    url(r"^groupstudy/?$", GroupStudy.as_view(), name="groupstudy_api"),
     url(r"^profile_rankpoint?$", ProfileRankpointAPI.as_view(), name="user_rank_point"),
     url(r"^profile_ranktear?$", ProfileRanktearAPI.as_view(), name="user_rank_tear")
 ]
