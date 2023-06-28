@@ -9,7 +9,7 @@ from submission.models import Submission
 from ..serializers import PostListSerializer, PostDetailSerializer, CommentSerializer, PostListPushSerializer
 import openai
 
-OPENAI_API_KEY='use your own key'
+OPENAI_API_KEY='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'
 openai.api_key=OPENAI_API_KEY
 '''
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
@@ -226,9 +226,8 @@ class AIhelperAPI(APIView):
         messages.append({"role": "assistant", "content": f"{assistant_content}"})
         # delete code in answer when not
         if result != '0':
-            if assistant_content.choices[0].message.content.find("```") != -1 or assistant_content.choices[0].message.content.find("corrected code") != -1:
-                code_deleted_response=assistant_content.choices[0].message.content[:assistant_content.choices[0].message.content.find("```")]
-                code_deleted_response=code_deleted_response[:code_deleted_response.find("corrected code")] + "정답 코드는 보이지 않습니다."
-            else:
-                code_deleted_response=assistant_content.choices[0].message.content
+            code_deleted_response=assistant_content.choices[0].message.content[:assistant_content.choices[0].message.content.find("```")]
+            code_deleted_response=code_deleted_response[:code_deleted_response.find("corrected code")] + "정답 코드는 보이지 않습니다."
+        else:
+            code_deleted_response=assistant_content.choices[0].message.content
         return self.success(code_deleted_response)

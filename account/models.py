@@ -47,6 +47,8 @@ class User(AbstractBaseUser):
     open_api_appkey = models.TextField(null=True)
     is_disabled = models.BooleanField(default=False)
     is_allowed = models.BooleanField(default=False)
+    rank_point = models.IntegerField(default=False)
+    rank_tear = models.TextField(default="코생아")
 
     USERNAME_FIELD = "username"
     REQUIRED_FIELDS = []
@@ -130,3 +132,10 @@ class UserProfile(models.Model):
 
     class Meta:
         db_table = "user_profile"
+
+class GroupStudy(models.Model):
+    host_user = models.ForeignKey(User, on_delete=models.CASCADE)
+    room = models.TextField(null=True)
+    people_number = models.IntegerField(default=0)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    end_time = models.DateTimeField(null=True)
