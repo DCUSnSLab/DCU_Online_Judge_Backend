@@ -22,18 +22,18 @@ from utils.captcha import Captcha
 from utils.shortcuts import rand_str, img2base64, datetime2str
 from ..decorators import login_required
 from ..models import User, UserProfile, AdminType
+from submission.models import Submission
 from ..serializers import (ApplyResetPasswordSerializer, ResetPasswordSerializer,
                            UserChangePasswordSerializer, UserLoginSerializer,
                            UserRegisterSerializer, UsernameOrEmailCheckSerializer,
-                           RankInfoSerializer, UserChangeEmailSerializer, SSOSerializer, SignupSerializer, MainSignupSerializer)
+                           RankInfoSerializer, RankInfopointSerializer, UserChangeEmailSerializer, SSOSerializer, SignupSerializer, MainSignupSerializer)
 from ..serializers import (TwoFactorAuthCodeSerializer, UserProfileSerializer,
                            EditUserProfileSerializer, ImageUploadForm)
 from ..tasks import send_email_async
 
 from lecture.models import signup_class, Lecture
-from django.db.models import Max
+from django.db.models import Count
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
-
 
 class UserProfileAPI(APIView):
     @method_decorator(ensure_csrf_cookie)
@@ -531,6 +531,17 @@ class SessionManagementAPI(APIView):
         else:
             return self.error("Invalid session_key")
 
+class UserRankpointAPI(APIView):
+    def get(self, request):
+        rule_type = request.GET.get("rule")
+        if rule_type not in ContestRuleType.choices():
+            rule_type = ContestRuleType.ACM
+        rankpoint = User.objects.filter(admin_type=AdminType.REGULAR_USER, is_disabled__gt=False) \
+            .select_related("user")
+        if rule_type == ContestRuleType.ACM:
+            rankpoint = rankpoint.filter(problem_permission__gt=None).order_by("rank_point", "rank_tear")
+
+        return self.success(self.paginate_data(request, rankpoint, RankInfopointSerializer))
 
 class UserRankAPI(APIView):
     def get(self, request):
@@ -545,6 +556,32 @@ class UserRankAPI(APIView):
             profiles = profiles.filter(total_score__gt=0).order_by("-total_score")
         return self.success(self.paginate_data(request, profiles, RankInfoSerializer))
 
+class ProfileRankpointAPI(APIView):
+    def get(self, request):
+        user = User.objects.get(id=request.user.id)
+        filtered_submissions = Submission.objects.filter(username=user.username, result=0).values('problem_id').annotate(count=Count('problem_id')).filter(count=1)
+        count = len(filtered_submissions)
+        user.rank_point = count
+        if count < 5:
+            user.rank_tear = "코생아"
+        elif count < 15:
+            user.rank_tear = "코린이"
+        elif count < 40:
+            user.rank_tear = "개발자"
+        elif count < 70:
+            user.rank_tear = "전문가"
+        elif count < 100:
+            user.rank_tear = "코딩왕"
+        elif count < 200:
+            user.rank_tear = "코딩신"
+        user.save()
+        return self.success(count)
+
+class ProfileRanktearAPI(APIView):
+    def get(self, request):
+        user = User.objects.get(id=request.user.id)
+        tear = user.rank_tear
+        return self.success(tear)
 
 class ProfileProblemDisplayIDRefreshAPI(APIView):
     @login_required
@@ -593,3 +630,9 @@ class SSOAPI(CSRFExemptAPIView):
         except User.DoesNotExist:
             return self.error("User does not exist")
         return self.success({"username": user.username, "avatar": user.userprofile.avatar, "admin_type": user.admin_type})
+
+class GroupStudy(APIView):
+    def get(self, request):
+        print(request.data)
+        print('what')
+        return self.success()
