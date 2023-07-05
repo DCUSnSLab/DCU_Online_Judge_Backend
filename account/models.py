@@ -31,7 +31,7 @@ class User(AbstractBaseUser):
     email = models.TextField(null=True)
     create_time = models.DateTimeField(auto_now_add=True, null=True)
     # for Student
-    schoolssn = models.IntegerField(default=0)
+    schoolssn = models.TextField(null=True)
     # One of UserType
     admin_type = models.TextField(default=AdminType.REGULAR_USER)
     problem_permission = models.TextField(default=ProblemPermission.NONE)
