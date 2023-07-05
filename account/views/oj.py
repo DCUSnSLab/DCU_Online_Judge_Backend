@@ -378,9 +378,25 @@ class UserRegisterAPI(APIView):
         except:
             print("no matching singup_class")
 
+        """
+           2023-07-05 every-coding 모든 교재 실습 활성화 기능 개선
+           lecture의 모든 과목 값을 구해 오고 가입한 유저의 값과 함께
+           lecture_signup_class에 isallow가 True인 값을 생성한다.
+        """
+        try:
+            print("try")
+            lecture_list = Lecture.objects.all()
+            print(lecture_list)
+            for lecture in lecture_list:
+                register = signup_class.objects.create(lecture=lecture, user=user, status=False, isallow=True)
+
+        except:
+            print("no registering singup_class")
+
         user.set_password(data["password"])
         user.save()
         UserProfile.objects.create(user=user)
+
         return self.success("Succeeded")
 
 
