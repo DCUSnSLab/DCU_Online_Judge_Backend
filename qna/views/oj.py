@@ -212,19 +212,22 @@ class AIhelperAPI(APIView):
     def get(self, request):
         # get code form submission data
         # print('AIhelperAPI called')
-        id = request.GET.get("id")
-        code = request.GET.get("code") + "\n이 코드에 문제가 뭐야?"
-        content = request.GET.get("content")
+        result = request.GET.get("result")
+        if result == '0':
+            code = request.GET.get("code") + "\n이 코드를 최적화하고 가독성을 높여줘."
+        elif result == '8':
+            code = request.GET.get("code") + "\n이 다음 코드의 동작을 분석해서 논리 오류를 알려줘."
+        else:
+            code = request.GET.get("code") + "\n이 코드에서 오류를 찾아서 알려줘."
+
         messages = [{"role": "user", "content": code}]
         # send chatGPT and get answer
         assistant_content = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
         messages.append({"role": "assistant", "content": f"{assistant_content}"})
         # delete code in answer when not
-        print(request.GET.get("status"))
-        if request.GET.get("status") != "success":
-            if assistant_content.choices[0].message.content.find("```") != -1 or assistant_content.choices[0].message.content.find("corrected code") != -1:
-                code_deleted_response=assistant_content.choices[0].message.content[:assistant_content.choices[0].message.content.find("```")]
-                code_deleted_response=code_deleted_response[:code_deleted_response.find("corrected code")] + "정답 코드는 보이지 않습니다."
-            else:
-                code_deleted_response=assistant_content.choices[0].message.content
+        if result != '0':
+            code_deleted_response=assistant_content.choices[0].message.content[:assistant_content.choices[0].message.content.find("```")]
+            code_deleted_response=code_deleted_response[:code_deleted_response.find("corrected code")] + "정답 코드는 보이지 않습니다."
+        else:
+            code_deleted_response=assistant_content.choices[0].message.content
         return self.success(code_deleted_response)
