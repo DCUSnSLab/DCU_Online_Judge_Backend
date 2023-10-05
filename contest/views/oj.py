@@ -322,7 +322,7 @@ class ContestTimeOverExitAPI(APIView):  # working by soojung (대회 시간 종�
         user = User.objects.get(id=user_id)
         # if not contest_id:
         #     return self.error("Invalid parameter, contest_id is required")
-
+        print('ContestTimeOverExitAPI called')
         if user.is_student() or user.is_semi_admin():
             if ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).exists():
                 if contest.status == ContestStatus.CONTEST_ENDED:  # 시험 시간이 종료된 경우
@@ -331,6 +331,7 @@ class ContestTimeOverExitAPI(APIView):  # working by soojung (대회 시간 종�
                         ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).update(end_time=contest.end_time)
                         return self.success("시험 종료, 퇴실 완료")
         return self.success()
+
 
 class ContestScoreInfoAPI(APIView): # working by soojung (대회 내 학생 점수 정보 API)
     def get(self, request):

@@ -133,8 +133,10 @@ class ContestExitInfoAPI(APIView):     # working by soojung
         if not contest_id:
             return self.error("Invalid parameter, contest_id is required")
         try:
-            if user.is_student() or user.is_semi_admin():
+            # if user.is_student() or user.is_semi_admin():
+            if user.is_student():
                 CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+                print(CU)
                 if CU:
                     if CU.start_time is None:
                         ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).update(start_time=now())
