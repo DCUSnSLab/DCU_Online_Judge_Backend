@@ -26,3 +26,4 @@ urlpatterns = [
 	url(r"^api/", include("heartbeat.urls")),
     url(r"^api/", include("qna.urls.oj")),
 ]
+

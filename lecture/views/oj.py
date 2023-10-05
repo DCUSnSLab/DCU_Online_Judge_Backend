@@ -16,9 +16,9 @@ class LectureAPI(APIView):
         data = request.data
         contestID = data.get("contestID")
         if contestID:
-            lectrue = Contest.objects.get(id=contestID)
-            lectrue = lectrue.lecture.id
-            return self.success(lectrue)
+            lecture = Contest.objects.get(id=contestID)
+            lecture = lecture.lecture.id
+            return self.success(lecture)
         return self.error()
 
     def get(self, request):
@@ -49,6 +49,21 @@ class ContestExitInfoListAPI(APIView):  # 수강 과목 내 학생 목록에서 
         except:
             return self.error("Contest %s doesn't exist" % user.id)
 
+
+class CheckingAIhelperFlagAPI (APIView):
+    def post(self, request):
+        data = request.data
+        contestID = data.get("contestID")
+        if contestID:
+            lecture = Contest.objects.get(id=contestID)
+            if lecture.lecture_contest_type=="대회":
+                aihelperflag = False
+                return self.success(aihelperflag)
+            lecture = lecture.lecture.id
+            aihelperflag = Lecture.objects.get(id=lecture)
+            aihelperflag = aihelperflag.aihelper_status
+            return self.success(aihelperflag)
+        return self.error()
 
 class LectureListAPI(APIView):
     def get(self, request):
