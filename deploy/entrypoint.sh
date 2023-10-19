@@ -1,5 +1,7 @@
 #!/bin/sh
 
+echo "entrypoint start"
+
 APP=/app
 DATA=/data
 
