@@ -7,7 +7,11 @@ from django.db.models import Q
 from contest.models import Contest
 from submission.models import Submission
 from ..serializers import PostListSerializer, PostDetailSerializer, CommentSerializer, PostListPushSerializer
+import openai
+import os
 
+OPENAI_API_KEY=os.environ.get('OPENAI_API_KEY')
+openai.api_key=OPENAI_API_KEY
 '''
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
     date_posted = models.DateTimeField(default=timezone.now)
@@ -205,3 +209,26 @@ class QnAPostAPI(APIView):
                 PostList = Post.objects.filter(contest__lecture=lecture, solved=visible).order_by("-date_posted")
                 return self.success(self.paginate_data(request, PostList, PostListSerializer))
 
+class AIhelperAPI(APIView):
+    def get(self, request):
+        # get code form submission data
+        # print('AIhelperAPI called')
+        result = request.GET.get("result")
+        if result == '0':
+            code = request.GET.get("code") + "\n이 코드를 최적화하고 가독성을 높여줘."
+        elif result == '8':
+            code = request.GET.get("code") + "\n이 다음 코드의 동작을 분석해서 논리 오류를 알려줘."
+        else:
+            code = request.GET.get("code") + "\n이 코드에서 오류를 찾아서 알려줘."
+
+        messages = [{"role": "user", "content": code}]
+        # send chatGPT and get answer
+        assistant_content = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
+        messages.append({"role": "assistant", "content": f"{assistant_content}"})
+        # delete code in answer when not
+        if result != '0':
+            code_deleted_response=assistant_content.choices[0].message.content[:assistant_content.choices[0].message.content.find("```")]
+            code_deleted_response=code_deleted_response[:code_deleted_response.find("corrected code")] + "정답 코드는 보이지 않습니다."
+        else:
+            code_deleted_response=assistant_content.choices[0].message.content
+        return self.success(code_deleted_response)

@@ -228,6 +228,7 @@ class ProblemAPI(ProblemBase):
 
     # @problem_permission_required
     def get(self, request):
+        print("get() called")
         problem_id = request.GET.get("id")
         rule_type = request.GET.get("rule_type")
         showPublic = request.GET.get("showPublic")
@@ -246,8 +247,8 @@ class ProblemAPI(ProblemBase):
             problems = Problem.objects.all().order_by("-create_time")
             if not request.user.is_super_admin():
                 problems = Problem.objects.filter(contest__private=False)
-        else:
-            problems = Problem.objects.filter(contest__created_by__id=user.id)
+            else:
+                problems = Problem.objects.filter(contest__created_by__id=user.id)
 
         if rule_type:
             if rule_type not in ProblemRuleType.choices():
@@ -262,8 +263,8 @@ class ProblemAPI(ProblemBase):
                 problems = problems.filter(Q(contest__lecture__title__icontains=keyword) | Q(_id__icontains=keyword))
             else:
                 problems = problems.filter(Q(title__icontains=keyword) | Q(_id__icontains=keyword))
-        # if not user.can_mgmt_all_problem(): # 20200316 권한 별 문제 출력 결과가 상이하여 일시적으로 비활성화 하였음
-        #     problems = problems.filter(created_by=user)
+        #if not user.can_mgmt_all_problem(): # 20200316 권한 별 문제 출력 결과가 상이하여 일시적으로 비활성화 하였음
+        #    problems = problems.filter(created_by=user)
         return self.success(self.paginate_data(request, problems, ProblemAdminSerializer))
 
     @problem_permission_required
@@ -451,8 +452,8 @@ class ContestProblemAPI(ProblemBase):
             return self.error("Problem does not exists")
         ensure_created_by(problem.contest, request.user)
         if Submission.objects.filter(problem=problem).exists():
-            return self.error("Can't delete the problem as it has submissions")
-
+            Submission.objects.filter(problem=problem).delete()
+            return self.error("관련 제출물이 삭제되었습니다. 문제도 삭제하시려면 삭제버튼을 한번 더 눌러주세요.")
         #d = os.path.join(settings.TEST_CASE_DIR, problem.test_case_id)
         #if os.path.isdir(d):
         #    shutil.rmtree(d, ignore_errors=True)

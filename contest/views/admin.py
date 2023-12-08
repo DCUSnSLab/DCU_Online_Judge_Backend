@@ -17,7 +17,8 @@ from utils.constants import CacheKey
 from utils.shortcuts import rand_str
 from utils.tasks import delete_files
 from problem.models import Problem
-from lecture.models import Lecture, ta_admin_class
+from lecture.models import Lecture, ta_admin_class, signup_class
+from contest.models import ContestUser
 from ..models import Contest, ContestAnnouncement, ACMContestRank
 from ..serializers import (ContestAnnouncementSerializer, ContestAdminSerializer,
                            CreateContestSeriaizer, CreateContestAnnouncementSerializer,
@@ -45,11 +46,13 @@ class ContestAPI(APIView):
         data = request.data
         data["start_time"] = dateutil.parser.parse(data["start_time"])
         data["end_time"] = dateutil.parser.parse(data["end_time"])
+
         if data["lecture_id"] is None: # 해당 Contest가 개설과목에 소속되지 않은 경우
             data["created_by"] = request.user # 요청한 사용자의 id를 created_by에 넣는다.
         else: # 특정 개설과목 하위 목록에서 Create를 통해 Contest를 생성한 경우,
             lecture = Lecture.objects.get(id=data["lecture_id"])
             data["created_by"] = lecture.created_by # 해당 개설과목을 생성한 사용자의 user id를 추가한다.
+
         if data["end_time"] <= data["start_time"]:
             return self.error("Start time must occur earlier than end time")
         if data.get("password") and data["password"] == "":
@@ -60,6 +63,18 @@ class ContestAPI(APIView):
             except ValueError:
                 return self.error(f"{ip_range} is not a valid cidr network")
         contest = Contest.objects.create(**data)
+        if data["lecture_contest_type"] == '대회':  # 해당 과목 내 모든 학생에 대한 tuple 생성
+            contest_id = Contest.objects.latest('id')
+            # print('wowowowow')
+            # print(data["lecture_id"])
+            # print(contest_id)
+            # print('wowowowow')
+            students = signup_class.objects.filter(lecture_id=data["lecture_id"], isallow=True, schoolssn__isnull=False)
+            # print('wowwow')
+            # print(students)
+            # print('wowowowow')
+            for student in students:
+                ContestUser.objects.create(contest_id=contest_id.id, user_id=student.user_id, start_time=None, end_time=None)
         return self.success(ContestAdminSerializer(contest).data)
 
     @validate_serializer(EditContestSeriaizer)

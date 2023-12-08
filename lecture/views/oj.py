@@ -6,17 +6,19 @@ from utils.shortcuts import datetime2str, check_is_id
 from utils.api import APIView
 
 from account.models import User
+from contest.models import ContestUser
 from ..models import Lecture, signup_class, ta_admin_class
 from ..serializers import LectureSerializer, SignupClassSerializer
+from problem.serializers import ContestExitSerializer
 
 class LectureAPI(APIView):
     def post(self, request):
         data = request.data
         contestID = data.get("contestID")
         if contestID:
-            lectrue = Contest.objects.get(id=contestID)
-            lectrue = lectrue.lecture.id
-            return self.success(lectrue)
+            lecture = Contest.objects.get(id=contestID)
+            lecture = lecture.lecture.id
+            return self.success(lecture)
         return self.error()
 
     def get(self, request):
@@ -30,6 +32,38 @@ class LectureAPI(APIView):
         data = LectureSerializer(lecture).data
         data["now"] = datetime2str(now())
         return self.success(data)
+
+class ContestExitInfoListAPI(APIView):  # 수강 과목 내 학생 목록에서 시험 퇴실 여부 값 조회 목적
+    def get(self, request):
+        print("ContestExitInfoListAPI called")
+        contest_id = request.GET.get("contest_id")
+        user_id = request.GET.get("user_id")
+        if not contest_id:
+            return self.error("Invalid parameter, contest_id is required")
+        try:
+            CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+            if CU:
+                return self.success(ContestExitSerializer(CU).data)
+            else:
+                return self.success()
+        except:
+            return self.error("Contest %s doesn't exist" % user.id)
+
+
+class CheckingAIhelperFlagAPI (APIView):
+    def post(self, request):
+        data = request.data
+        contestID = data.get("contestID")
+        if contestID:
+            lecture = Contest.objects.get(id=contestID)
+            if lecture.lecture_contest_type=="대회":
+                aihelperflag = False
+                return self.success(aihelperflag)
+            lecture = lecture.lecture.id
+            aihelperflag = Lecture.objects.get(id=lecture)
+            aihelperflag = aihelperflag.aihelper_status
+            return self.success(aihelperflag)
+        return self.error()
 
 class LectureListAPI(APIView):
     def get(self, request):

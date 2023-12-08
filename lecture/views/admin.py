@@ -14,7 +14,7 @@ from django.db.models import Q, Max
 
 from .LectureAnalysis import lecDispatcher
 from .LectureBuilder import UserBuilder
-from contest.models import Contest
+from contest.models import Contest, ContestUser
 from ..models import Lecture, signup_class, ta_admin_class
 from ..serializers import (CreateLectureSerializer, EditLectureSerializer, LectureAdminSerializer, LectureSerializer, TAAdminSerializer, EditTAuserSerializer, PermitTA, )
 from account.models import User, AdminType
@@ -30,7 +30,6 @@ class LectureAPI(APIView):
             lecture = Lecture.objects.create(**data)
             signup_class.objects.create(lecture=lecture, user=proxy_user, status=False,
                                         isallow=True)  # 수강 과목 생성 시, 본인이 생성한 수강과목에 대해 별도의 수강신청 없이 접근할 수 있도록
-
         else:
             data["created_by"] = request.user
             lecture = Lecture.objects.create(**data)
@@ -67,6 +66,7 @@ class LectureAPI(APIView):
 
     def get(self, request):
         lecture_id = request.GET.get("id")
+
         if lecture_id:
             try:
                 lecture = Lecture.objects.get(id=lecture_id)
@@ -90,6 +90,7 @@ class LectureAPI(APIView):
             lectures = tauser_lec
 
         keyword = request.GET.get("keyword")
+
         if keyword:
             lectures = lectures.filter(title__contains=keyword)
 
@@ -187,8 +188,8 @@ class AdminLectureApplyAPI(APIView):
     def put(self, request):
         data = request.data
         try:
-            print("Try")
-            lectures = signup_class.objects.filter(lecture__id=data['lectureID'])
+            print("Try asdfljkawsjdlaiwjxeglawsdjg")
+            lectures = signup_class.objects.filter(lecture__id=data['lectureId'])
             lid = -1
             total = lectures.count()
             cnt = 0
@@ -228,16 +229,16 @@ class AdminLectureApplyAPI(APIView):
                 print("(", cnt, "/", total, ")", lec.lecture_id, lec.id, lec.user.realname, lec.user.username,
                       lec.lecture.title, 'Completedd')
 
-        except:
+        except Exception as e:
             print("exception")
+            print(traceback.format_exc())
 
         return self.success()
 
     def post(self, request):
         data = request.data
 
-        if data.get("lecture_id") and data.get\
-                    ("user_id"):
+        if data.get("lecture_id") and data.get("user_id"):
             appy = signup_class.objects.get(lecture_id=data.get("lecture_id"), user_id=data.get("user_id"))
             #print(appy)
             appy.isallow = True
@@ -248,6 +249,11 @@ class AdminLectureApplyAPI(APIView):
             ub.buildLecture(lectures) # 이하동일
             #print("modified")
 
+            contests = Contest.objects.filter(lecture_id=data.get("lecture_id"), lecture_contest_type="대회")
+            if contests.exists():
+                for contest in contests:
+                    ContestUser.objects.create(contest_id=contest.id, user_id=data.get("user_id"), start_time=None, end_time=None)
+
         return self.success()
 
     def delete(self, request):
@@ -257,8 +263,14 @@ class AdminLectureApplyAPI(APIView):
         if id:
             print("test")
             if lecture_id:
+                # 과목 삭제 시, ContestUser 내 해당 과목의 대회와 관련된 행 삭제 (working)
+                # sc = signup_class.objects.get(id=id, contest=contest_Id)
+                # user_id = sc.user_id
                 signup_class.objects.filter(id=id, lecture=lecture_id).delete()
             elif contest_Id:
+                sc = signup_class.objects.get(id=id, contest=contest_Id)
+                user_id = sc.user_id
+                ContestUser.objects.filter(user_id=user_id, contest_id=contest_Id).delete()
                 signup_class.objects.filter(id=id, contest=contest_Id).delete()
             return self.success()
 
@@ -267,7 +279,6 @@ class AdminLectureApplyAPI(APIView):
 class WaitStudentAddAPI(APIView):
     def post(self, request):
         data = request.data
-        print(type(data))
         if data["users"][0][0] == 'contestId':
             print('contest signup')
             lecture_id = data["users"][0][1]
@@ -285,7 +296,6 @@ class WaitStudentAddAPI(APIView):
                     except:
                         signup_class.objects.create(contest_id=lecture_id, user_id=None, isallow=False,
                                                     realname=user[1], schoolssn=user[0])
-
                         try:  # 기존 회원가입한 사용자 중, 등록한 학번과 동일한 학번을 가진 사용자를 가져온다.
                             user = User.objects.get(realname=user[1], schoolssn=user[0])
                             signuplist = signup_class.objects.filter(schoolssn=user.schoolssn, contest_id=lecture_id)
@@ -293,7 +303,8 @@ class WaitStudentAddAPI(APIView):
                                 signup.user = user
                                 signup.isallow = True
                                 signup.save()
-
+                            if not ContestUser.objects.filter(contest_id=lecture_id, user_id=user.id):
+                                ContestUser.objects.create(contest_id=lecture_id, user_id=user.id, start_time=None, end_time=None)
                             ub = UserBuilder(None)
                             ub.buildLecture(signup.select_related('contest').order_by('contest'))
                         except:
@@ -326,6 +337,8 @@ class WaitStudentAddAPI(APIView):
 
                             ub = UserBuilder(None)
                             ub.buildLecture(signup.select_related('lecture').order_by('lecture'))
+                            # ContestUser.objects.create(contest_id=data["users"][0][0], user_id=user.id, start_time=None,
+                            #                            end_time=None)
                         except:
                             print("no matching user")
 

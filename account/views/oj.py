@@ -13,7 +13,7 @@ from otpauth import OtpAuth
 
 from lecture.views.LectureBuilder import UserBuilder
 from problem.models import Problem
-from contest.models import Contest
+from contest.models import Contest, ContestUser
 from utils.shortcuts import send_email
 from utils.constants import ContestRuleType
 from options.options import SysOptions
@@ -31,6 +31,7 @@ from ..serializers import (TwoFactorAuthCodeSerializer, UserProfileSerializer,
 from ..tasks import send_email_async
 
 from lecture.models import signup_class, Lecture
+from contest.models import Contest, ContestUser  # working by soojung
 from django.db.models import Max
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
 
@@ -66,7 +67,8 @@ class UserProfileAPI(APIView):
 
         for k, v in data.items():
             setattr(user_profile, k, v)
-        user.realname = data['realname']
+        if data['realname']:
+            user.realname = data['realname']
         #test = User.objects.filter(schoolssn=data['schoolssn']).exclude(schoolssn=user.schoolssn).exists()
         if User.objects.filter(schoolssn=data['schoolssn']).exclude(schoolssn=user.schoolssn).exists():
             return self.error("중복된 학번입니다.")
@@ -288,6 +290,14 @@ class UserLoginAPI(APIView):
 
 class UserLogoutAPI(APIView):
     def get(self, request):
+        userID = request.user.id
+        if request.user.is_student():
+            if ContestUser.objects.filter(user_id=userID, end_time__isnull=True).exists(): # working by soojung
+                ContestUser.objects.filter(user_id=userID, end_time__isnull=True).update(end_time=now())
+            # contestlog_list = []
+            # contestlog_list.append(ContestUser.objects.filter(user_id=userID, end_time__isnull=True))
+            # print(contestlog_list)
+            # auth.logout(request)
         auth.logout(request)
         return self.success()
 
