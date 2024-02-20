@@ -28,8 +28,8 @@ node {
     }
 
     stage('Kubernetes deploy') {
-        sh "kubectl delete -f /services/dcucoding/oj-backend_con.yaml -n everycoding"
-        sh "kubectl apply -f /services/dcucoding/oj-backend_con.yaml -n everycoding"
+        sh "kubectl delete -f /services/dcucoding/ec-backend_con.yaml -n everycoding"
+        sh "kubectl apply -f /services/dcucoding/ec-backend_con.yaml -n everycoding"
     }
 
     stage('Complete') {
