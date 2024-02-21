@@ -28,8 +28,8 @@ node {
     }
 
     stage('Kubernetes deploy') {
-        sh "kubectl delete -f /services/dcucode/oj-backend_only_con.yaml -n dcucode"
-        sh "kubectl apply -f /services/dcucode/oj-backend_only_con.yaml -n dcucode"
+        sh "kubectl delete -f /services/dcucode/oj-backend_only_con.yaml -n dcucode-test"
+        sh "kubectl apply -f /services/dcucode/oj-backend_only_con.yaml -n dcucode-test"
     }
 
     stage('Complete') {
