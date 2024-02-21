@@ -259,7 +259,8 @@ class CheckTFARequiredAPI(APIView):
         return self.success({"result": result})
 
 
-class UserLoginAPI(APIView):
+class UserLoginAPI(CSRFExemptAPIView):
+    @method_decorator(csrf_exempt)
     @validate_serializer(UserLoginSerializer)
     def post(self, request):
         """
