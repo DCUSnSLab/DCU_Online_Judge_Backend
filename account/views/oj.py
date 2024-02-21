@@ -260,6 +260,7 @@ class CheckTFARequiredAPI(APIView):
 
 
 class UserLoginAPI(APIView):
+    @method_decorator(csrf_exempt)
     @validate_serializer(UserLoginSerializer)
     def post(self, request):
         """
