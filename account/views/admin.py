@@ -172,12 +172,15 @@ class UserAdminAPI(APIView):
         print("ADMIN :", admin_type)
 
         if admin_type is not None: # 프론트엔드의 Lecture.vue 파일에서 호출하는 경우
-            if request.user.is_super_admin():
+            if request.user.is_super_admin(): #관리자는 교수,관리자 모두 출력
                 print("if request.user.is_super_admin  ():")
 
                 adminuserlist = User.objects.filter(admin_type=admin_type) | User.objects.filter(admin_type='Super Admin')
-
                 #adminuserlist = User.objects.all()
+                return self.success(self.paginate_data(request, adminuserlist, UserAdminSerializer))
+
+            elif request.user.is_admin(): #사용자권한이 교수일때, 본인만 출력
+                adminuserlist = User.objects.filter(id=request.user.id)
                 return self.success(self.paginate_data(request, adminuserlist, UserAdminSerializer))
 
         elif contest_id:
