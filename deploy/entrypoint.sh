@@ -42,9 +42,9 @@ fi
 if [ -z "$MAX_WORKER_NUM" ]; then
     export CPU_CORE_NUM=$(grep -c ^processor /proc/cpuinfo)
     if [[ $CPU_CORE_NUM -lt 2 ]]; then
-        export MAX_WORKER_NUM=2
+        export MAX_WORKER_NUM=6
     else
-        export MAX_WORKER_NUM=4 #$(($CPU_CORE_NUM))
+        export MAX_WORKER_NUM=6 #$(($CPU_CORE_NUM))
     fi
 fi
 
