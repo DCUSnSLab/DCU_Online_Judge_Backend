@@ -250,3 +250,19 @@ class SubmissionExistsAPI(APIView):
         return self.success(request.user.is_authenticated and
                             Submission.objects.filter(problem_id=request.GET["problem_id"],
                                                       user_id=request.user.id).exists())
+class GithubPushAPI(APIView):
+    def get(self, request):
+        githubAPIURL = "https://api.github.com/repos/"+ request.GET["GithubID"] +"/" + request.GET["GithubRepo"] + "/contents/"+request.GET["id"]+".txt"
+        githubToken = request.GET.get("Githubtoken")
+        code= request.GET.get("code")
+        encoded = base64.b64encode(bytes(code, 'utf-8'))
+        headers = {
+            "Authorization": f'''Bearer {githubToken}''',
+            "Content-type": "application/vnd.github+json"
+        }
+        data = {
+            "message": "http://code.cu.ac.kr/status/"+ request.GET["id"], # Put your commit message here.
+            "content": encoded.decode("utf-8")
+        }
+        r = requests.put(githubAPIURL, headers=headers, json=data)
+        return self.success(r.text)
