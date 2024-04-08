@@ -105,6 +105,24 @@ class SubmissionAPI(APIView):
                                                    ip=request.session["ip"],
                                                    contest_id=data.get("contest_id"),
                                                    lecture_id=None)
+        try:
+            if data["sample_test"]:
+                submissionResultData = JudgeDispatcher(submission.id, problem.id).judge()
+                outputResultData = []
+                if isinstance(submissionResultData, list):
+                    for i in range(data["sample_count"]):
+                        outputResultData.append({
+                            "output": submissionResultData[i].get('output'),
+                            "result": submissionResultData[i].get('result')
+                        })
+                else:
+                    outputResultData.append({
+                        "output": submissionResultData,
+                        "result": 4
+                    })
+                return self.success({"submission_id": submission.id, "outputResultData": outputResultData})
+        except (Exception,):
+            pass
         # use this for debug
         JudgeDispatcher(submission.id, problem.id).judge()
         #judge_task.send(submission.id, problem.id)

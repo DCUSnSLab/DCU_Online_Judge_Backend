@@ -28,7 +28,7 @@ from ..serializers import (CreateContestProblemSerializer, CompileSPJSerializer,
                            ProblemAdminSerializer, TestCaseUploadForm, ContestProblemMakePublicSerializer,
                            AddContestProblemSerializer, ExportProblemSerializer,
                            ExportProblemRequestSerialzier, UploadProblemForm, ImportProblemSerializer,
-                           FPSProblemSerializer)
+                           FPSProblemSerializer, TestCaseNameSerializer)
 from ..utils import TEMPLATE_BASE, build_problem_template
 import logging
 
@@ -51,7 +51,8 @@ class TestCaseZipProcessor(object):
 
         size_cache = {}
         md5_cache = {}
-
+        inputOutputData = {}
+      
         for item in test_case_list:
             with open(os.path.join(test_case_dir, item), "wb") as f:
                 content = zip_file.read(f"{dir}{item}").replace(b"\r\n", b"\n")
@@ -59,6 +60,7 @@ class TestCaseZipProcessor(object):
                 if item.endswith(".out"):
                     md5_cache[item] = hashlib.md5(content.rstrip()).hexdigest()
                 f.write(content)
+                inputOutputData[item] = str(content)[2:-1]
         test_case_info = {"spj": spj, "test_cases": {}}
 
         info = []
@@ -76,7 +78,9 @@ class TestCaseZipProcessor(object):
                         "input_size": size_cache[item[0]],
                         "output_size": size_cache[item[1]],
                         "input_name": item[0],
-                        "output_name": item[1]}
+                        "output_name": item[1],
+                        "inputData": inputOutputData[item[0]],
+                        "outputData": inputOutputData[item[1]]}
                 info.append(data)
                 test_case_info["test_cases"][str(index + 1)] = data
 
@@ -134,6 +138,25 @@ class TestCaseAPI(CSRFExemptAPIView, TestCaseZipProcessor):
         if not os.path.isdir(test_case_dir):
             return self.error("Test case does not exists")
         name_list = self.filter_name_list(os.listdir(test_case_dir), problem.spj)
+        if request.GET.get("test"):
+            sampleCount = int(request.GET.get("test"))
+            testCaseData = []
+            in_files = []
+            out_files = []
+            test_case_dir = test_case_dir + '/'
+            for fileName in name_list[0:sampleCount*2]:
+                if fileName.endswith('.in'):
+                    in_files.append(test_case_dir + fileName)
+                elif fileName.endswith('.out'):
+                    out_files.append(test_case_dir + fileName)
+            for in_file, out_file in zip(in_files, out_files):
+                d = {}
+                with open(in_file, "r") as f:
+                    d["inData"] = ''.join(f.readlines()).strip()
+                with open(out_file, "r") as f:
+                    d["outData"] = ''.join(f.readlines()).strip()
+                testCaseData.append(d)
+            return self.success({"list": testCaseData})
         name_list.append("info")
         file_name = os.path.join(test_case_dir, problem.test_case_id + ".zip")
         with zipfile.ZipFile(file_name, "w") as file:
@@ -143,7 +166,7 @@ class TestCaseAPI(CSRFExemptAPIView, TestCaseZipProcessor):
                                          content_type="application/octet-stream")
 
         response["Content-Disposition"] = f"attachment; filename=problem_{problem.id}_test_cases.zip"
-        response["Content-Length"] = os.path.getsize(file_name)
+        response["Content-Length"] = os.path.getsize(file_name)	
         return response
 
     def post(self, request):
@@ -162,6 +185,22 @@ class TestCaseAPI(CSRFExemptAPIView, TestCaseZipProcessor):
         return self.success({"id": test_case_id, "info": info, "spj": spj})
 
 
+class TestCaseDataAPI(APIView):
+    def get(self, request):
+        input_names = request.GET.get("input_name").split(',')
+        output_names = [name.replace('.in', '.out') for name in input_names]
+        test_case_id = request.GET.get("test_case_id")
+        test_case_dir = os.path.join(settings.TEST_CASE_DIR, test_case_id)
+        testCaseData = []
+        for in_file, out_file in zip(input_names, output_names):
+            d = {}
+            with open(test_case_dir + "/" + in_file, "r") as f:
+                d["inData"] = ''.join(f.readlines()).strip()
+            with open(test_case_dir + "/" + out_file, "r") as f:
+                d["outData"] = ''.join(f.readlines()).strip()
+            testCaseData.append(d)
+        return self.success({"testCaseData": testCaseData})
+
 class CompileSPJAPI(APIView):
     @validate_serializer(CompileSPJSerializer)
     def post(self, request):
@@ -172,6 +211,27 @@ class CompileSPJAPI(APIView):
             return self.error(error)
         else:
             return self.success()
+
+
+class TestCaseRenameAPI(APIView):
+    def put(self, request):
+        input_names = request.GET.get("input_name").split(',')
+        output_names = [name.replace('.in', '.out') for name in input_names]
+        test_case_id = request.GET.get("test_case_id")
+        test_case_dir = os.path.join(settings.TEST_CASE_DIR, test_case_id)
+        i = 1
+        for in_file, out_file in zip(input_names, output_names):
+            if str(i) + ".in" == in_file:
+                i = i + 1
+                continue
+            os.rename(test_case_dir + "/" + str(i) + ".in", test_case_dir + "/" + "temp.in")
+            os.rename(test_case_dir + "/" + in_file, test_case_dir + "/" + str(i) + ".in")
+            os.rename(test_case_dir + "/" + "temp.in", test_case_dir + "/" + in_file)
+            os.rename(test_case_dir + "/" + str(i) + ".out", test_case_dir + "/" + "temp.out")
+            os.rename(test_case_dir + "/" + out_file, test_case_dir + "/" + str(i) + ".out")
+            os.rename(test_case_dir + "/" + "temp.out", test_case_dir + "/" + out_file)
+            i = i + 1
+        return self.success()
 
 
 class ProblemBase(APIView):
