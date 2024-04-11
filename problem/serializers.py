@@ -22,6 +22,10 @@ class TestCaseUploadForm(forms.Form):
     file = forms.FileField()
 
 
+class TestCaseNameSerializer(serializers.Serializer):
+    input_name = serializers.ListField(child=serializers.CharField())
+    output_name = serializers.ListField(child=serializers.CharField())
+
 class CreateSampleSerializer(serializers.Serializer):
     input = serializers.CharField(trim_whitespace=False)
     output = serializers.CharField(trim_whitespace=False)
