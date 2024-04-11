@@ -22,8 +22,9 @@ node {
     //docker image를 push하는 stage, 필자는 dockerhub에 이미지를 올렸으나 보통 private image repo를 별도 구축해서 사용하는것이 좋음
     stage('Push image') {
         docker.withRegistry("https://harbor.cu.ac.kr", "harbor") {
+            sh "BUILD_NUMBER_1=$(expr ${env.BUILD_NUMBER} + 20)"
             app.push("latest")
-            app.push("${env.BUILD_NUMBER}")
+            app.push("${BUILD_NUMBER_1}")
         }
     }
 
