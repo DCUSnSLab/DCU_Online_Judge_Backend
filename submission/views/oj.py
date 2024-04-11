@@ -107,6 +107,7 @@ class SubmissionAPI(APIView):
                                                    ip=request.session["ip"],
                                                    contest_id=data.get("contest_id"),
                                                    lecture_id=None)
+        # run result return
         try:
             if data["sample_test"]:
                 submissionResultData = JudgeDispatcher(submission.id, problem.id).judge()
