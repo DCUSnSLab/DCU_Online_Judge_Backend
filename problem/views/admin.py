@@ -77,7 +77,7 @@ class TestCaseZipProcessor(object):
                         "input_size": size_cache[item[0]],
                         "output_size": size_cache[item[1]],
                         "input_name": item[0],
-                        "output_name": item[1],
+                        "output_name": item[1]}
                 info.append(data)
                 test_case_info["test_cases"][str(index + 1)] = data
 
@@ -199,6 +199,8 @@ class TestCaseRenameAPI(APIView):
         output_names = [name.replace('.in', '.out') for name in input_names]
         test_case_id = request.GET.get("test_case_id")
         test_case_dir = os.path.join(settings.TEST_CASE_DIR, test_case_id)
+        with open(test_case_dir + '/' + 'info', 'r') as f:
+            data = json.load(f)
         i = 1
         for in_file, out_file in zip(input_names, output_names):
             if str(i) + ".in" == in_file:
@@ -210,7 +212,16 @@ class TestCaseRenameAPI(APIView):
             os.rename(test_case_dir + "/" + str(i) + ".out", test_case_dir + "/" + "temp.out")
             os.rename(test_case_dir + "/" + out_file, test_case_dir + "/" + str(i) + ".out")
             os.rename(test_case_dir + "/" + "temp.out", test_case_dir + "/" + out_file)
+            temp = data['test_cases'][infile[0:-3]].copy()
+            data['test_cases'][infile[0:-3]]['stripped_output_md5'] = data['test_cases'][str(i)]['stripped_output_md5']
+            data['test_cases'][str(i)]['stripped_output_md5'] = temp['stripped_output_md5']
+            data['test_cases'][infile[0:-3]]['input_size'] = data['test_cases'][str(i)]['input_size']
+            data['test_cases'][str(i)]['input_size'] = temp['input_size']
+            data['test_cases'][infile[0:-3]]['output_size'] = data['test_cases'][str(i)]['output_size']
+            data['test_cases'][str(i)]['output_size'] = temp['output_size']
             i = i + 1
+        with open(test_case_dir + '/' + 'info', 'w') as f:
+            json.dump(data, f, indent=4)
         return self.success()
 
 
