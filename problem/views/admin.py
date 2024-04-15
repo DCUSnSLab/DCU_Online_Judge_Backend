@@ -213,11 +213,11 @@ class TestCaseRenameAPI(APIView):
             os.rename(test_case_dir + "/" + out_file, test_case_dir + "/" + str(i) + ".out")
             os.rename(test_case_dir + "/" + "temp.out", test_case_dir + "/" + out_file)
             temp = data['test_cases'][infile[0:-3]].copy()
-            data['test_cases'][infile[0:-3]]['stripped_output_md5'] = data['test_cases'][str(i)]['stripped_output_md5']
+            data['test_cases'][in_file[0:-3]]['stripped_output_md5'] = data['test_cases'][str(i)]['stripped_output_md5']
             data['test_cases'][str(i)]['stripped_output_md5'] = temp['stripped_output_md5']
-            data['test_cases'][infile[0:-3]]['input_size'] = data['test_cases'][str(i)]['input_size']
+            data['test_cases'][in_file[0:-3]]['input_size'] = data['test_cases'][str(i)]['input_size']
             data['test_cases'][str(i)]['input_size'] = temp['input_size']
-            data['test_cases'][infile[0:-3]]['output_size'] = data['test_cases'][str(i)]['output_size']
+            data['test_cases'][in_file[0:-3]]['output_size'] = data['test_cases'][str(i)]['output_size']
             data['test_cases'][str(i)]['output_size'] = temp['output_size']
             i = i + 1
         with open(test_case_dir + '/' + 'info', 'w') as f:
