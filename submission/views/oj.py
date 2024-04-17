@@ -114,13 +114,29 @@ class SubmissionAPI(APIView):
                 outputResultData = []
                 if isinstance(submissionResultData, list):
                     for i in range(data["sample_count"]):
-                        outputResultData.append({
-                            "output": submissionResultData[i].get('output'),
-                            "result": submissionResultData[i].get('result')
-                        })
-                else:
-                    outputResultData.append({
-                        "output": submissionResultData,
+                        if submissionResultData[i].get('result') == 4:
+                            outputData = submissionResultData[i].get('output')
+                            dirStartIndex = outputData.index('/judger')
+                            dirEndIndex = dirStartIndex+1
+                            for j in range(3):
+                                dirEndIndex = outputData.index('/', dirEndIndex)+1
+                            outputResultData.append({                                                             
+                                "output": outputData[:dirStartIndex]+outputData[dirEndIndex:],                        
+                                "result": submissionResultData[i].get('result')                                
+                            })
+                        else:
+                            outputResultData.append({
+                                "output": submissionResultData[i].get('output'),
+                                "result": submissionResultData[i].get('result')
+                            })
+                else:                                              
+                     outputData = submissionResultData
+                     dirStartIndex = outputData.index('/judger')                             
+                     dirEndIndex = dirStartIndex+1                                                             
+                     for j in range(3):                                                               
+                         dirEndIndex = outputData.index('/', dirEndIndex)+1 
+                     outputResultData.append({
+                        "output": outputData[:dirStartIndex]+outputData[dirEndIndex:],
                         "result": 4
                     })
                 return self.success({"submission_id": submission.id, "outputResultData": outputResultData})
