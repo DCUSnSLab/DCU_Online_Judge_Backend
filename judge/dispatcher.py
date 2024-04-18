@@ -145,7 +145,7 @@ class JudgeDispatcher(DispatcherBase):
             "max_cpu_time": self.problem.time_limit,
             "max_memory": 1024 * 1024 * self.problem.memory_limit,
             "test_case_id": self.problem.test_case_id,
-            "output": False,
+            "output": True,
             "spj_version": self.problem.spj_version,
             "spj_config": spj_config.get("config"),
             "spj_compile_config": spj_config.get("compile"),
@@ -202,6 +202,7 @@ class JudgeDispatcher(DispatcherBase):
 
         # 至此判题结束，尝试处理任务队列中剩余的任务
         process_pending_task()
+        return resp["data"]
 
     def updateLecturePersonalInfo(self):
         #try:

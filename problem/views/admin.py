@@ -51,7 +51,8 @@ class TestCaseZipProcessor(object):
 
         size_cache = {}
         md5_cache = {}
-
+        inputOutputData = {}
+      
         for item in test_case_list:
             with open(os.path.join(test_case_dir, item), "wb") as f:
                 content = zip_file.read(f"{dir}{item}").replace(b"\r\n", b"\n")
@@ -143,7 +144,7 @@ class TestCaseAPI(CSRFExemptAPIView, TestCaseZipProcessor):
                                          content_type="application/octet-stream")
 
         response["Content-Disposition"] = f"attachment; filename=problem_{problem.id}_test_cases.zip"
-        response["Content-Length"] = os.path.getsize(file_name)
+        response["Content-Length"] = os.path.getsize(file_name)	
         return response
 
     def post(self, request):
@@ -162,6 +163,23 @@ class TestCaseAPI(CSRFExemptAPIView, TestCaseZipProcessor):
         return self.success({"id": test_case_id, "info": info, "spj": spj})
 
 
+class TestCaseDataAPI(APIView):
+    def get(self, request):
+        request_input_names = request.GET.get("input_name").split(',')                      
+        input_names = sorted(request_input_names, key=lambda x: int(x.split('.')[0]))       
+        output_names = [name.replace('.in', '.out') for name in input_names] 
+        test_case_id = request.GET.get("test_case_id")
+        test_case_dir = os.path.join(settings.TEST_CASE_DIR, test_case_id)
+        testCaseData = []
+        for in_file, out_file in zip(input_names, output_names):
+            d = {}
+            with open(test_case_dir + "/" + in_file, "r") as f:
+                d["inData"] = ''.join(f.readlines()).strip()
+            with open(test_case_dir + "/" + out_file, "r") as f:
+                d["outData"] = ''.join(f.readlines()).strip()
+            testCaseData.append(d)
+        return self.success({"testCaseData": testCaseData})
+
 class CompileSPJAPI(APIView):
     @validate_serializer(CompileSPJSerializer)
     def post(self, request):
@@ -172,6 +190,39 @@ class CompileSPJAPI(APIView):
             return self.error(error)
         else:
             return self.success()
+
+
+class TestCaseRenameAPI(APIView):
+    def put(self, request):
+        request_input_names = request.GET.get("input_name").split(',')
+        input_names = sorted(request_input_names, key=lambda x: int(x.split('.')[0]))
+        output_names = [name.replace('.in', '.out') for name in input_names]
+        test_case_id = request.GET.get("test_case_id")
+        test_case_dir = os.path.join(settings.TEST_CASE_DIR, test_case_id)
+        with open(test_case_dir + '/' + 'info', 'r') as f:
+            data = json.load(f)
+        i = 1
+        for in_file, out_file in zip(input_names, output_names):
+            if str(i) + ".in" == in_file:
+                i = i + 1
+                continue
+            os.rename(test_case_dir + "/" + str(i) + ".in", test_case_dir + "/" + "temp.in")
+            os.rename(test_case_dir + "/" + in_file, test_case_dir + "/" + str(i) + ".in")
+            os.rename(test_case_dir + "/" + "temp.in", test_case_dir + "/" + in_file)
+            os.rename(test_case_dir + "/" + str(i) + ".out", test_case_dir + "/" + "temp.out")
+            os.rename(test_case_dir + "/" + out_file, test_case_dir + "/" + str(i) + ".out")
+            os.rename(test_case_dir + "/" + "temp.out", test_case_dir + "/" + out_file)
+            temp = data['test_cases'][in_file[0:-3]].copy()
+            data['test_cases'][in_file[0:-3]]['stripped_output_md5'] = data['test_cases'][str(i)]['stripped_output_md5']
+            data['test_cases'][str(i)]['stripped_output_md5'] = temp['stripped_output_md5']   
+            data['test_cases'][in_file[0:-3]]['input_size'] = data['test_cases'][str(i)]['input_size']
+            data['test_cases'][str(i)]['input_size'] = temp['input_size']              
+            data['test_cases'][in_file[0:-3]]['output_size'] = data['test_cases'][str(i)]['output_size']
+            data['test_cases'][str(i)]['output_size'] = temp['output_size'] 
+            i = i + 1
+        with open(test_case_dir + '/' + 'info', 'w') as f:
+            json.dump(data, f, indent=4)
+        return self.success()
 
 
 class ProblemBase(APIView):
