@@ -189,7 +189,7 @@ class JudgeDispatcher(DispatcherBase):
             if self.contest.status != ContestStatus.CONTEST_UNDERWAY or User.objects.get(id=self.submission.user_id).is_contest_admin(self.contest):
                 logger.info(
                     "Contest debug mode, id: " + str(self.contest_id) + ", submission id: " + self.submission.id)
-                return
+                return resp["data"]
             with transaction.atomic():
                 self.update_contest_problem_status()
                 self.update_contest_rank()
