@@ -296,17 +296,9 @@ class ProblemAPI(ProblemBase):
         #problems = Problem.objects.filter(contest_id__isnull=True).order_by("-create_time")
         if showPublic == 'true':
             problems = Problem.objects.all().order_by("-create_time")
-            if not request.user.is_super_admin():
-                problems = Problem.objects.filter(contest__private=False)
-            else:
-                problems = Problem.objects.filter(contest__created_by__id=user.id)
-
-        if rule_type:
-            if rule_type not in ProblemRuleType.choices():
-                return self.error("Invalid rule_type")
-            else:
-                problems = problems.filter(rule_type=rule_type)
-
+        else:
+            problems = Problem.objects.all().order_by("-create_time")
+            problems = problems.filter(contest_id__isnull=False)
         keyword = request.GET.get("keyword", "").strip()
 
         if keyword:
