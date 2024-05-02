@@ -299,8 +299,14 @@ class ProblemAPI(ProblemBase):
         else:
             problems = Problem.objects.all().order_by("-create_time")
             problems = problems.filter(contest_id__isnull=False)
-        keyword = request.GET.get("keyword", "").strip()
 
+        if rule_type:
+            if rule_type not in ProblemRuleType.choices():
+                return self.error("Invalid rule_type")
+            else:
+                problems = problems.filter(rule_type=rule_type)
+
+        keyword = request.GET.get("keyword", "").strip()
         if keyword:
             if searchType == '과목':
                 problems = problems.filter(Q(contest__lecture__title__icontains=keyword) | Q(_id__icontains=keyword))
