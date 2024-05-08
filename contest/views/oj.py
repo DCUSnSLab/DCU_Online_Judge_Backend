@@ -306,13 +306,15 @@ class ContestExitAPI(APIView):   # working by soojung (대회 퇴실 API)
         # if not contest_id:
         #     return self.error("Invalid parameter, contest_id is required")
         try:
-            if ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).exists():
-                user = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
-                if user.end_time is None:   # 퇴실 전
-                    ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).update(end_time=now())
-                    return self.success("퇴실 완료")
-        except:   # ContestUser 테이블 내 레코드가 존재하지 않는 경우
-            return self.error("User didn't approach Contest %s" % contest_id)
+            user = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+        except:
+            ContestUser.objects.create(contest_id=contest_id, user_id=user_id, end_time=now())
+            user = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+        if user.end_time is None:  # 퇴실 전
+            ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).update(end_time=now())
+            return self.success({"end_time": user.end_time})
+        else:
+            return self.error()
 
 class ContestTimeOverExitAPI(APIView):  # working by soojung (대회 시간 종료 시 자동 퇴실 API)
     def get(self, request):
