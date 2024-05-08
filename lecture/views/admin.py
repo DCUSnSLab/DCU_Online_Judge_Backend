@@ -250,9 +250,9 @@ class AdminLectureApplyAPI(APIView):
             #print("modified")
 
             contests = Contest.objects.filter(lecture_id=data.get("lecture_id"), lecture_contest_type="대회")
-            if contests.exists():
-                for contest in contests:
-                    ContestUser.objects.create(contest_id=contest.id, user_id=data.get("user_id"), start_time=None, end_time=None)
+            #if contests.exists():
+            #    for contest in contests:
+            #        ContestUser.objects.create(contest_id=contest.id, user_id=data.get("user_id"), start_time=None, end_time=None)
 
         return self.success()
 
@@ -303,8 +303,8 @@ class WaitStudentAddAPI(APIView):
                                 signup.user = user
                                 signup.isallow = True
                                 signup.save()
-                            if not ContestUser.objects.filter(contest_id=lecture_id, user_id=user.id):
-                                ContestUser.objects.create(contest_id=lecture_id, user_id=user.id, start_time=None, end_time=None)
+                            # if not ContestUser.objects.filter(contest_id=lecture_id, user_id=user.id):
+                            #    ContestUser.objects.create(contest_id=lecture_id, user_id=user.id, start_time=None, end_time=None)
                             ub = UserBuilder(None)
                             ub.buildLecture(signup.select_related('contest').order_by('contest'))
                         except:
