@@ -129,22 +129,27 @@ class ContestUserAPI(APIView):
                 except signup_class.DoesNotExist:
                     return self.error("수강중인 학생이 없습니다.")
                 # test
+                print("test")
                 LectureInfo = lecDispatcher()
                 cnt = 0
                 for us in ulist:
                     us.totalScore = 0
                     us.exit_status = False
-
+                    us.start_time = ''
+                    us.end_time = ''
                     if us.user is not None and us.isallow is True:
                         LectureInfo.fromDict(us.score)
                         # us.totalScore = LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id].Info.data[DataType.SCORE]
-                        # print(LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id])
-                        cu = ContestUser.objects.get(contest_id=contest_id, user_id=us.user)
-                        if cu.end_time is not None:
-                            us.exit_status = True
-                        else:
-                            us.exit_status = False
-                        print(us.exit_status)
+                        # print(LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id]
+                        try:
+                            cu = ContestUser.objects.get(contest_id=contest_id, user_id=us.user)
+                            if cu.end_time is not None:                                                                                   
+                                us.exit_status = True
+                                us.end_time = cu.end_time                                                                                            
+                            if cu.start_time is not None:
+                                us.start_time = cu.start_time
+                        except:
+                            pass 
 
                     cnt += 1
                 return self.success(self.paginate_data(request, ulist, contestSignupSerializer))
