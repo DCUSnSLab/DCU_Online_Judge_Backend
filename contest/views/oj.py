@@ -160,12 +160,15 @@ class ContestExitStudentAPI(APIView):
         data = request.data
 
         if data.get("contest_id") and data.get("user_id"):
-            CU = ContestUser.objects.get(contest_id=data.get("contest_id"), user_id=data.get("user_id"))
-            if CU.end_time is None:
-                CU.end_time = now()
-            else:
-                CU.end_time = None
-            CU.save()
+            try:
+                CU = ContestUser.objects.get(contest_id=data.get("contest_id"), user_id=data.get("user_id"))
+                if CU.end_time is None:
+                    CU.end_time = now()
+                else:
+                    CU.end_time = None
+                CU.save()
+            except:
+                ContestUser.objects.create(contest_id=data.get("contest_id"), user_id=data.get("user_id"), end_time=now())
         elif data.get("lec_stu_userID") and data.get("contest_id") :
             print("contest exit all student Called")
             lecStuUserID = data.get("lec_stu_userID").split(',')
@@ -173,7 +176,6 @@ class ContestExitStudentAPI(APIView):
             for userID in lecStuUserID:
                 try:
                     contestUserData = ContestUser.objects.get(contest_id=contestID, user_id=userID)
-                    print(contestUserData.end_time)
                     if contestUserData.end_time is None:                                                                                                   
                         contestUserData.end_time = now()
                         contestUserData.save()
