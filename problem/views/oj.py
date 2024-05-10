@@ -137,7 +137,11 @@ class ContestExitInfoAPI(APIView):     # working by soojung
         try:
             # if user.is_student() or user.is_semi_admin():
             if user.is_student():
-                CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+                try:
+                    CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+                except:
+                    ContestUser.objects.create(contest_id=contest_id, user_id=user_id)
+                    CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
                 print(CU)
                 if CU:
                     if CU.start_time is None:
