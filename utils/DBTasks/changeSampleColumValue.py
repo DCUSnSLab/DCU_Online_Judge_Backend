@@ -11,6 +11,8 @@ def changeValue():
         print("try get data")
         Problems = Problem.objects.all()
         print("problems Get")
+        successCount = 0
+        failCount = 0
         for problem in Problems:
             try:
                 test_case_dir = os.path.join(settings.TEST_CASE_DIR, problem.test_case_id)
@@ -26,8 +28,11 @@ def changeValue():
                 problem.samples = newSampleData       
                 problem.save()                 
                 print("problem.id: ", problem.id , "success save")
+                successCount = successCount + 1
             except:
+                failCount = failCount + 1
                 print("problem.id: ", problem, "save error")
     except:                                                   
         print("except")
+    print("End -- success :", successCount, " fail :", failCount)
 changeValue()          
