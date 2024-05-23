@@ -130,10 +130,16 @@ class ContestExitInfoAPI(APIView):     # working by soojung
         contest = Contest.objects.get(id=contest_id)
         user_id = request.user.id
         user = User.objects.get(id=user_id)
-        if not contest_id:
-            return self.error("Invalid parameter, contest_id is required")
+        if request.GET.get("contest_id"):
+            try:
+                ContestUser.objects.get(user_id=user_id, end_time__isnull = True, start_time__isnull=False).update(end_time=datetime.now())
+            except:
+                return self.success()
         if not contest.lecture_contest_type=="대회":
-            return self.success()
+            try:                                                                                                                                                                                                                                                 
+                ContestUser.objects.get(user_id=user_id, end_time__isnull = True, start_time__isnull=False).update(end_time=datetime.now())
+            except:                                                                                                                                                                                                                                              
+                return self.success()
         try:
             # if user.is_student() or user.is_semi_admin():
             if user.is_student():
@@ -144,13 +150,11 @@ class ContestExitInfoAPI(APIView):     # working by soojung
                     CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
                 print(CU)
                 if CU:
-                    if CU.start_time is None:
-                        ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).update(start_time=now())
                     return self.success(ContestExitSerializer(CU).data)
                 else:
                     return self.success()
             else:
-                return self.success()
+                return self.success({'data': 'notStudent'})
         except:
             return self.error("Contest %s doesn't exist" % contest)
 
