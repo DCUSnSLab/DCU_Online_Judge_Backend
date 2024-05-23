@@ -194,6 +194,37 @@ class ContestExitStudentAPI(APIView):
 
         return self.success()
 
+
+class ContestCheckInAPI(APIView):                                                                                    
+    def post(self, request):                                                                                                                 
+        data = request.data                                                                                                            
+        user_id = request.user.id
+        if not request.user.is_student():
+            return self.success()
+        if data.get("contest_id") and user_id:                                                                                       
+            try:                                                                                                                      
+                CU = ContestUser.objects.get(contest_id=data.get("contest_id"), user_id=user_id)                                 
+                if CU.start_time is None:                                                                                                
+                    CU.start_time = now()                                                                                                          
+                CU.save()                                                                           
+            except:                                                                                                
+                ContestUser.objects.create(contest_id=data.get("contest_id"), user_id=user_id, start_time=now())             
+        elif data.get("lec_stu_userID") and data.get("contest_id") :                                                                             
+            print("contest check-in  all student Called")                                                                                             
+            lecStuUserID = data.get("lec_stu_userID").split(',')                                                                      
+            contestID = data.get("contest_id")                                                                                               
+            for userID in lecStuUserID:                                                                        
+                try:                                                                                                                             
+                    contestUserData = ContestUser.objects.get(contest_id=contestID, user_id=userID)                                              
+                    if contestUserData.start_time is None:                                                                                         
+                        contestUserData.start_time = now()                                                                                                                        
+                        contestUserData.save()                                                                                                                                  
+                except:                                                                                                               
+                    ContestUser.objects.create(contest_id=contestID, user_id=userID, start_time=now())                                             
+                                                                                                                                                 
+        return self.success() 
+
+
 class ContestAPI(APIView):
     def get(self, request):
         print("ContestAPI Called")

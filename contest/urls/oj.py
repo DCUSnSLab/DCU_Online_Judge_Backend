@@ -10,6 +10,7 @@ from ..views.oj import ContestScoreInfoAPI
 from ..views.oj import ContestLectureUserAPI
 from ..views.oj import ContestUserAPI
 from ..views.oj import ContestExitStudentAPI
+from ..views.oj import ContestCheckInAPI
 
 urlpatterns = [
     url(r"^contests/?$", ContestListAPI.as_view(), name="contest_list_api"),
@@ -24,4 +25,5 @@ urlpatterns = [
     url(r"^contest/lecture_user/?$", ContestLectureUserAPI.as_view(), name="contest_lecture_user_api"),  # working by soojung
     url(r"^contest/user/?$", ContestUserAPI.as_view(), name="contest_user_api"),  # working by soojung
     url(r"^contest/exit_student/?$", ContestExitStudentAPI.as_view(), name="contest_exit_student_api"),  # working by soojung
+    url(r"^contest/check_in/?$", ContestCheckInAPI.as_view(), name="contest_check_in_api")
 ]
