@@ -129,7 +129,7 @@ class SubmissionAPI(APIView):
                                 "output": submissionResultData[i].get('output'),
                                 "result": submissionResultData[i].get('result')
                             })
-                else:                                              
+                else: # not list                                              
                      outputData = submissionResultData
                      dirStartIndex = outputData.index('/judger')                             
                      dirEndIndex = dirStartIndex+1                                                             
