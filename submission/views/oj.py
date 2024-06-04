@@ -110,7 +110,7 @@ class SubmissionAPI(APIView):
         # run result return
         try:
             if data["sample_test"]:
-                submissionResultData = JudgeDispatcher(submission.id, problem.id, data["sample_count"]).judge()
+                submissionResultData = JudgeDispatcher(submission.id, problem.id).judge()
                 outputResultData = []
                 if isinstance(submissionResultData, list):
                     for i in range(data["sample_count"]):
@@ -129,7 +129,7 @@ class SubmissionAPI(APIView):
                                 "output": submissionResultData[i].get('output'),
                                 "result": submissionResultData[i].get('result')
                             })
-                else:                                              
+                else: # not list                                              
                      outputData = submissionResultData
                      dirStartIndex = outputData.index('/judger')                             
                      dirEndIndex = dirStartIndex+1                                                             
