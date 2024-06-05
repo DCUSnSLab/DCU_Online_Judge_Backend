@@ -293,8 +293,8 @@ class UserLogoutAPI(APIView):
     def get(self, request):
         userID = request.user.id
         if request.user.is_student():
-            if ContestUser.objects.filter(user_id=userID, end_time__isnull=True).exists(): # working by soojung
-                ContestUser.objects.filter(user_id=userID, end_time__isnull=True).update(end_time=now())
+            if ContestUser.objects.filter(user_id=userID, start_time__isnull=False, end_time__isnull=True).exists(): # working by soojung
+                ContestUser.objects.filter(user_id=userID, start_time__isnull=False, end_time__isnull=True).update(end_time=now())
             # contestlog_list = []
             # contestlog_list.append(ContestUser.objects.filter(user_id=userID, end_time__isnull=True))
             # print(contestlog_list)
