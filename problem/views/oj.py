@@ -122,36 +122,39 @@ class ContestProblemAPI(APIView):
             data = ProblemSafeSerializer(contest_problems, many=True).data
         return self.success(data)
 
-class ContestExitInfoAPI(APIView):     # working by soojung
+class ContestExitInfoAPI(APIView):
     def get(self, request):
-        print("ContestExitInfoAPI called")
         user_id = request.user.id
         if not request.user.is_student():
             return self.success({'data': 'notStudent'})
         if not request.GET.get("contest_id"):
             try:
                 ContestUser.objects.filter(user_id=user_id, end_time__isnull=True, start_time__isnull=False).update(end_time=now())
-                return self.success()
             except:
-                return self.success()
+                pass
+            return self.success({'data': 'notContest'}) 
         contest_id = request.GET.get("contest_id")
         contest = Contest.objects.get(id=contest_id)
         if not contest.lecture_contest_type == "대회":
-            try:
+            try:                                                                                
                 ContestUser.objects.filter(user_id=user_id, end_time__isnull=True, start_time__isnull=False).update(end_time=now())
-                return self.success()
-            except:
-                return self.success()
-        else:
-            try:
-                CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
-            except:
-                ContestUser.objects.create(contest_id=contest_id, user_id=user_id)
-                CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
-            if CU:
-                return self.success(ContestExitSerializer(CU).data)
-            else:
-                return self.error
+            except:                                                                                                           
+                pass
+            return self.success({'data': 'notTest'}) 
+
+        try:
+            contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+        except:
+            ContestUser.objects.create(contest_id=contest_id, user_id=user_id)
+            contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+
+        return self.success(ContestExitSerializer(contestUserData).data)
+        # if not request.GET.get("contest_id"):
+        #     try:
+        #         ContestUser.objects.filter(user_id=user_id, end_time__isnull=True, start_time__isnull=False).update(end_time=now())
+        #         return self.success()
+        #     except:
+        #         return self.success()
         # ensure_prob_detail_access(self.contest, request.user)   # working by soojung
         # contest_id = request.GET.get("contest_id")
         # contest = Contest.objects.get(id=contest_id)
