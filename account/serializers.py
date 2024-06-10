@@ -110,6 +110,8 @@ class contestSignupSerializer(serializers.ModelSerializer):    # working by sooj
     lecture = LectureSerializer()
     totalScore = serializers.IntegerField()
     exit_status = serializers.BooleanField()
+    start_time = serializers.DateTimeField()
+    end_time = serializers.DateTimeField()
 
     class Meta:
         model = signup_class

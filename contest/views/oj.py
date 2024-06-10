@@ -129,22 +129,27 @@ class ContestUserAPI(APIView):
                 except signup_class.DoesNotExist:
                     return self.error("수강중인 학생이 없습니다.")
                 # test
+                print("test")
                 LectureInfo = lecDispatcher()
                 cnt = 0
                 for us in ulist:
                     us.totalScore = 0
                     us.exit_status = False
-
+                    us.start_time = ''
+                    us.end_time = ''
                     if us.user is not None and us.isallow is True:
                         LectureInfo.fromDict(us.score)
                         # us.totalScore = LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id].Info.data[DataType.SCORE]
-                        # print(LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id])
-                        cu = ContestUser.objects.get(contest_id=contest_id, user_id=us.user)
-                        if cu.end_time is not None:
-                            us.exit_status = True
-                        else:
-                            us.exit_status = False
-                        print(us.exit_status)
+                        # print(LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id]
+                        try:
+                            cu = ContestUser.objects.get(contest_id=contest_id, user_id=us.user)
+                            if cu.end_time is not None:                                                                                   
+                                us.exit_status = True
+                                us.end_time = cu.end_time                                                                                            
+                            if cu.start_time is not None:
+                                us.start_time = cu.start_time
+                        except:
+                            pass 
 
                     cnt += 1
                 return self.success(self.paginate_data(request, ulist, contestSignupSerializer))
@@ -155,12 +160,28 @@ class ContestExitStudentAPI(APIView):
         data = request.data
 
         if data.get("contest_id") and data.get("user_id"):
-            CU = ContestUser.objects.get(contest_id=data.get("contest_id"), user_id=data.get("user_id"))
-            if CU.end_time is None:
-                CU.end_time = now()
-            else:
-                CU.end_time = None
-            CU.save()
+            try:
+                CU = ContestUser.objects.get(contest_id=data.get("contest_id"), user_id=data.get("user_id"))
+                if CU.end_time is None:
+                    CU.end_time = now()
+                else:
+                    CU.end_time = None
+                CU.save()
+            except:
+                ContestUser.objects.create(contest_id=data.get("contest_id"), user_id=data.get("user_id"), end_time=now())
+        elif data.get("lec_stu_userID") and data.get("contest_id") :
+            print("contest exit all student Called")
+            lecStuUserID = data.get("lec_stu_userID").split(',')
+            contestID = data.get("contest_id")
+            for userID in lecStuUserID:
+                try:
+                    contestUserData = ContestUser.objects.get(contest_id=contestID, user_id=userID)
+                    if contestUserData.end_time is None:                                                                                                   
+                        contestUserData.end_time = now()
+                        contestUserData.save()
+                except:
+                    ContestUser.objects.create(contest_id=contestID, user_id=userID, end_time=now())
+                    
             # appy = signup_class.objects.get(lecture_id=data.get("lecture_id"), user_id=data.get("user_id"))
             # #print(appy)
             # appy.isallow = True
@@ -172,6 +193,37 @@ class ContestExitStudentAPI(APIView):
             # #print("modified")
 
         return self.success()
+
+
+class ContestCheckInAPI(APIView):                                                                                    
+    def post(self, request):                                                                                                                 
+        data = request.data                                                                                                            
+        user_id = request.user.id
+        if not request.user.is_student():
+            return self.success()
+        if data.get("contest_id") and user_id:                                                                                       
+            try:                                                                                                                      
+                CU = ContestUser.objects.get(contest_id=data.get("contest_id"), user_id=user_id)                                 
+                if CU.start_time is None:                                                                                                
+                    CU.start_time = now()                                                                                                          
+                CU.save()                                                                           
+            except:                                                                                                
+                ContestUser.objects.create(contest_id=data.get("contest_id"), user_id=user_id, start_time=now())             
+        elif data.get("lec_stu_userID") and data.get("contest_id") :                                                                             
+            print("contest check-in  all student Called")                                                                                             
+            lecStuUserID = data.get("lec_stu_userID").split(',')                                                                      
+            contestID = data.get("contest_id")                                                                                               
+            for userID in lecStuUserID:                                                                        
+                try:                                                                                                                             
+                    contestUserData = ContestUser.objects.get(contest_id=contestID, user_id=userID)                                              
+                    if contestUserData.start_time is None:                                                                                         
+                        contestUserData.start_time = now()                                                                                                                        
+                        contestUserData.save()                                                                                                                                  
+                except:                                                                                                               
+                    ContestUser.objects.create(contest_id=contestID, user_id=userID, start_time=now())                                             
+                                                                                                                                                 
+        return self.success() 
+
 
 class ContestAPI(APIView):
     def get(self, request):
@@ -306,13 +358,15 @@ class ContestExitAPI(APIView):   # working by soojung (대회 퇴실 API)
         # if not contest_id:
         #     return self.error("Invalid parameter, contest_id is required")
         try:
-            if ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).exists():
-                user = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
-                if user.end_time is None:   # 퇴실 전
-                    ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).update(end_time=now())
-                    return self.success("퇴실 완료")
-        except:   # ContestUser 테이블 내 레코드가 존재하지 않는 경우
-            return self.error("User didn't approach Contest %s" % contest_id)
+            user = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+        except:
+            ContestUser.objects.create(contest_id=contest_id, user_id=user_id, end_time=now())
+            user = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+        if user.end_time is None:  # 퇴실 전
+            ContestUser.objects.filter(contest_id=contest_id, user_id=user_id).update(end_time=now())
+            return self.success({"end_time": user.end_time})
+        else:
+            return self.error()
 
 class ContestTimeOverExitAPI(APIView):  # working by soojung (대회 시간 종료 시 자동 퇴실 API)
     def get(self, request):

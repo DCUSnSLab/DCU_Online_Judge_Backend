@@ -90,12 +90,12 @@ class SPJCompiler(DispatcherBase):
 
 
 class JudgeDispatcher(DispatcherBase):
-    def __init__(self, submission_id, problem_id):
+    def __init__(self, submission_id, problem_id, sample_test_status=False):
         super().__init__()
         self.submission = Submission.objects.get(id=submission_id)
         self.contest_id = self.submission.contest_id
         self.last_result = self.submission.result if self.submission.info else None
-
+        self.sample_test_status = sample_test_status
         if self.contest_id:
             self.problem = Problem.objects.select_related("contest").get(id=problem_id, contest_id=self.contest_id)
             self.contest = self.problem.contest
@@ -145,12 +145,12 @@ class JudgeDispatcher(DispatcherBase):
             "max_cpu_time": self.problem.time_limit,
             "max_memory": 1024 * 1024 * self.problem.memory_limit,
             "test_case_id": self.problem.test_case_id,
-            "output": False,
+            "output": True,
             "spj_version": self.problem.spj_version,
             "spj_config": spj_config.get("config"),
             "spj_compile_config": spj_config.get("compile"),
             "spj_src": self.problem.spj_code,
-            "io_mode": self.problem.io_mode
+            "io_mode": self.problem.io_mode,
         }
 
         with ChooseJudgeServer() as server:
@@ -184,12 +184,13 @@ class JudgeDispatcher(DispatcherBase):
                 self.submission.result = JudgeStatus.PARTIALLY_ACCEPTED
 
         self.submission.save()
-
+        if self.sample_test_status:
+            return resp["data"]
         if self.contest_id:
             if self.contest.status != ContestStatus.CONTEST_UNDERWAY or User.objects.get(id=self.submission.user_id).is_contest_admin(self.contest):
                 logger.info(
                     "Contest debug mode, id: " + str(self.contest_id) + ", submission id: " + self.submission.id)
-                return
+                return resp["data"]
             with transaction.atomic():
                 self.update_contest_problem_status()
                 self.update_contest_rank()
@@ -202,6 +203,7 @@ class JudgeDispatcher(DispatcherBase):
 
         # 至此判题结束，尝试处理任务队列中剩余的任务
         process_pending_task()
+        return resp["data"]
 
     def updateLecturePersonalInfo(self):
         #try:

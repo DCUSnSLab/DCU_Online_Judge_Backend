@@ -73,8 +73,8 @@ class ContestAPI(APIView):
             # print('wowwow')
             # print(students)
             # print('wowowowow')
-            for student in students:
-                ContestUser.objects.create(contest_id=contest_id.id, user_id=student.user_id, start_time=None, end_time=None)
+            #for student in students:
+            #    ContestUser.objects.create(contest_id=contest_id.id, user_id=student.user_id, start_time=None, end_time=None)
         return self.success(ContestAdminSerializer(contest).data)
 
     @validate_serializer(EditContestSeriaizer)
