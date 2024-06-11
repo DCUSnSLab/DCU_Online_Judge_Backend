@@ -499,12 +499,14 @@ class AddLectureContestAPI(APIView):
         try:
             contest = Contest.objects.get(id=data["contest_id"])
             lecture = Lecture.objects.get(id=data["lecture_id"])
+            copy_start_time = dateutil.parser.parse(data["start_time"])
             select_prob = data["prob_id"]
         except (Contest.DoesNotExist):
             return self.error("Contest does not exist 4")
 
-        from datetime import datetime
-        date_str = datetime.today().strftime("%Y-%m-%d %H:%M:%S") + '+00'
+        copy_end_time = copy_start_time + (contest.end_time - contest.start_time)
+        #from datetime import datetime
+        #date_str = datetime.today().strftime("%Y-%m-%d %H:%M:%S") + '+00'
         #print(date_str)
 
         if len(select_prob):
@@ -512,8 +514,8 @@ class AddLectureContestAPI(APIView):
             contest.pk = None
             contest.created_by = lecture.created_by
             contest.lecture = lecture
-            contest.start_time = date_str
-            contest.end_time = date_str
+            contest.start_time = copy_start_time
+            contest.end_time = copy_end_time
             contest.save()
             # Select prob Copy
             for prob in select_prob:
@@ -562,8 +564,8 @@ class AddLectureContestAPI(APIView):
             contest.pk = None
             contest.created_by = lecture.created_by
             contest.lecture = lecture
-            contest.start_time = date_str
-            contest.end_time = date_str
+            contest.start_time = copy_start_time
+            contest.end_time = copy_end_time
             contest.save()
 
             for problem in problems:

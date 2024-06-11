@@ -121,4 +121,5 @@ class ACMContesHelperSerializer(serializers.Serializer):
 class AddLectureContestSerializer(serializers.Serializer):
     lecture_id = serializers.IntegerField()
     contest_id = serializers.IntegerField()
+    start_time = serializers.DateTimeField()
     prob_id = serializers.ListField()
