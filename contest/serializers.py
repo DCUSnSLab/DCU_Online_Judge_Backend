@@ -123,3 +123,15 @@ class AddLectureContestSerializer(serializers.Serializer):
     contest_id = serializers.IntegerField()
     start_time = serializers.DateTimeField()
     prob_id = serializers.ListField()
+
+class AddLectureContestSerializer(serializers.Serializer):
+    lecture_id = serializers.IntegerField()
+    contest_id = serializers.IntegerField()
+    start_time = serializers.DateTimeField()
+    prob_id = serializers.ListField()
+
+
+class AddLectureCopySerializer(serializers.Serializer):
+    lecture_id = serializers.IntegerField()
+    select_lecture_ID = serializers.IntegerField()
+    start_time = serializers.DateTimeField()
