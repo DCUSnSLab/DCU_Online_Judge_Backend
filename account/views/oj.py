@@ -64,11 +64,12 @@ class UserProfileAPI(APIView):
         data = request.data
         user_profile = request.user.userprofile
         user = User.objects.get(id=request.user.id)
-
         for k, v in data.items():
             setattr(user_profile, k, v)
         if data['realname']:
             user.realname = data['realname']
+        if data['language']:
+            user_profile.language = data['language']
         #test = User.objects.filter(schoolssn=data['schoolssn']).exclude(schoolssn=user.schoolssn).exists()
         if User.objects.filter(schoolssn=data['schoolssn']).exclude(schoolssn=user.schoolssn).exists():
             return self.error("중복된 학번입니다.")
