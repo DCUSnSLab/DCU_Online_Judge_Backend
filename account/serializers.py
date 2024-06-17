@@ -160,7 +160,7 @@ class EditUserProfileSerializer(serializers.Serializer):
     # school = serializers.CharField(max_length=64, allow_blank=True, required=False)
     schoolssn = serializers.CharField(max_length=64, allow_blank=True, required=False)
     # major = serializers.CharField(max_length=64, allow_blank=True, required=False)
-    # language = serializers.CharField(max_length=32, allow_blank=True, required=False)
+    language = serializers.CharField(max_length=32, allow_blank=True, required=False)
 
 
 class ApplyResetPasswordSerializer(serializers.Serializer):
