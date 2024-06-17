@@ -23,7 +23,7 @@ from ..models import Contest, ContestAnnouncement, ACMContestRank
 from ..serializers import (ContestAnnouncementSerializer, ContestAdminSerializer,
                            CreateContestSeriaizer, CreateContestAnnouncementSerializer,
                            EditContestSeriaizer, EditContestAnnouncementSerializer,
-                           ACMContesHelperSerializer, AddLectureContestSerializer, )
+                           ACMContesHelperSerializer, AddLectureContestSerializer, AddLectureCopySerializer)
 
 
 class ContProblemAPI(APIView):
@@ -449,27 +449,37 @@ class AddLectureAPI(APIView):
 
         return self.success(self.paginate_data(request, lecture_list, LectureSerializer))
 
+    @validate_serializer(AddLectureCopySerializer)
     def post(self, request):
-        selectLectureID = request.GET.get('selectLectureID')
-        LectureID = request.GET.get('lecture_id')
+        data = request.data
+        try:
+            copyContList = Contest.objects.filter(lecture__id=data["select_lecture_ID"])                                                                                                                                     
+            lecture = Lecture.objects.get(id=data["lecture_id"])
+            copy_start_time = dateutil.parser.parse(data["start_time"])
+        except:
+            return self.error()
 
+        #selectLectureID = request.GET.get('selectLectureID')
+        #LectureID = request.GET.get('lecture_id')
+        #lecture = Lecture.objects.get(id=LectureID)
+        #copyContList = Contest.objects.filter(lecture__id=selectLectureID)
         from datetime import datetime
-        lecture = Lecture.objects.get(id=LectureID)
-        copyContList = Contest.objects.filter(lecture__id=selectLectureID)
         date_str = datetime.today().strftime("%Y-%m-%d %H:%M:%S") + '+00'
-
         from datetime import datetime
         date_str = datetime.today().strftime("%Y-%m-%d %H:%M:%S") + '+00'
-
+        i = 0
         for contest in reversed(copyContList):
             problems = Problem.objects.filter(contest=contest)
-
+            if i == 0:
+                contestTimeGap = copy_start_time - contest.start_time
+                print(contestTimeGap)
+            i = i + 1     
             print("Contest 만든 사람 :", contest.created_by)
             contest.pk = None
             contest.created_by = lecture.created_by
             contest.lecture = lecture
-            contest.start_time = date_str
-            contest.end_time = date_str
+            contest.start_time = contest.start_time + contestTimeGap
+            contest.end_time = contest.end_time + contestTimeGap
             contest.save()
 
             for problem in problems:
@@ -499,12 +509,14 @@ class AddLectureContestAPI(APIView):
         try:
             contest = Contest.objects.get(id=data["contest_id"])
             lecture = Lecture.objects.get(id=data["lecture_id"])
+            copy_start_time = dateutil.parser.parse(data["start_time"])
             select_prob = data["prob_id"]
         except (Contest.DoesNotExist):
             return self.error("Contest does not exist 4")
 
-        from datetime import datetime
-        date_str = datetime.today().strftime("%Y-%m-%d %H:%M:%S") + '+00'
+        copy_end_time = copy_start_time + (contest.end_time - contest.start_time)
+        #from datetime import datetime
+        #date_str = datetime.today().strftime("%Y-%m-%d %H:%M:%S") + '+00'
         #print(date_str)
 
         if len(select_prob):
@@ -512,8 +524,8 @@ class AddLectureContestAPI(APIView):
             contest.pk = None
             contest.created_by = lecture.created_by
             contest.lecture = lecture
-            contest.start_time = date_str
-            contest.end_time = date_str
+            contest.start_time = copy_start_time
+            contest.end_time = copy_end_time
             contest.save()
             # Select prob Copy
             for prob in select_prob:
@@ -562,8 +574,8 @@ class AddLectureContestAPI(APIView):
             contest.pk = None
             contest.created_by = lecture.created_by
             contest.lecture = lecture
-            contest.start_time = date_str
-            contest.end_time = date_str
+            contest.start_time = copy_start_time
+            contest.end_time = copy_end_time
             contest.save()
 
             for problem in problems:
