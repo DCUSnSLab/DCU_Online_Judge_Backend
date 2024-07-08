@@ -21,11 +21,9 @@ def changeValue():
                 for i in range(sampleLen):      
                     testCaseData = {}     
                     with open(test_case_dir + '/' + str(i+1) + '.in', "r") as f:
-                        # testCaseData['input'] = ''.join(f.readlines()).strip()  
-                        testCaseData['input'] = ''.join(f.readlines())
+                        testCaseData['input'] = ''.join(f.readlines())  
                     with open(test_case_dir + '/' + str(i+1) + '.out', "r") as f:
-                        # testCaseData['output'] = ''.join(f.readlines()).strip() 
-                        testCaseData['output'] = ''.join(f.readlines()) 
+                        testCaseData['output'] = ''.join(f.readlines())
                     newSampleData.append(testCaseData)                         
                 problem.samples = newSampleData       
                 problem.save()                 
