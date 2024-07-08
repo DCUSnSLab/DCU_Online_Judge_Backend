@@ -174,9 +174,11 @@ class TestCaseDataAPI(APIView):
         for in_file, out_file in zip(input_names, output_names):
             d = {}
             with open(test_case_dir + "/" + in_file, "r") as f:
-                d["inData"] = ''.join(f.readlines()).strip()
+                # d["inData"] = ''.join(f.readlines()).strip()
+                d["inData"] = ''.join(f.readlines())
             with open(test_case_dir + "/" + out_file, "r") as f:
-                d["outData"] = ''.join(f.readlines()).strip()
+                # d["outData"] = ''.join(f.readlines()).strip()
+                d["outData"] = ''.join(f.readlines())
             testCaseData.append(d)
         return self.success({"testCaseData": testCaseData})
 
