@@ -34,7 +34,10 @@ from lecture.models import signup_class, Lecture
 from contest.models import Contest, ContestUser  # working by soojung
 from django.db.models import Max
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
-
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_v1_5
+import base64
+from Crypto.Random import get_random_bytes
 
 class UserProfileAPI(APIView):
     @method_decorator(ensure_csrf_cookie)
@@ -260,7 +263,24 @@ class CheckTFARequiredAPI(APIView):
         return self.success({"result": result})
 
 
+class getPublicKeyAPI(APIView):
+    def get(self, requset):
+        with open("/app/key/public_key.pem", "r") as key_file:
+            public_key = key_file.read()
+        return self.success({"public_key": public_key})
+
+
 class UserLoginAPI(CSRFExemptAPIView):
+    def decrypt_password(self, encrypt_password):
+        with open("/app/key/private_key.pem", "r") as key_file:
+            private_key = RSA.import_key(key_file.read())
+            print("devrypt1")
+        encrypt_password_bytes = base64.b64decode(encrypt_password)
+        cipher = PKCS1_v1_5.new(private_key)
+        sentinel = get_random_bytes(16)
+        decrypted_password = cipher.decrypt(encrypt_password_bytes, sentinel)
+        return decrypted_password.decode('utf-8')
+
     @method_decorator(csrf_exempt)
     @validate_serializer(UserLoginSerializer)
     def post(self, request):
@@ -268,7 +288,7 @@ class UserLoginAPI(CSRFExemptAPIView):
         User login api
         """
         data = request.data
-        user = auth.authenticate(username=data["username"], password=data["password"])
+        user = auth.authenticate(username=data["username"], password=self.decrypt_password(data["password"]))
         # None is returned if username or password is wrong
         if user:
             if user.is_disabled:
