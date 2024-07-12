@@ -446,6 +446,15 @@ class UserChangeEmailAPI(APIView):
 
 
 class UserChangePasswordAPI(APIView):
+    def decrypt_password(self, encrypt_password):                                                                                                               
+        with open("/app/key/private_key.pem", "r") as key_file:                                                                             
+            private_key = RSA.import_key(key_file.read())                                                    
+        encrypt_password_bytes = base64.b64decode(encrypt_password)                                                                       
+        cipher = PKCS1_v1_5.new(private_key)                                                                      
+        sentinel = get_random_bytes(16)                                                                                                                         
+        decrypted_password = cipher.decrypt(encrypt_password_bytes, sentinel)                                                            
+        return decrypted_password.decode('utf-8')
+
     @validate_serializer(UserChangePasswordSerializer)
     @login_required
     def post(self, request):
@@ -461,7 +470,7 @@ class UserChangePasswordAPI(APIView):
                     return self.error("tfa_required")
                 if not OtpAuth(user.tfa_token).valid_totp(data["tfa_code"]):
                     return self.error("Invalid two factor verification code")
-            user.set_password(data["new_password"])
+            user.set_password(self.decrypt_password(data["new_password"]))
             user.save()
             return self.success("Succeeded")
         else:
