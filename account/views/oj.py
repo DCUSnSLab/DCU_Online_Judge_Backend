@@ -265,14 +265,14 @@ class CheckTFARequiredAPI(APIView):
 
 class getPublicKeyAPI(APIView):
     def get(self, requset):
-        with open("/app/key/public_key.pem", "r") as key_file:
+        with open("/data/config/public_key.pem", "r") as key_file:
             public_key = key_file.read()
         return self.success({"public_key": public_key})
 
 
 class UserLoginAPI(CSRFExemptAPIView):
     def decrypt_password(self, encrypt_password):
-        with open("/app/key/private_key.pem", "r") as key_file:
+        with open("/data/config/private_key.pem", "r") as key_file:
             private_key = RSA.import_key(key_file.read())
         encrypt_password_bytes = base64.b64decode(encrypt_password)
         cipher = PKCS1_v1_5.new(private_key)
@@ -365,7 +365,7 @@ class SchoolssnCheck(APIView):
 
 class UserRegisterAPI(APIView):
     def decrypt_password(self, encrypt_password):                                                                                 
-        with open("/app/key/private_key.pem", "r") as key_file:                                              
+        with open("/data/config/private_key.pem", "r") as key_file:                                              
             private_key = RSA.import_key(key_file.read())                                              
         encrypt_password_bytes = base64.b64decode(encrypt_password)                                                                      
         cipher = PKCS1_v1_5.new(private_key)                                                                                      
@@ -447,7 +447,7 @@ class UserChangeEmailAPI(APIView):
 
 class UserChangePasswordAPI(APIView):
     def decrypt_password(self, encrypt_password):                                                                                                               
-        with open("/app/key/private_key.pem", "r") as key_file:                                                                             
+        with open("/data/config/private_key.pem", "r") as key_file:                                                                             
             private_key = RSA.import_key(key_file.read())                                                    
         encrypt_password_bytes = base64.b64decode(encrypt_password)                                                                       
         cipher = PKCS1_v1_5.new(private_key)                                                                      
