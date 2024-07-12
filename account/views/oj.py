@@ -274,7 +274,6 @@ class UserLoginAPI(CSRFExemptAPIView):
     def decrypt_password(self, encrypt_password):
         with open("/app/key/private_key.pem", "r") as key_file:
             private_key = RSA.import_key(key_file.read())
-            print("devrypt1")
         encrypt_password_bytes = base64.b64decode(encrypt_password)
         cipher = PKCS1_v1_5.new(private_key)
         sentinel = get_random_bytes(16)
@@ -365,6 +364,15 @@ class SchoolssnCheck(APIView):
         return self.success(result)
 
 class UserRegisterAPI(APIView):
+    def decrypt_password(self, encrypt_password):                                                                                 
+        with open("/app/key/private_key.pem", "r") as key_file:                                              
+            private_key = RSA.import_key(key_file.read())                                              
+        encrypt_password_bytes = base64.b64decode(encrypt_password)                                                                      
+        cipher = PKCS1_v1_5.new(private_key)                                                                                      
+        sentinel = get_random_bytes(16)                                                                      
+        decrypted_password = cipher.decrypt(encrypt_password_bytes, sentinel)                          
+        return decrypted_password.decode('utf-8')
+
     @validate_serializer(UserRegisterSerializer)
     def post(self, request):
         """
@@ -409,7 +417,7 @@ class UserRegisterAPI(APIView):
         except:
             print("no matching singup_class")
 
-        user.set_password(data["password"])
+        user.set_password(self.decrypt_password(data["password"]))
         user.save()
         UserProfile.objects.create(user=user)
         return self.success("Succeeded")
