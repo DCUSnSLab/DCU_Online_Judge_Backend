@@ -24,6 +24,10 @@ from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserS
 from ..serializers import ImportUserSeralizer, SignupSerializer
 from django.db.models import Max
 from lecture.views.stdResult import RefLecture, SubmitLecture
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_v1_5
+import base64
+from Crypto.Random import get_random_bytes
 
 class PublicContInfoAPI(APIView):
     def get(self, request):
@@ -71,6 +75,15 @@ class PublicContInfoAPI(APIView):
         return self.success()
 
 class UserAdminAPI(APIView):
+    def decrypt_password(self, encrypt_password):
+        with open("/data/config/private_key.pem", "r") as key_file:
+            private_key = RSA.import_key(key_file.read())
+        encrypt_password_bytes = base64.b64decode(encrypt_password)
+        cipher = PKCS1_v1_5.new(private_key)
+        sentinel = get_random_bytes(16)
+        decrypted_password = cipher.decrypt(encrypt_password_bytes, sentinel)
+        return decrypted_password.decode('utf-8')
+
     @validate_serializer(ImportUserSeralizer)
     # @super_admin_required
     def post(self, request):
@@ -126,7 +139,7 @@ class UserAdminAPI(APIView):
             user.problem_permission = ProblemPermission.NONE
 
         if data["password"]:
-            user.set_password(data["password"])
+            user.set_password(self.decrypt_password(data["password"]))
 
         if data["open_api"]:
             # Avoid reset user appkey after saving changes
