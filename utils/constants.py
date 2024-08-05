@@ -23,6 +23,8 @@ class ContestStatus:
 class ContestRuleType(Choices):
     ACM = "ACM"
     OI = "OI"
+    Syspro = "Syspro"
+    Command = "Command"
 
 
 class CacheKey:

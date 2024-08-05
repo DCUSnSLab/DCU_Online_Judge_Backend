@@ -18,6 +18,8 @@ class ProblemTag(models.Model):
 class ProblemRuleType(Choices):
     ACM = "ACM"
     OI = "OI"
+    Syspro = "Syspro"
+    Command = "Command"
 
 
 class ProblemDifficulty(object):

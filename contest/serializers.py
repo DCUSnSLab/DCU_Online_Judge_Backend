@@ -10,7 +10,7 @@ class CreateContestSeriaizer(serializers.Serializer):
     start_time = serializers.DateTimeField()
     end_time = serializers.DateTimeField()
     lecture_contest_type = serializers.ChoiceField(choices=[LectureContestType.Training, LectureContestType.Assignment, LectureContestType.Competition])
-    rule_type = serializers.ChoiceField(choices=[ContestRuleType.ACM, ContestRuleType.OI])
+    rule_type = serializers.ChoiceField(choices=[ContestRuleType.ACM, ContestRuleType.OI, ContestRuleType.Syspro, ContestRuleType.Command])
     password = serializers.CharField(allow_blank=True, max_length=32)
     private = serializers.BooleanField()
     visible = serializers.BooleanField()
