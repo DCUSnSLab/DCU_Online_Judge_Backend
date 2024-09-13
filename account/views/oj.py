@@ -69,9 +69,9 @@ class UserProfileAPI(APIView):
         user = User.objects.get(id=request.user.id)
         for k, v in data.items():
             setattr(user_profile, k, v)
-        if data['realname']:
+        if 'realname' in data and data['realname']:
             user.realname = data['realname']
-        if data['language']:
+        if 'language' in data and data['language']:
             user_profile.language = data['language']
         #test = User.objects.filter(schoolssn=data['schoolssn']).exclude(schoolssn=user.schoolssn).exists()
         if User.objects.filter(schoolssn=data['schoolssn']).exclude(schoolssn=user.schoolssn).exists():
