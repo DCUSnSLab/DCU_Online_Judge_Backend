@@ -39,7 +39,7 @@ from Crypto.Cipher import PKCS1_v1_5
 import base64
 from Crypto.Random import get_random_bytes
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from rest_framework_simplejwt.tokens import AccessToken
 
 class UserProfileAPI(APIView):
     @method_decorator(ensure_csrf_cookie)
@@ -271,6 +271,20 @@ class getPublicKeyAPI(APIView):
             public_key = key_file.read()
         return self.success({"public_key": public_key})
 
+
+class TokenAuthenticationAPI(CSRFExemptAPIView):
+    def post(self, request):
+        print(request.data["token"])
+        token = request.data["token"]
+        if not token:
+            return self.error("token error1")
+        try:
+            access_token = AccessToken(token)
+            user = access_token.payload["user_id"]
+            return self.success({"message": "Succeeded", "user_id": user})
+        except Exception as e:
+            print(e)
+            return self.error("token error2")
 
 class UserLoginAPI(CSRFExemptAPIView):
     def decrypt_password(self, encrypt_password):
