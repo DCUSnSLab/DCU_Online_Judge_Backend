@@ -1,6 +1,6 @@
 from django.conf.urls import url
 
-from ..views.oj import (ApplyResetPasswordAPI, ResetPasswordAPI, TokenAuthenticationAPI,
+from ..views.oj import (ApplyResetPasswordAPI, ResetPasswordAPI, TokenAuthenticationAPI, TokenRefreshAPI,
                         UserChangePasswordAPI, UserRegisterAPI, UserChangeEmailAPI,
                         UserLoginAPI, UserLogoutAPI, UsernameOrEmailCheck,
                         AvatarUploadAPI, TwoFactorAuthAPI, UserProfileAPI,
@@ -11,6 +11,7 @@ from utils.captcha.views import CaptchaAPIView
 
 urlpatterns = [
     url(r"^token_auth/?$", TokenAuthenticationAPI.as_view(), name="token_authentication_api"),
+    url(r"^token_refresh/?$", TokenRefreshAPI.as_view(), name="token_refresh_api"),
     url(r"^login/?$", UserLoginAPI.as_view(), name="user_login_api"),
     url(r"^logout/?$", UserLogoutAPI.as_view(), name="user_logout_api"),
     url(r"^register/?$", UserRegisterAPI.as_view(), name="user_register_api"),

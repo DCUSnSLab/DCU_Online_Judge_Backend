@@ -273,18 +273,31 @@ class getPublicKeyAPI(APIView):
 
 
 class TokenAuthenticationAPI(CSRFExemptAPIView):
+    @login_required
     def post(self, request):
-        print(request.data["token"])
         token = request.data["token"]
         if not token:
-            return self.error("token error1")
+            return self.error("access token missing")
         try:
             access_token = AccessToken(token)
             user = access_token.payload["user_id"]
-            return self.success({"message": "Succeeded", "user_id": user})
+            return self.success({"data": "Succeeded"})
         except Exception as e:
-            print(e)
-            return self.error("token error2")
+            return self.error("Invalidi access token")
+
+
+class TokenRefreshAPI(CSRFExemptAPIView):
+    @login_required
+    def post(self, request):
+        refresh_token = request.data["refresh_token"]
+        if not refresh_token:
+            return self.error("Refresh token missing")
+        try:
+            new_access_token = RefreshToken(refresh_token).access_token
+            return self.success({"access_token": str(new_access_token)})
+        except Exception as e:
+            return self.error("Invalid refresh token")
+
 
 class UserLoginAPI(CSRFExemptAPIView):
     def decrypt_password(self, encrypt_password):
