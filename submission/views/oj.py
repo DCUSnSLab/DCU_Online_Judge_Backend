@@ -266,9 +266,9 @@ class ContestSubmissionListAPI(APIView):
         if result:
             submissions = submissions.filter(result=result)
 
-        # filter the test submissions submitted before contest start
-        if contest.status != ContestStatus.CONTEST_NOT_START:
-            submissions = submissions.filter(create_time__gte=contest.start_time)
+        # # filter the test submissions submitted before contest start
+        # if contest.status != ContestStatus.CONTEST_NOT_START:
+        #     submissions = submissions.filter(create_time__gte=contest.start_time)
 
         # 封榜的时候只能看到自己的提交
         if contest.rule_type == ContestRuleType.ACM:
