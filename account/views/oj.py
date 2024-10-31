@@ -273,7 +273,6 @@ class getPublicKeyAPI(APIView):
 
 
 class TokenAuthenticationAPI(CSRFExemptAPIView):
-    @login_required
     def post(self, request):
         token = request.data["token"]
         if not token:
