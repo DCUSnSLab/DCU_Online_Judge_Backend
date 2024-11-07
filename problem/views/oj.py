@@ -172,7 +172,7 @@ class ContestExitInfoAPI(APIView):
         except:
             ContestUser.objects.create(contest_id=contest_id, user_id=user_id) #first contest open
             contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
-        if contestUserData.end_time is None:
+        if contestUserData.start_time is not None and contestUserData.end_time is None:
             print("test")
             if client_ip not in (contestUserData.client_ip or ""):
                 if contestUserData.client_ip:
