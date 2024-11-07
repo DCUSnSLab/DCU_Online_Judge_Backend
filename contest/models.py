@@ -76,6 +76,7 @@ class ContestUser(models.Model):   # 대회 및 사용자 간 관계형 테이�
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
+    client_ip = models.TextField(null=True)
 
 
 class AbstractContestRank(models.Model):

@@ -137,6 +137,7 @@ class ContestUserAPI(APIView):
                     us.exit_status = False
                     us.start_time = ''
                     us.end_time = ''
+                    us.client_ip = ''
                     if us.user is not None and us.isallow is True:
                         LectureInfo.fromDict(us.score)
                         # us.totalScore = LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id].Info.data[DataType.SCORE]
@@ -148,6 +149,8 @@ class ContestUserAPI(APIView):
                                 us.end_time = cu.end_time                                                                                            
                             if cu.start_time is not None:
                                 us.start_time = cu.start_time
+                            if cu.client_ip is not None:
+                                us.client_ip = cu.client_ip
                         except:
                             pass 
 

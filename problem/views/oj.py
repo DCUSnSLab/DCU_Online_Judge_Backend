@@ -123,70 +123,64 @@ class ContestProblemAPI(APIView):
         return self.success(data)
 
 class ContestExitInfoAPI(APIView):
+    def get_client_ip(self,request):
+        ip = request.META.get('HTTP_X_FORWARDED_FOR')
+        if ip:
+            ip = ip.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
+
     def get(self, request):
+#        user_id = request.user.id
+#        if not request.user.is_student():
+#            return self.success({'data': 'notStudent'})
+#        if not request.GET.get("contest_id"):
+#            try:
+#                ContestUser.objects.filter(user_id=user_id, end_time__isnull=True, start_time__isnull=False).update(end_time=now())
+#            except:
+#                pass
+#            return self.success({'data': 'notContest'}) 
+#        contest_id = request.GET.get("contest_id")
+#        contest = Contest.objects.get(id=contest_id)
+#        if not contest.lecture_contest_type == "대회":
+#            try:                                                                                
+#                ContestUser.objects.filter(user_id=user_id, end_time__isnull=True, start_time__isnull=False).update(end_time=now())
+#            except:                                                                                                           
+#                pass
+#            return self.success({'data': 'notTest'}) 
+#
+#        try:
+#            contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+#        except:
+#            ContestUser.objects.create(contest_id=contest_id, user_id=user_id)
+#            contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+#
+#        return self.success(ContestExitSerializer(contestUserData).data)
         user_id = request.user.id
+        client_ip = self.get_client_ip(request)
         if not request.user.is_student():
             return self.success({'data': 'notStudent'})
         if not request.GET.get("contest_id"):
-            try:
-                ContestUser.objects.filter(user_id=user_id, end_time__isnull=True, start_time__isnull=False).update(end_time=now())
-            except:
-                pass
-            return self.success({'data': 'notContest'}) 
+            return self.success({'data': 'notContest'})
         contest_id = request.GET.get("contest_id")
         contest = Contest.objects.get(id=contest_id)
         if not contest.lecture_contest_type == "대회":
-            try:                                                                                
-                ContestUser.objects.filter(user_id=user_id, end_time__isnull=True, start_time__isnull=False).update(end_time=now())
-            except:                                                                                                           
-                pass
-            return self.success({'data': 'notTest'}) 
-
+            return self.success({'data': 'notTest'})
         try:
             contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
         except:
-            ContestUser.objects.create(contest_id=contest_id, user_id=user_id)
+            ContestUser.objects.create(contest_id=contest_id, user_id=user_id) #first contest open
             contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
-
+        if contestUserData.start_time is not None and contestUserData.end_time is None:
+            print("test")
+            if client_ip not in (contestUserData.client_ip or ""):
+                if contestUserData.client_ip:
+                    contestUserData.client_ip += f",{client_ip}"  # 기존 IP에 추가
+                else:
+                    contestUserData.client_ip = client_ip
+            contestUserData.save()
         return self.success(ContestExitSerializer(contestUserData).data)
-        # if not request.GET.get("contest_id"):
-        #     try:
-        #         ContestUser.objects.filter(user_id=user_id, end_time__isnull=True, start_time__isnull=False).update(end_time=now())
-        #         return self.success()
-        #     except:
-        #         return self.success()
-        # ensure_prob_detail_access(self.contest, request.user)   # working by soojung
-        # contest_id = request.GET.get("contest_id")
-        # contest = Contest.objects.get(id=contest_id)
-        # user_id = request.user.id
-        # user = User.objects.get(id=user_id)
-        # if request.GET.get("contest_id"):
-        #     try:
-        #         ContestUser.objects.get(user_id=user_id, end_time__isnull = True, start_time__isnull=False).update(end_time=datetime.now())
-        #     except:
-        #         return self.success()
-        # if not contest.lecture_contest_type=="대회":
-        #     try:
-        #         ContestUser.objects.get(user_id=user_id, end_time__isnull = True, start_time__isnull=False).update(end_time=datetime.now())
-        #     except:
-        #         return self.success()
-        # try:
-        #     # if user.is_student() or user.is_semi_admin():
-        #     if user.is_student():
-        #         try:
-        #             CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
-        #         except:
-        #             ContestUser.objects.create(contest_id=contest_id, user_id=user_id)
-        #             CU = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
-        #         print(CU)
-        #         if CU:
-        #             return self.success(ContestExitSerializer(CU).data)
-        #         else:
-        #             return self.success()
-        #     else:
-        #         return self.success({'data': 'notStudent'})
-        # except:
-        #     return self.error("Contest %s doesn't exist" % contest)
 
 
 class ProblemResponsibility(APIView):
