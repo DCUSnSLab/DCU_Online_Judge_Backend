@@ -37,8 +37,8 @@ class SubmissionUpdater(APIView):
             #    print(i,sub.id,sub.problem.title)
             i+=1
         return self.success()
-        
-class SubmissionDate(APIView):
+
+class SubmissionDateAPI(APIView):
     def get(self, request):
         # 'create_time'에서 날짜 부분만 추출하고, 날짜별로 제출 수 집계
         submission_counts = Submission.objects.annotate(date=TruncDate('create_time')) \
