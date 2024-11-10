@@ -47,6 +47,6 @@ class SubmissionDateAPI(APIView):
 
         return self.success(data)
 
-        except Exception as e:
-            
-            return self.error(str(e).split("\n")[1])  # 오류 메시지에서 첫 번째 줄만 반환
+    except Exception as e:
+        
+        return self.error(str(e).split("\n")[1])  # 오류 메시지에서 첫 번째 줄만 반환
