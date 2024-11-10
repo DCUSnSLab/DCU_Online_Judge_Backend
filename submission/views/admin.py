@@ -48,6 +48,6 @@ class SubmissionDateAPI(APIView):
         # 결과를 [{"date": "YYYY-MM-DD", "submission_count": int}, ...] 형식으로 변환
         data = [{"date": submission['date'].strftime('%Y-%m-%d'), "submission_count": submission['submission_count']} for submission in submission_counts]
 
-        logger.debug("Submission Counts Data: %s", data)
+        logger.info("Submission Counts Data: %s", data)
         
         return self.success(data)
