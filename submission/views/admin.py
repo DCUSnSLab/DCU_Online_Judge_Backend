@@ -48,6 +48,7 @@ class SubmissionDateAPI(APIView):
         # 결과를 [{"date": "YYYY-MM-DD", "submission_count": int}, ...] 형식으로 변환
         data = [{"date": submission['date'].strftime('%Y-%m-%d'), "submission_count": submission['submission_count']} for submission in submission_counts]
 
+        print(123)
         logger.error("warning")
 
         logger.info("1_Submission Counts Data: " + data)
