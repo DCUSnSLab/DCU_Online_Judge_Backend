@@ -50,4 +50,7 @@ class SubmissionDateAPI(APIView):
         data = [{"date": submission['date'].strftime('%Y-%m-%d'), "submission_count": submission['submission_count']}
                 for submission in submission_counts]
 
+        print(123412341234123412)
+        print(data)
+
         return Response({"data": data})
