@@ -3,7 +3,9 @@ from judge.tasks import judge_task
 # from judge.dispatcher import JudgeDispatcher
 from utils.api import APIView
 from ..models import Submission
+import logging
 
+logger = logging.getLogger(__name__)
 
 class SubmissionRejudgeAPI(APIView):
     @super_admin_required
@@ -50,7 +52,6 @@ class SubmissionDateAPI(APIView):
         data = [{"date": submission['date'].strftime('%Y-%m-%d'), "submission_count": submission['submission_count']}
                 for submission in submission_counts]
 
-        print(123412341234123412)
-        print(data)
-
+        logger.debug("Submission counts :", data)
+        logger.debug("12312312312313123123123124134512351235125")
         return Response({"data": data})
