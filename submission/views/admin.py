@@ -49,8 +49,8 @@ class SubmissionDateAPI(APIView):
         submission_counts = Submission.objects.annotate(date=TruncDate('create_time')).values('date').annotate(submission_count=Count('id')).order_by('date')
 
         # 결과를 [{"date": "YYYY-MM-DD", "submission_count": int}, ...] 형식으로 변환
-        data = [{"date": submission['date'].strftime('%Y-%m-%d'), "submission_count": submission['submission_count']} for submission in submission_counts]
+        # data = [{"date": submission['date'].strftime('%Y-%m-%d'), "submission_count": submission['submission_count']} for submission in submission_counts]
 
         return self.success({
-            "submission_data": data
+            "submission_data": submission_counts
         })
