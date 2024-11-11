@@ -158,7 +158,7 @@ class ContestExitInfoAPI(APIView):
 #
 #        return self.success(ContestExitSerializer(contestUserData).data)
         user_id = request.user.id
-        client_ip = self.get_client_ip(request)
+        client_ip = request.GET.get("client_ip")
         if not request.user.is_student():
             return self.success({'data': 'notStudent'})
         if not request.GET.get("contest_id"):
