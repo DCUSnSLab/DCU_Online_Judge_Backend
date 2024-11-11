@@ -286,6 +286,7 @@ class ContestAPI(APIView):
 class ContestListAPI(APIView):
     def get(self, request):
         print("ContestListAPI Called")
+        print("test")
         # contests = Contest.objects.get(lecture=request.get('lecture_id'))
         # return self.success(self.paginate_data(request, contests, ContestSerializer))
         lectureid = request.GET.get('lectureid')
