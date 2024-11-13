@@ -3,12 +3,6 @@ from judge.tasks import judge_task
 # from judge.dispatcher import JudgeDispatcher
 from utils.api import APIView
 from ..models import Submission
-from django.db.models import Count
-from django.db.models.functions import TruncDate
-
-import logging
-
-logger = logging.getLogger(__name__)
 
 class SubmissionRejudgeAPI(APIView):
     @super_admin_required
@@ -45,7 +39,6 @@ class SubmissionUpdater(APIView):
 
 class SubmissionDateAPI(APIView):
     def get(self, request):
-        # 'create_time'에서 날짜 부분만 추출하고, 날짜별로 제출 수 집계
-        submission_counts = Submission.objects.annotate(date=TruncDate('create_time')).values('date').annotate(submission_count=Count('id')).order_by('date')
-        
-        return self.success(submission_counts)
+        submission = Submission.objects.latest('create_time')
+            
+        return self.success({"id": submission.id, "create_time": submission.create_time})
