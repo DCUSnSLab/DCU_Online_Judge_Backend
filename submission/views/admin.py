@@ -3,7 +3,8 @@ from judge.tasks import judge_task
 # from judge.dispatcher import JudgeDispatcher
 from utils.api import APIView
 from ..models import Submission
-from ..serializers import SubmissionDataSerializer
+from django.db.models import Count
+from django.db.models.functions import TruncDate
 
 class SubmissionRejudgeAPI(APIView):
     @super_admin_required
