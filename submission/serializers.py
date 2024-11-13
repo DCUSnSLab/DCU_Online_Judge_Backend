@@ -54,8 +54,3 @@ class SubmissionListSerializer(serializers.ModelSerializer):
         if self.user is None or not self.user.is_authenticated:
             return False
         return obj.check_user_permission(self.user)
-
-class SubmissionDataSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Submission
-        fields = ('id', 'create_time')

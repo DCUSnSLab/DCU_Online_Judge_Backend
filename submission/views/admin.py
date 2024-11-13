@@ -40,8 +40,9 @@ class SubmissionUpdater(APIView):
 
 class SubmissionDataAPI(APIView):
     def get(self, request):
-        submission = Submission.objects.all().only('id', 'create_time')
+        submission_counts = Submission.objects.annotate(date=TruncDate('create_time')).values('date').annotate(submission_count=Count('id')).order_by('date')
         
-        serializer = SubmissionDataSerializer(submission, many=True)
-
-        return self.success(serializer.data)
+        # 결과를 [{"date": "YYYY-MM-DD", "submission_count": int}, ...] 형식으로 변환
+        data = [{"date": submission['date'].strftime('%Y-%m-%d'), "submission_count": submission['submission_count']} for submission in submission_counts]
+        
+        return self.success(data)
