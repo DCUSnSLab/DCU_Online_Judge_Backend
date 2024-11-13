@@ -47,10 +47,8 @@ class SubmissionDateAPI(APIView):
     def get(self, request):
         # 'create_time'에서 날짜 부분만 추출하고, 날짜별로 제출 수 집계
         submission_counts = Submission.objects.annotate(date=TruncDate('create_time')).values('date').annotate(submission_count=Count('id')).order_by('date')
-        print(123)
+        
         # 결과를 [{"date": "YYYY-MM-DD", "submission_count": int}, ...] 형식으로 변환
         data = [{"date": submission['date'].strftime('%Y-%m-%d'), "submission_count": submission['submission_count']} for submission in submission_counts]
-        print(data)
-        return self.success({
-            "submission_data": submission_counts
-        })
+        
+        return self.success(data)
