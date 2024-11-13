@@ -39,6 +39,13 @@ class SubmissionUpdater(APIView):
 
 class SubmissionDateAPI(APIView):
     def get(self, request):
-        submission = Submission.objects.latest('create_time')
-            
-        return self.success({"id": submission.id, "create_time": submission.create_time})
+        try:
+            submission = Submission.objects.latest('create_time')
+            data = {
+                field.name: getattr(submission, field.name) 
+                for field in Submission._meta.fields
+            }
+            return self.success(data)
+        
+        except Submission.DoesNotExist:
+            return self.error("No submissions found", status=404)
