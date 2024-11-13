@@ -1,9 +1,9 @@
 from django.conf.urls import url
 
-from ..views.admin import SubmissionRejudgeAPI, SubmissionUpdater, SubmissionDateAPI
+from ..views.admin import SubmissionRejudgeAPI, SubmissionUpdater, SubmissionDataAPI
 
 urlpatterns = [
     url(r"^submission/rejudge?$", SubmissionRejudgeAPI.as_view(), name="submission_rejudge_api"),
     url(r"^submission/SubmissionUpdater/?$", SubmissionUpdater.as_view(), name="submission_updater_api"),
-    url(r"^sub_date_counts", SubmissionDateAPI.as_view(), name="submission_date_counts_api"),
+    url(r"^sub_date_counts", SubmissionDataAPI.as_view(), name="submission_date_counts_api"),
 ]

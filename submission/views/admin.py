@@ -3,6 +3,7 @@ from judge.tasks import judge_task
 # from judge.dispatcher import JudgeDispatcher
 from utils.api import APIView
 from ..models import Submission
+from ..serializers import SubmissionDataSerializer
 
 class SubmissionRejudgeAPI(APIView):
     @super_admin_required
@@ -37,15 +38,10 @@ class SubmissionUpdater(APIView):
             i+=1
         return self.success()
 
-class SubmissionDateAPI(APIView):
+class SubmissionDataAPI(APIView):
     def get(self, request):
-        try:
-            submission = Submission.objects.latest('create_time')
-            data = {
-                field.name: getattr(submission, field.name) 
-                for field in Submission._meta.fields
-            }
-            return self.success(data)
+        submission = Submission.objects.all().only('id', 'create_time')
         
-        except Submission.DoesNotExist:
-            return self.error("No submissions found", status=404)
+        serializer = SubmissionDataSerializer(submission, many=True)
+
+        return self.success(serializer.data)
