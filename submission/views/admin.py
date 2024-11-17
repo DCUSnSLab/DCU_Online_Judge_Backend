@@ -5,6 +5,7 @@ from utils.api import APIView
 from ..models import Submission
 from django.db.models import Count
 from django.db.models.functions import TruncDate
+from datetime import timedelta, date
 
 class SubmissionRejudgeAPI(APIView):
     @super_admin_required
@@ -41,9 +42,21 @@ class SubmissionUpdater(APIView):
 
 class SubmissionDataAPI(APIView):
     def get(self, request):
+        today = date.today()
+        earliest_submission = Submission.objects.earliest('create_time')
+        start_date = earliest_submission.create_time.date()
+
+        date_range = [start_date + timedelta(days=i) for i in range((today - start_date).days + 1)]
         submission_counts = Submission.objects.annotate(date=TruncDate('create_time')).values('date').annotate(submission_count=Count('id')).order_by('date')
         
-        # 결과를 [{"date": "YYYY-MM-DD", "submission_count": int}, ...] 형식으로 변환
-        data = [{"date": submission['date'].strftime('%Y-%m-%d'), "submission_count": submission['submission_count']} for submission in submission_counts]
-        
+        data = []
+        submission_dict = {submission['date']: submission['submission_count'] for submission in submission_counts}
+
+        for single_date in date_range:
+            data.append({
+                "date": single_date.strftime('%Y-%m-%d'),
+                "submission_count": submission_dict.get(single_date, 0)
+            })
+
         return self.success(data)
+    
