@@ -64,7 +64,7 @@ class SubmissionDataAPI(APIView):
 
 class TopSubmittersAPI(APIView):
     def get(self, request):
-        top_submitters = list(Submission.objects.values("user__username")
+        top_submitters = list(Submission.objects.values("user__realname")
                               .annotate(submission_count=Count("id"))
                               .order_by("-submission_count")[:50])
     
