@@ -61,3 +61,11 @@ class SubmissionDataAPI(APIView):
         data.reverse()
 
         return self.success(data)
+
+class TopSubmittersAPI(APIView):
+    def get(self, request):
+        top_submitters = list(Submission.objects.values("user__username")
+                              .annotate(submission_count=Count("id"))
+                              .order_by("-submission_count")[:50])
+    
+        return self.success(top_submitters)
