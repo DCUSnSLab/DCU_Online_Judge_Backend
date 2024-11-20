@@ -58,5 +58,6 @@ class SubmissionDataAPI(APIView):
                 "submission_count": submission_dict.get(single_date, 0)
             })
 
+        data.reverse()
+
         return self.success(data)
-    
