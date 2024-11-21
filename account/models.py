@@ -130,3 +130,12 @@ class UserProfile(models.Model):
 
     class Meta:
         db_table = "user_profile"
+
+class SystemData(models.Model):
+    # 로그인 사용자 수
+    LoginUser_cnt = models.PositiveIntegerField(default=0, verbose_name="Login User count")
+    # 코딩도우미 사용 수
+    AIcodinghelper_used_cnt = models.PositiveIntegerField(default=0, verbose_name="Used AIcodinghelper count")
+
+    class Meta:
+        db_table = "system_data"
