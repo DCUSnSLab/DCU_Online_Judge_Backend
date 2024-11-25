@@ -131,11 +131,16 @@ class UserProfile(models.Model):
     class Meta:
         db_table = "user_profile"
 
-class SystemData(models.Model):
-    # 로그인 사용자 수
-    LoginUser_cnt = models.PositiveIntegerField(default=0, verbose_name="Login User count")
-    # 코딩도우미 사용 수
-    AIcodinghelper_used_cnt = models.PositiveIntegerField(default=0, verbose_name="Used AIcodinghelper count")
+class UserLoginHistory(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="User")  # 유저 외래 키
+    login_date = models.DateField(auto_now_add=True, verbose_name="Login Date")  # 로그인 날짜 (자동 생성)
 
     class Meta:
-        db_table = "system_data"
+        db_table = "user_login_history"  # 테이블 이름
+
+class AICodingHelperUsage(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="User")  # 유저 외래 키
+    usage_date = models.DateField(auto_now_add=True, verbose_name="AI Coding Helper Usage Date")  # 사용 날짜 (자동 생성)
+
+    class Meta:
+        db_table = "ai_coding_helper_usage"
