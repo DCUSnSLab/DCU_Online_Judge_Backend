@@ -132,15 +132,15 @@ class UserProfile(models.Model):
         db_table = "user_profile"
 
 class UserLoginHistory(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="User")  # 유저 외래 키
-    login_date = models.DateField(auto_now_add=True, verbose_name="Login Date")  # 로그인 날짜 (자동 생성)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="User")
+    login_date = models.DateField(auto_now_add=True, verbose_name="Login Date")
 
     class Meta:
-        db_table = "user_login_history"  # 테이블 이름
+        db_table = "user_login_history" 
 
 class AICodingHelperUsage(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="User")  # 유저 외래 키
-    usage_date = models.DateField(auto_now_add=True, verbose_name="AI Coding Helper Usage Date")  # 사용 날짜 (자동 생성)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="User")
+    usage_date = models.DateField(auto_now_add=True, verbose_name="AI Coding Helper Usage Date")
 
     class Meta:
         db_table = "ai_coding_helper_usage"

@@ -21,7 +21,7 @@ from utils.api import APIView, validate_serializer, CSRFExemptAPIView
 from utils.captcha import Captcha
 from utils.shortcuts import rand_str, img2base64, datetime2str
 from ..decorators import login_required
-from ..models import User, UserProfile, AdminType
+from ..models import User, UserProfile, AdminType, UserLoginHistory
 from ..serializers import (ApplyResetPasswordSerializer, ResetPasswordSerializer,
                            UserChangePasswordSerializer, UserLoginSerializer,
                            UserRegisterSerializer, UsernameOrEmailCheckSerializer,
@@ -40,6 +40,7 @@ import base64
 from Crypto.Random import get_random_bytes
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.tokens import AccessToken
+from django.utils import timezone
 
 class UserProfileAPI(APIView):
     @method_decorator(ensure_csrf_cookie)
@@ -323,6 +324,7 @@ class UserLoginAPI(CSRFExemptAPIView):
         """
         data = request.data
         user = auth.authenticate(username=data["username"], password=self.decrypt_password(data["password"]))
+        
         # None is returned if username or password is wrong
         if user:
             if user.is_disabled:
@@ -330,8 +332,11 @@ class UserLoginAPI(CSRFExemptAPIView):
             if not user.two_factor_auth:
                 auth.login(request, user)
                 tokens = self.generate_jwt_tokens(user)
+
+                # 로그인 성공 시 UserLoginHistory에 기록 추가
+                self.record_login_history(user)
+
                 return self.success({"message": "Succeeded", "tokens": tokens})
-                # return self.success("Succeeded")
 
             # `tfa_code` not in post data
             if user.two_factor_auth and "tfa_code" not in data:
@@ -340,13 +345,21 @@ class UserLoginAPI(CSRFExemptAPIView):
             if OtpAuth(user.tfa_token).valid_totp(data["tfa_code"]):
                 auth.login(request, user)
                 tokens = self.generate_jwt_tokens(user)
+
+                # 로그인 성공 시 UserLoginHistory에 기록 추가
+                self.record_login_history(user)
+
                 return self.success({"message": "Succeeded", "tokens": tokens})
-                #return self.success("Succeeded")
             else:
                 return self.error("Invalid two factor verification code")
         else:
             return self.error("Invalid username or password")
 
+    def record_login_history(self, user):
+        """
+        로그인 성공 시 UserLoginHistory에 로그인 기록을 추가합니다.
+        """
+        UserLoginHistory.objects.create(user=user, login_date=timezone.now().date())
 
 class UserLogoutAPI(APIView):
     def get(self, request):
