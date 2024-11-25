@@ -298,7 +298,6 @@ class TokenRefreshAPI(CSRFExemptAPIView):
         except Exception as e:
             return self.error("Invalid refresh token")
 
-
 class UserLoginAPI(CSRFExemptAPIView):
     def decrypt_password(self, encrypt_password):
         with open("/data/config/private_key.pem", "r") as key_file:
@@ -333,7 +332,6 @@ class UserLoginAPI(CSRFExemptAPIView):
                 auth.login(request, user)
                 tokens = self.generate_jwt_tokens(user)
 
-                # 로그인 성공 시 UserLoginHistory에 기록 추가
                 self.record_login_history(user)
 
                 return self.success({"message": "Succeeded", "tokens": tokens})
@@ -346,7 +344,6 @@ class UserLoginAPI(CSRFExemptAPIView):
                 auth.login(request, user)
                 tokens = self.generate_jwt_tokens(user)
 
-                # 로그인 성공 시 UserLoginHistory에 기록 추가
                 self.record_login_history(user)
 
                 return self.success({"message": "Succeeded", "tokens": tokens})
@@ -356,10 +353,7 @@ class UserLoginAPI(CSRFExemptAPIView):
             return self.error("Invalid username or password")
 
     def record_login_history(self, user):
-        """
-        로그인 성공 시 UserLoginHistory에 로그인 기록을 추가합니다.
-        """
-        UserLoginHistory.objects.create(user=user, login_date=timezone.now().date())
+        UserLoginHistory.objects.create(username=user.username, login_date=timezone.now().date())
 
 class UserLogoutAPI(APIView):
     def get(self, request):
