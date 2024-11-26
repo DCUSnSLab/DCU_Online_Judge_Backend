@@ -6,5 +6,5 @@ urlpatterns = [
     url(r"^submission/rejudge?$", SubmissionRejudgeAPI.as_view(), name="submission_rejudge_api"),
     url(r"^submission/SubmissionUpdater/?$", SubmissionUpdater.as_view(), name="submission_updater_api"),
     url(r"^sub_date_counts", SubmissionDataAPI.as_view(), name="submission_date_counts_api"),
-    url(r"^topsubmitters", TopSubmittersAPI.as_view(), name="submission_date_counts_api"),
+    url(r"^topsubmitters", TopSubmittersAPI.as_view(), name="topsubmitters_counts_api"),
 ]
