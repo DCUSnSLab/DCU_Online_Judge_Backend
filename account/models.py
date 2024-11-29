@@ -137,10 +137,3 @@ class UserLoginHistory(models.Model):
 
     class Meta:
         db_table = "user_login_history"
-
-class AICodingHelperUsage(models.Model):
-    username = models.CharField(max_length=255, null=False, default="unknown", verbose_name="Username")
-    usage_date = models.DateField(auto_now_add=True, verbose_name="AI Coding Helper Usage Date")
-
-    class Meta:
-        db_table = "ai_coding_helper_usage"
