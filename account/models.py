@@ -132,12 +132,11 @@ class UserProfile(models.Model):
         db_table = "user_profile"
 
 class UserLoginHistory(models.Model):
-    id = models.IntegerField(null=False)    # 디비에 테이블 추가했는데 기본으로 만들어진 id가 중복이되어서 로그인이 안됨
     username = models.CharField(max_length=255, null=False, default="unknown", verbose_name="Username")
     login_date = models.DateField(auto_now_add=True, verbose_name="Login Date")
 
     class Meta:
-        db_table = "user_login_history" 
+        db_table = "user_login_history"
 
 class AICodingHelperUsage(models.Model):
     username = models.CharField(max_length=255, null=False, default="unknown", verbose_name="Username")
