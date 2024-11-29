@@ -390,7 +390,7 @@ class UserLoginStatsAPI(APIView):
             UserLoginHistory.objects
             .annotate(date=TruncDate('login_date'))
             .values('date')
-            .annotate(login_count=Count('username', distinct=True))
+            .annotate(login_count=Count('username'))
             .order_by('date')
         )
 
