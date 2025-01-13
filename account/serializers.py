@@ -112,7 +112,6 @@ class contestSignupSerializer(serializers.ModelSerializer):    # working by sooj
     exit_status = serializers.BooleanField()
     start_time = serializers.DateTimeField()
     end_time = serializers.DateTimeField()
-    client_ip = serializers.CharField(allow_null=True)
 
     class Meta:
         model = signup_class
