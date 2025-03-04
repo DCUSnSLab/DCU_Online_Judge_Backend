@@ -269,6 +269,29 @@ class getPublicKeyAPI(APIView):
             public_key = key_file.read()
         return self.success({"public_key": public_key})
 
+class TokenAuthenticationAPI(CSRFExemptAPIView):
+    def post(self, request):
+        token = request.data["token"]
+        if not token:
+            return self.error("access token missing")
+        try:
+            access_token = AccessToken(token)
+            user = access_token.payload["user_id"]
+            return self.success({"data": "Succeeded"})
+        except Exception as e:
+            return self.error("Invalidiaccesstoken")
+
+class TokenRefreshAPI(CSRFExemptAPIView):
+    @login_required
+    def post(self, request):
+        refresh_token = request.data["refresh_token"]
+        if not refresh_token:
+            return self.error("Refresh token missing")
+        try:
+            new_access_token = RefreshToken(refresh_token).access_token
+            return self.success({"access_token": str(new_access_token)})
+        except Exception as e:
+            return self.error("Invalid refresh token")
 
 class UserLoginAPI(CSRFExemptAPIView):
     def decrypt_password(self, encrypt_password):
