@@ -282,7 +282,7 @@ class TokenAuthenticationAPI(CSRFExemptAPIView):
             user = access_token.payload["user_id"]
             return self.success({"data": "Succeeded"})
         except Exception as e:
-            return self.error("Invalidi access token")
+            return self.error("Invalidiaccesstoken")
 
 
 class TokenRefreshAPI(CSRFExemptAPIView):
