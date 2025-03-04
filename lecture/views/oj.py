@@ -207,4 +207,9 @@ class LectureUtil:
         except signup_class.DoesNotExist:
             retv = None
             print("NOT EXIST", lec)
-        return retv
+
+class LectureContestAntiDataAPI(APIView):
+    def post(self, request):
+        user_id = request.user.id
+        data = request.data
+        return self.success({"data" : data})

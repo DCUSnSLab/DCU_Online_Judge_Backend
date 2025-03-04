@@ -1,6 +1,6 @@
 from django.conf.urls import url
 
-from ..views.oj import LectureAPI, CheckingAIhelperFlagAPI, LectureListAPI, TakingLectureListAPI, LectureApplyAPI, ContestExitInfoListAPI
+from ..views.oj import LectureAPI, CheckingAIhelperFlagAPI, LectureListAPI, TakingLectureListAPI, LectureApplyAPI, ContestExitInfoListAPI, LectureContestAntiDataAPI
 
 urlpatterns = [
     url(r"^lecture/?$", LectureAPI.as_view(), name="lecture_api"),
@@ -9,5 +9,5 @@ urlpatterns = [
     url(r"^takinglec/?$", TakingLectureListAPI.as_view(), name="takinglectures_api"),
     url(r"^lectureapply/?$", LectureApplyAPI.as_view(), name="lectureapply_api"),
     url(r"^lecture/contest_exit_manage/?$", ContestExitInfoListAPI.as_view(), name="lecture_contest_exit_manage_api"),    # working by soojung
-
+    url(r"^lecture/contest_anti_data?$", LectureContestAntiDataAPI.as_view(), name="lecture_contest_anti_data"),
 ]
