@@ -38,6 +38,8 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
 import base64
 from Crypto.Random import get_random_bytes
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import AccessToken
 
 class UserProfileAPI(APIView):
     @method_decorator(ensure_csrf_cookie)
@@ -302,6 +304,13 @@ class UserLoginAPI(CSRFExemptAPIView):
         sentinel = get_random_bytes(16)
         decrypted_password = cipher.decrypt(encrypt_password_bytes, sentinel)
         return decrypted_password.decode('utf-8')
+    
+    def generate_jwt_tokens(self, user):
+        refresh = RefreshToken.for_user(user)
+        return {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+        }
 
     @method_decorator(csrf_exempt)
     @validate_serializer(UserLoginSerializer)
@@ -317,15 +326,16 @@ class UserLoginAPI(CSRFExemptAPIView):
                 return self.error("Your account has been disabled")
             if not user.two_factor_auth:
                 auth.login(request, user)
-                return self.success("Succeeded")
-
+                tokens = self.generate_jwt_tokens(user)
+                return self.success({"message": "Succeeded", "tokens": tokens})
             # `tfa_code` not in post data
             if user.two_factor_auth and "tfa_code" not in data:
                 return self.error("tfa_required")
 
             if OtpAuth(user.tfa_token).valid_totp(data["tfa_code"]):
                 auth.login(request, user)
-                return self.success("Succeeded")
+                tokens = self.generate_jwt_tokens(user)
+                return self.success({"message": "Succeeded", "tokens": tokens})
             else:
                 return self.error("Invalid two factor verification code")
         else:
