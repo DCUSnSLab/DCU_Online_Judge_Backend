@@ -76,7 +76,18 @@ class SubmissionAPI(APIView):
         if data["language"] not in problem.languages:
             return self.error(f"언어 선택에 오류가 있습니다. 다시 확인해주세요. 선택된 언어 : {data['language']}")
 
-        if data.get("contest_id"): # Contest에 소속된 문제인 경우,
+        if data.get("sample_test"):
+            submission = Submission(
+                user_id=request.user.id,
+                username=request.user.username,
+                language=data["language"],
+                code=data["code"],
+                problem_id=problem.id,
+                ip=request.session["ip"],
+                contest_id=data.get("contest_id"),
+                lecture_id=None
+            )
+        elif data.get("contest_id"): # Contest에 소속된 문제인 경우,
             contest = Contest.objects.get(id=data.get("contest_id"))
             print(contest.title)
             print(contest.lecture_id)
@@ -110,31 +121,15 @@ class SubmissionAPI(APIView):
         # run result return
         try:
             if data["sample_test"]:
-                submissionResultData = JudgeDispatcher(submission.id, problem.id).judge()
+                submissionResultData = JudgeDispatcher(submission, problem.id, True).judge()
                 outputResultData = []
                 if isinstance(submissionResultData, list):
                     for i in range(data["sample_count"]):
-                        #if submissionResultData[i].get('result') == 4:
-                        #    outputData = submissionResultData[i].get('output')
-                        #    dirStartIndex = outputData.index('/judger')
-                        #    dirEndIndex = dirStartIndex+1
-                        #    for j in range(3):
-                        #        dirEndIndex = outputData.index('/', dirEndIndex)+1
-                        #    outputResultData.append({                                                             
-                        #        "output": outputData[:dirStartIndex]+outputData[dirEndIndex:],                        
-                        #        "result": submissionResultData[i].get('result')                                
-                        #    })
-                        #else:
                         outputResultData.append({
                             "output": submissionResultData[i].get('output'),
                             "result": submissionResultData[i].get('result')
                         })
                 else: # not list                                              
-                     #outputData = submissionResultData
-                     #dirStartIndex = outputData.index('/judger')                             
-                     #dirEndIndex = dirStartIndex+1                                                             
-                     #for j in range(3):                                                               
-                     #    dirEndIndex = outputData.index('/', dirEndIndex)+1 
                      outputResultData.append({
                         "output": outputData[:dirStartIndex]+outputData[dirEndIndex:],
                         "result": 4

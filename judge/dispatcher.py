@@ -90,12 +90,18 @@ class SPJCompiler(DispatcherBase):
 
 
 class JudgeDispatcher(DispatcherBase):
-    def __init__(self, submission_id, problem_id, sample_test_status=False):
+    def __init__(self, submission, problem_id, sample_test_status=False):
         super().__init__()
-        self.submission = Submission.objects.get(id=submission_id)
+        self.sample_test_status = sample_test_status
+        
+        if self.sample_test_status:
+            self.submission = submission
+        else:
+            self.submission = Submission.objects.get(id=submission)
+        
         self.contest_id = self.submission.contest_id
         self.last_result = self.submission.result if self.submission.info else None
-        self.sample_test_status = sample_test_status
+        
         if self.contest_id:
             self.problem = Problem.objects.select_related("contest").get(id=problem_id, contest_id=self.contest_id)
             self.contest = self.problem.contest
@@ -154,16 +160,18 @@ class JudgeDispatcher(DispatcherBase):
         }
 
         with ChooseJudgeServer() as server:
-            if not server:
-                data = {"submission_id": self.submission.id, "problem_id": self.problem.id}
-                cache.lpush(CacheKey.waiting_queue, json.dumps(data))
-                return
-            Submission.objects.filter(id=self.submission.id).update(result=JudgeStatus.JUDGING)
+            if not self.sample_test_status:
+                if not server:
+                    data = {"submission_id": self.submission.id, "problem_id": self.problem.id}
+                    cache.lpush(CacheKey.waiting_queue, json.dumps(data))
+                    return
+                Submission.objects.filter(id=self.submission.id).update(result=JudgeStatus.JUDGING)
             resp = self._request(urljoin(server.service_url, "/judge"), data=data)
+        if self.sample_test_status:
+            return resp["data"]
         if not resp:
             Submission.objects.filter(id=self.submission.id).update(result=JudgeStatus.SYSTEM_ERROR)
             return
-
         if resp["err"]:
             self.submission.result = JudgeStatus.COMPILE_ERROR
             self.submission.statistic_info["err_info"] = resp["data"]
@@ -182,10 +190,8 @@ class JudgeDispatcher(DispatcherBase):
                 self.submission.result = error_test_case[0]["result"]
             else:
                 self.submission.result = JudgeStatus.PARTIALLY_ACCEPTED
-
+        print("@@save")
         self.submission.save()
-        if self.sample_test_status:
-            return resp["data"]
         if self.contest_id:
             if self.contest.status != ContestStatus.CONTEST_UNDERWAY or User.objects.get(id=self.submission.user_id).is_contest_admin(self.contest):
                 logger.info(
