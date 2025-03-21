@@ -223,7 +223,7 @@ class AIhelperAPI(APIView):
 
         messages = [{"role": "user", "content": code}]
         # send chatGPT and get answer
-        assistant_content = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
+        assistant_content = openai.ChatCompletion.create(model="gpt-4o-mini", messages=messages)
         messages.append({"role": "assistant", "content": f"{assistant_content}"})
         # delete code in answer when not
         if result != '0':
