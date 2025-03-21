@@ -694,8 +694,6 @@ class UserEventLogAPI(APIView):
             "_id": problem_id
         })
 
-        # ✅ status가 없으면 그냥 내버려둠 (추가하지 않음)
-        # 이벤트 누적만 처리
         if event_type == "copy_attempt":
             problem_data["copied"] = problem_data.get("copied", 0) + 1
         elif event_type == "focus_screen":
@@ -703,7 +701,6 @@ class UserEventLogAPI(APIView):
         else:
             return self.error("지원하지 않는 event_type입니다.")
 
-        # 갱신 및 저장
         acm_status["problems"][problem_id] = problem_data
         profile.acm_problems_status = acm_status
         profile.save()
