@@ -671,6 +671,40 @@ class OpenAPIAppkeyAPI(APIView):
         user.save()
         return self.success({"appkey": api_appkey})
 
+class UserEventLogAPI(APIView):
+    @login_required
+    def post(self, request):
+        user = request.user
+        profile = user.userprofile
+        data = request.data
+
+        problem_id = str(data.get("problem_id"))
+        event_type = data.get("event_type")
+
+        if not problem_id or not event_type:
+            return self.error("problem_id와 event_type이 필요합니다.")
+
+        acm_status = profile.acm_problems_status
+        if "problems" not in acm_status:
+            acm_status["problems"] = {}
+
+        problem_data = acm_status["problems"].get(problem_id, {
+            "_id": problem_id
+        })
+
+        if event_type == "copy_attempt":
+            problem_data["copied"] = problem_data.get("copied", 0) + 1
+        elif event_type == "focus_screen":
+            problem_data["focusing"] = problem_data.get("focusing", 0) + 1
+        else:
+            return self.error("지원하지 않는 event_type입니다.")
+
+        acm_status["problems"][problem_id] = problem_data
+        profile.acm_problems_status = acm_status
+        profile.save()
+
+        return self.success({"updated_problem_data": problem_data})
+
 
 class SSOAPI(CSRFExemptAPIView):
     @login_required
