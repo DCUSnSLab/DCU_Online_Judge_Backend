@@ -684,12 +684,18 @@ class UserEventLogAPI(APIView):
         if not problem_id or not event_type:
             return self.error("problem_id와 event_type이 필요합니다.")
 
+<<<<<<< HEAD
         # 기존 ACM 상태 가져오기
+=======
+>>>>>>> 9847959ef395cbfdd6c89aa389e1d5fb6bf3ed45
         acm_status = profile.acm_problems_status
         if "problems" not in acm_status:
             acm_status["problems"] = {}
 
+<<<<<<< HEAD
         # 기존 문제 데이터 가져오고, 없으면 새 dict로 시작
+=======
+>>>>>>> 9847959ef395cbfdd6c89aa389e1d5fb6bf3ed45
         problem_data = acm_status["problems"].get(problem_id, {
             "_id": problem_id
         })

@@ -36,3 +36,5 @@ urlpatterns = [
     url(r"^get_public_key/?$", getPublicKeyAPI.as_view(), name="get_public_key_api"),
     url(r"^user/event_log/?$", UserEventLogAPI.as_view(), name="user_event_log_api")
 ]
+
+
