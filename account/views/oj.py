@@ -680,18 +680,30 @@ class UserEventLogAPI(APIView):
 
         problem_id = str(data.get("problem_id"))
         event_type = data.get("event_type")
+        contest_id = data.get("contest_id")
+        rule_type = data.get("rule_type")
 
-        if not problem_id or not event_type:
-            return self.error("problem_id와 event_type이 필요합니다.")
+        if not problem_id or not event_type or not rule_type:
+            return self.error("problem_id, event_type, rule_type가 필요합니다.")
 
-        acm_status = profile.acm_problems_status
-        if "problems" not in acm_status:
-            acm_status["problems"] = {}
+        # ACM or OI 판별
+        is_acm = rule_type == "ACM"
 
-        problem_data = acm_status["problems"].get(problem_id, {
+        # 저장 위치 결정
+        if is_acm:
+            status_root = profile.acm_problems_status
+        else:
+            status_root = profile.oi_problems_status
+
+        key = "contest_problems" if contest_id else "problems"
+        if key not in status_root:
+            status_root[key] = {}
+
+        problem_data = status_root[key].get(problem_id, {
             "_id": problem_id
         })
 
+        # 이벤트 처리
         if event_type == "copy_attempt":
             problem_data["copied"] = problem_data.get("copied", 0) + 1
         elif event_type == "focus_screen":
@@ -699,10 +711,15 @@ class UserEventLogAPI(APIView):
         else:
             return self.error("지원하지 않는 event_type입니다.")
 
-        acm_status["problems"][problem_id] = problem_data
-        profile.acm_problems_status = acm_status
-        profile.save()
+        # 저장
+        status_root[key][problem_id] = problem_data
 
+        if is_acm:
+            profile.acm_problems_status = status_root
+        else:
+            profile.oi_problems_status = status_root
+
+        profile.save()
         return self.success({"updated_problem_data": problem_data})
 
 
