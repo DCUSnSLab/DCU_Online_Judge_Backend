@@ -679,12 +679,14 @@ class UserEventLogAPI(APIView):
         data = request.data
 
         problem_id = str(data.get("problem_id"))
-        event_type = data.get("event_type")
         contest_id = data.get("contest_id")
         rule_type = data.get("rule_type")
 
-        if not problem_id or not event_type or not rule_type:
-            return self.error("problem_id, event_type, rule_type가 필요합니다.")
+        copied = data.get("copied", 0)
+        focusing = data.get("focusing", 0)
+
+        if not problem_id or not rule_type:
+            return self.error("problem_id, rule_type가 필요합니다.")
 
         # ACM or OI 판별
         is_acm = rule_type == "ACM"
@@ -703,13 +705,11 @@ class UserEventLogAPI(APIView):
             "_id": problem_id
         })
 
-        # 이벤트 처리
-        if event_type == "copy_attempt":
-            problem_data["copied"] = problem_data.get("copied", 0) + 1
-        elif event_type == "focus_screen":
-            problem_data["focusing"] = problem_data.get("focusing", 0) + 1
-        else:
-            return self.error("지원하지 않는 event_type입니다.")
+        # 누적 업데이트
+        if isinstance(copied, int):
+            problem_data["copied"] = problem_data.get("copied", 0) + copied
+        if isinstance(focusing, int):
+            problem_data["focusing"] = problem_data.get("focusing", 0) + focusing
 
         # 저장
         status_root[key][problem_id] = problem_data
