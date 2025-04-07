@@ -83,77 +83,103 @@ class ContestLectureUserAPI(APIView):
 class ContestUserAPI(APIView):
     def get(self, request):
         """
-        수강과목이 있는 학생 목록을 가져오기 위한 기능
+        콘테스트 수강 학생 목록 + 부정행위 로그 포함 반환 API
         """
         user_id = request.GET.get("id")
         lecture_id = request.GET.get("lectureid")
         contest_id = request.GET.get("contestid")
-        print(lecture_id)
-        print(contest_id)
 
-        if lecture_id is None:
-            if request.user.is_super_admin() or request.user.is_admin():
-                try:
-                    ulist = signup_class.objects.filter(contest=contest_id).select_related('lecture').order_by(
-                        "realname")  # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
-                    ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
-                except signup_class.DoesNotExist:
-                    return self.error("수강중인 학생이 없습니다.")
-                # test
-                LectureInfo = lecDispatcher()
-                cnt = 0
-                for us in ulist:
-                    us.totalScore = 0
-                    us.exit_status = False
+        print("ContestUserAPI Called")
+        print("lecture_id:", lecture_id)
+        print("contest_id:", contest_id)
 
-                    if us.user is not None and us.isallow is True:
-                        LectureInfo.fromDict(us.score)
-                        # us.totalScore = LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id].Info.data[DataType.SCORE]
-                        # print(LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id])
-                        cu = ContestUser.objects.get(contest_id=contest_id, user_id=us.user)
-                        if cu.end_time is not None:
-                            us.exit_status = True
-                        else:
-                            us.exit_status = False
-                        print(us.exit_status)
-                    cnt += 1
-                return self.success(self.paginate_data(request, ulist, contestSignupSerializer))
-            return self.success()
+        if not contest_id:
+            return self.error("contest_id is required")
+
+        # 문제 목록 가져오기 (공통)
+        problem_queryset = Problem.objects.filter(contest_id=contest_id)
+        problem_list = list(problem_queryset.values("id", "title"))
+
+        if problem_queryset.exists():
+            first_problem = problem_queryset.first()
+            rule_type = first_problem.rule_type
         else:
-            tauser = ta_admin_class.objects.filter(user__id=request.user.id, lecture__id=lecture_id)
-            if request.user.is_super_admin() or request.user.is_admin() or tauser[0].score_isallow:
-                try:
-                    ulist = signup_class.objects.filter(lecture=lecture_id).select_related('lecture').order_by(
-                        "realname")  # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
-                    ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
-                except signup_class.DoesNotExist:
-                    return self.error("수강중인 학생이 없습니다.")
-                # test
-                print("test")
-                LectureInfo = lecDispatcher()
-                cnt = 0
-                for us in ulist:
-                    us.totalScore = 0
-                    us.exit_status = False
-                    us.start_time = ''
-                    us.end_time = ''
-                    if us.user is not None and us.isallow is True:
-                        LectureInfo.fromDict(us.score)
-                        # us.totalScore = LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id].Info.data[DataType.SCORE]
-                        # print(LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id]
-                        try:
-                            cu = ContestUser.objects.get(contest_id=contest_id, user_id=us.user)
-                            if cu.end_time is not None:                                                                                   
-                                us.exit_status = True
-                                us.end_time = cu.end_time                                                                                            
-                            if cu.start_time is not None:
-                                us.start_time = cu.start_time
-                        except:
-                            pass 
+            rule_type = None
+            print("문제 없음", flush=True)
 
-                    cnt += 1
-                return self.success(self.paginate_data(request, ulist, contestSignupSerializer))
-            return self.success()
+        try:
+            ulist = signup_class.objects.all()
+
+            if lecture_id:
+                ulist = ulist.filter(lecture=lecture_id)
+            else:
+                ulist = ulist.filter(contest=contest_id)
+
+            ulist = ulist.select_related("lecture", "user").order_by("realname")
+            ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
+
+        except signup_class.DoesNotExist:
+            return self.error("수강중인 학생이 없습니다.")
+
+        LectureInfo = lecDispatcher()
+
+        for us in ulist:
+            us.totalScore = 0
+            us.exit_status = False
+            us.start_time = ''
+            us.end_time = ''
+            us.cheat_log = {}
+
+            if us.user is not None and us.isallow:
+                # 성적 처리
+                LectureInfo.fromDict(us.score)
+
+                # 콘테스트 입퇴장 기록
+                try:
+                    cu = ContestUser.objects.get(contest_id=contest_id, user_id=us.user)
+                    if cu.end_time:
+                        us.exit_status = True
+                        us.end_time = cu.end_time
+                    if cu.start_time:
+                        us.start_time = cu.start_time
+                except ContestUser.DoesNotExist:
+                    pass
+
+                try:
+                    user_profile = us.user.userprofile
+
+                    # rule_type에 따라 참조할 문제 상태 선택
+                    if rule_type == "ACM":
+                        all_status = user_profile.acm_problems_status.get("contest_problems", {})
+                    else:
+                        all_status = user_profile.oi_problems_status.get("contest_problems", {})
+
+                    cheat_log = {}
+
+                    # 현재 콘테스트에 등록된 문제 ID 집합 (Problem 모델의 id 기준)
+                    contest_problem_ids = set(str(p["id"]) for p in problem_list)
+
+                    for pid, pdata in all_status.items():
+                        if pid in contest_problem_ids:
+                            cheat_log[pid] = {
+                                "copied": pdata.get("copied", 0),
+                                "focusing": pdata.get("focusing", 0)
+                            }
+
+                    # 누락된 문제 0으로 채우기
+                    for p in problem_list:
+                        pid = str(p["id"])
+                        if pid not in cheat_log:
+                            cheat_log[pid] = {"copied": 0, "focusing": 0}
+
+                    us.cheat_log = cheat_log
+                except Exception as e:
+                    print("부정행위 로그 처리 오류:", e, flush=True)
+
+        return self.success({
+            "problem_list": problem_list,
+            "student_list": self.paginate_data(request, ulist, contestSignupSerializer)
+        })
 
 class ContestExitStudentAPI(APIView):
     def post(self, request):

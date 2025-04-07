@@ -77,10 +77,14 @@ class SimpleSignupSerializer(serializers.ModelSerializer):
 class ContestSignupSerializer(serializers.ModelSerializer):
     totalScore = serializers.IntegerField()
     lecDict = serializers.DictField()
+    cheat_log = serializers.SerializerMethodField()
 
     class Meta:
         model = signup_class
         fields = "__all__"
+    
+    def get_cheat_log(self, obj):
+        return getattr(obj, "cheat_log", {})
 
 ######################################################
 class SignupSerializer(serializers.ModelSerializer):
@@ -112,10 +116,14 @@ class contestSignupSerializer(serializers.ModelSerializer):    # working by sooj
     exit_status = serializers.BooleanField()
     start_time = serializers.DateTimeField()
     end_time = serializers.DateTimeField()
+    cheat_log = serializers.SerializerMethodField()
 
     class Meta:
         model = signup_class
         fields = "__all__"
+    
+    def get_cheat_log(self, obj):
+        return getattr(obj, "cheat_log", {})
 
 class MainSignupSerializer(SignupSerializer):
     contestlist = serializers.DictField()
