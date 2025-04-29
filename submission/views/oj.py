@@ -16,7 +16,7 @@ from ..models import Submission
 from ..serializers import (CreateSubmissionSerializer, SubmissionModelSerializer,
                            ShareSubmissionSerializer)
 from ..serializers import SubmissionSafeModelSerializer, SubmissionListSerializer
-
+from lecture.models import signup_class, ta_admin_class, Lecture
 
 class SubmissionAPI(APIView):
     def throttling(self, request):
@@ -41,12 +41,24 @@ class SubmissionAPI(APIView):
         contest = self.contest
         if contest.status == ContestStatus.CONTEST_ENDED:
             return self.error("The contest have ended")
-        if not request.user.is_contest_admin(contest):
+
+        lecture = contest.lecture
+        user = request.user
+        realTa = ta_admin_class.is_user_ta(lecture, user) #TA인증
+
+        if not user.is_contest_admin(contest) or user.is_semi_admin() and not realTa:
             user_ip = ipaddress.ip_address(request.session.get("ip"))
             #user_ip = ipaddress.ip_address(request.data.get("ip"))
             if contest.allowed_ip_ranges:
                 if not any(user_ip in ipaddress.ip_network(cidr, strict=False) for cidr in contest.allowed_ip_ranges):
                     return self.error("Your IP is not allowed in this contest")
+        # 사용자 ip확인용            
+        # if not request.user.is_contest_admin(contest):
+        #     user_ip = ipaddress.ip_address(request.session.get("ip"))
+        #     #user_ip = ipaddress.ip_address(request.data.get("ip"))
+        #     if contest.allowed_ip_ranges:
+        #         if not any(user_ip in ipaddress.ip_network(cidr, strict=False) for cidr in contest.allowed_ip_ranges):
+        #             return self.error("Your IP is not allowed in this contest")
 
     @validate_serializer(CreateSubmissionSerializer)
     @login_required
@@ -138,6 +150,7 @@ class SubmissionAPI(APIView):
         except (Exception,):
             pass
         # use this for debug
+        print("아 테스트요 테스트 들어가는지 확인")
         JudgeDispatcher(submission.id, problem.id).judge()
         #judge_task.send(submission.id, problem.id)
         if hide_id:
@@ -214,6 +227,7 @@ class SubmissionListAPI(APIView):
         myself = request.GET.get("myself")
         result = request.GET.get("result")
         username = request.GET.get("username")
+        
         if problem_id:
             try:
                 problem = Problem.objects.get(_id=problem_id, contest_id__isnull=True, visible=True)
@@ -247,6 +261,11 @@ class ContestSubmissionListAPI(APIView):
         myself = request.GET.get("myself")
         result = request.GET.get("result")
         username = request.GET.get("username")
+
+        lecture = contest.lecture
+        user = request.user
+        realTa = ta_admin_class.is_user_ta(lecture, user)
+
         if problem_id:
             try:
                 problem = Problem.objects.get(_id=problem_id, contest_id=contest.id, visible=True)
@@ -255,7 +274,7 @@ class ContestSubmissionListAPI(APIView):
             submissions = submissions.filter(problem=problem)
 
         if myself and myself == "1":
-            submissions = submissions.filter(user_id=request.user.id)
+            submissions = submissions.filter(user_id=user.id)
         elif username:
             submissions = submissions.filter(Q(user__realname__contains=username) | Q(username__icontains=username))
         if result:
@@ -267,8 +286,13 @@ class ContestSubmissionListAPI(APIView):
 
         # 封榜的时候只能看到自己的提交
         if contest.rule_type == ContestRuleType.ACM:
-            if not contest.real_time_rank and not request.user.is_contest_admin(contest):
-                submissions = submissions.filter(user_id=request.user.id)
+            if not contest.real_time_rank and (not user.is_contest_admin(contest) or user.is_semi_admin() and not realTa):
+                submissions = submissions.filter(user_id=user.id)
+        # TA/RA권한 수정 할 때 혹시 몰라서 수정함 일반적인 시험 IO에서는 포함 안됨
+
+        # if contest.rule_type == ContestRuleType.ACM:
+        #     if not contest.real_time_rank and not request.user.is_contest_admin(contest):
+        #         submissions = submissions.filter(user_id=request.user.id)
 
         data = self.paginate_data(request, submissions)
         data["results"] = SubmissionListSerializer(data["results"], many=True, user=request.user).data
