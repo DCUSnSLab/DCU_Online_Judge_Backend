@@ -9,7 +9,7 @@ from django.db.models import F
 
 from account.models import User
 from conf.models import JudgeServer
-from contest.models import ContestRuleType, ACMContestRank, OIContestRank, ContestStatus
+from contest.models import ContestRuleType, ACMContestRank, OIContestRank, ContestStatus, Contest
 from lecture.views.LectureBuilder import SubmitBuilder
 from options.options import SysOptions
 from problem.models import Problem, ProblemRuleType
@@ -17,6 +17,7 @@ from problem.utils import parse_problem_template
 from submission.models import JudgeStatus, Submission
 from utils.cache import cache
 from utils.constants import CacheKey
+from lecture.models import ta_admin_class, Lecture
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +194,16 @@ class JudgeDispatcher(DispatcherBase):
         print("@@save")
         self.submission.save()
         if self.contest_id:
-            if self.contest.status != ContestStatus.CONTEST_UNDERWAY or User.objects.get(id=self.submission.user_id).is_contest_admin(self.contest):
+            contest = Contest.objects.get(id=self.contest_id)
+            lecture = contest.lecture
+            user = User.objects.get(id=self.submission.user_id)
+            realTa = ta_admin_class.is_user_ta(lecture, user)
+
+            is_not_underway = self.contest.status != ContestStatus.CONTEST_UNDERWAY
+            is_admin_only = user.is_contest_admin(self.contest) and not user.is_semi_admin()
+            is_valid_semi_admin = user.is_semi_admin() and realTa
+
+            if is_not_underway or is_admin_only or is_valid_semi_admin:
                 logger.info(
                     "Contest debug mode, id: " + str(self.contest_id) + ", submission id: " + self.submission.id)
                 return resp["data"]

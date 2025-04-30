@@ -359,7 +359,7 @@ class UserLoginAPI(CSRFExemptAPIView):
 class UserLogoutAPI(APIView):
     def get(self, request):
         userID = request.user.id
-        if request.user.is_student():
+        if request.user.is_student() or request.user.is_semi_admin(): # 학생만 로그아웃하면 퇴실되게 했는데 TA타입의 계정도 로그아웃 시 퇴실되도록 함
             if ContestUser.objects.filter(user_id=userID, start_time__isnull=False, end_time__isnull=True).exists(): # working by soojung
                 ContestUser.objects.filter(user_id=userID, start_time__isnull=False, end_time__isnull=True).update(end_time=now())
             # contestlog_list = []
@@ -378,8 +378,7 @@ class UsernameOrEmailCheck(APIView):
         """
         data = request.data
         # True means already exist.
-        
-        print("Test")
+
         result = {
             "username": False,
             "email": False,

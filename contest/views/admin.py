@@ -385,8 +385,18 @@ class DownloadContestSubmissions(APIView):
         users = User.objects.filter(id__in=user_ids)
         path = f"/tmp/{rand_str()}.zip"
         with zipfile.ZipFile(path, "w") as zip_file:
+            testId = False
+            contest = self.contest
+            user_id = request.user.id
+            lecture_id = contest.lecture_id
+            lectuer = Lecture.objects.get(id=lecture_id)
+            ta_list = ta_admin_class.objects.filter(lecture=lectuer)
             for user in users:
-                if user.is_admin_role() and exclude_admin:
+                for ta in ta_list:
+                    if user_id == ta.user.id:
+                        testId = True
+                        break
+                if user.is_admin_role() and not user.is_semi_admin() and exclude_admin or user.is_semi_admin() and testId:
                     continue
                 user_ac_map = copy.deepcopy(ac_map)
                 user_submissions = submissions.filter(user_id=user.id)
