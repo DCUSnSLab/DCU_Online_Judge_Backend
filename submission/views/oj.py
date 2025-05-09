@@ -53,7 +53,44 @@ class SubmissionAPI(APIView):
     def post(self, request):
         print("SubmissionAPI post")
         data = request.data
+        copied = data.get("copied", 0)
+        focusing = data.get("focusing", 0)
+        rule_type = data.get("rule_type")
         hide_id = False
+
+        # 부정행위 로그 업데이트
+        try:
+            profile = request.user.userprofile
+            is_acm = rule_type == "ACM"
+            status_root = profile.acm_problems_status if is_acm else profile.oi_problems_status
+
+            key = "contest_problems" if data.get("contest_id") else "problems"
+            if key not in status_root:
+                status_root[key] = {}
+
+            problem_id = str(data["problem_id"])
+            problem_data = status_root[key].get(problem_id, {"_id": problem_id})
+
+            prev_copied = problem_data.get("copied", 0)
+            prev_focusing = problem_data.get("focusing", 0)
+            print(f"prev_copied: {prev_copied}, prev_focusing: {prev_focusing}")
+
+            if isinstance(copied, int):
+                problem_data["copied"] = max(prev_copied, copied)
+            if isinstance(focusing, int):
+                problem_data["focusing"] = max(prev_focusing, focusing)
+
+            status_root[key][problem_id] = problem_data
+
+            if is_acm:
+                profile.acm_problems_status = status_root
+            else:
+                profile.oi_problems_status = status_root
+
+            profile.save()
+        except Exception as e:
+            print(f"[Anti-Log Update Error] {e}")
+
         if data.get("contest_id"):
             error = self.check_contest_permission(request)
             if error:

@@ -13,6 +13,9 @@ class CreateSubmissionSerializer(serializers.Serializer):
     lecture_id = serializers.IntegerField(required=False)
     sample_count = serializers.IntegerField(required=False)
     sample_test = serializers.BooleanField(required=False)
+    copied = serializers.IntegerField(required=False, default=0)
+    focusing = serializers.IntegerField(required=False, default=0)
+    rule_type = serializers.CharField(required=False, default="ACM")
 
 
 class ShareSubmissionSerializer(serializers.Serializer):
