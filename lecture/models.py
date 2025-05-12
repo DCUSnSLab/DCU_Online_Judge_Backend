@@ -54,3 +54,13 @@ class ta_admin_class(models.Model):
             checklist.append(PermitTA.SCORE)
 
         return checklist
+
+    @classmethod
+    def is_user_ta(cls, lecture, user):
+        """
+        해당 강의에서 이 사용자가 TA인지 확인하는 함수
+        :param lecture: Lecture 객체
+        :param user: User 객체
+        :return: True면 TA, False면 TA 아님
+        """
+        return cls.objects.filter(lecture=lecture, user=user).exists()
