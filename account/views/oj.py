@@ -670,6 +670,57 @@ class OpenAPIAppkeyAPI(APIView):
         user.save()
         return self.success({"appkey": api_appkey})
 
+class UserEventLogAPI(APIView):
+    @login_required
+    def post(self, request):
+        user = request.user
+        profile = user.userprofile
+        data = request.data
+
+        problem_id = str(data.get("problem_id"))
+        contest_id = data.get("contest_id")
+        rule_type = data.get("rule_type")
+
+        copied = data.get("copied", 0)
+        focusing = data.get("focusing", 0)
+
+        if not problem_id or not rule_type:
+            return self.error("problem_id, rule_type가 필요합니다.")
+
+        # ACM or OI 판별
+        is_acm = rule_type == "ACM"
+
+        # 저장 위치 결정
+        if is_acm:
+            status_root = profile.acm_problems_status
+        else:
+            status_root = profile.oi_problems_status
+
+        key = "contest_problems" if contest_id else "problems"
+        if key not in status_root:
+            status_root[key] = {}
+
+        problem_data = status_root[key].get(problem_id, {
+            "_id": problem_id
+        })
+
+        # 누적 업데이트
+        if isinstance(copied, int):
+            problem_data["copied"] = problem_data.get("copied", 0) + copied
+        if isinstance(focusing, int):
+            problem_data["focusing"] = problem_data.get("focusing", 0) + focusing
+
+        # 저장
+        status_root[key][problem_id] = problem_data
+
+        if is_acm:
+            profile.acm_problems_status = status_root
+        else:
+            profile.oi_problems_status = status_root
+
+        profile.save()
+        return self.success({"updated_problem_data": problem_data})
+
 
 class SSOAPI(CSRFExemptAPIView):
     @login_required
