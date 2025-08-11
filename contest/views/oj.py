@@ -114,7 +114,7 @@ class ContestUserAPI(APIView):
                 ulist = ulist.filter(lecture=lecture_id)
             else:
                 ulist = ulist.filter(contest=contest_id)
-
+            ulist = ulist.filter(isallow=True)
             ulist = ulist.select_related("lecture", "user").order_by("realname")
             ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
 
