@@ -4,7 +4,7 @@ from utils.api import APIView
 from account.decorators import check_contest_permission, ensure_prob_access# , ensure_prob_detail_access
 from ..models import ProblemTag, Problem, ProblemRuleType
 from contest.models import Contest
-from lecture.models import signup_class
+from lecture.models import signup_class, ta_admin_class, Lecture
 from account.models import User
 from ..serializers import ProblemSerializer, TagSerializer, ProblemSafeSerializer, ContestExitSerializer  # working by soojung
 from contest.models import ContestRuleType, ContestUser
@@ -40,10 +40,16 @@ class ProblemAPI(APIView):
             else:
                 problems = [queryset_values, ]
             for problem in problems:
+                pid = str(problem["id"])
                 if problem["rule_type"] == ProblemRuleType.ACM:
-                    problem["my_status"] = acm_problems_status.get(str(problem["id"]), {}).get("status")
+                    status_data = acm_problems_status.get(pid, {})
                 else:
-                    problem["my_status"] = oi_problems_status.get(str(problem["id"]), {}).get("status")
+                    status_data = oi_problems_status.get(pid, {})
+
+                problem["my_status"] = status_data.get("status")
+                problem["copied"] = status_data.get("copied", 0)
+                problem["focusing"] = status_data.get("focusing", 0)
+
 
     def get(self, request):
         # 问题详情页
@@ -93,8 +99,13 @@ class ContestProblemAPI(APIView):
                 problems_status = profile.acm_problems_status.get("contest_problems", {})
             else:
                 problems_status = profile.oi_problems_status.get("contest_problems", {})
+
             for problem in queryset_values:
-                problem["my_status"] = problems_status.get(str(problem["id"]), {}).get("status")
+                pid = str(problem["id"])
+                status_data = problems_status.get(pid, {})
+                problem["my_status"] = status_data.get("status")
+                problem["copied"] = status_data.get("copied", 0)
+                problem["focusing"] = status_data.get("focusing", 0)
 
     @check_contest_permission(check_type="problems")
     def get(self, request):
@@ -149,20 +160,27 @@ class ContestExitInfoAPI(APIView):
 #            contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
 #
 #        return self.success(ContestExitSerializer(contestUserData).data)
-        user_id = request.user.id
-        if not request.user.is_student():
-            return self.success({'data': 'notStudent'})
-        if not request.GET.get("contest_id"):
-            return self.success({'data': 'notContest'})
+
         contest_id = request.GET.get("contest_id")
         contest = Contest.objects.get(id=contest_id)
+        lecture = contest.lecture
+        user = request.user
+        realTa = ta_admin_class.is_user_ta(lecture, user)
+
+        if not user.is_student() and not user.is_semi_admin() or user.is_semi_admin() and realTa:
+            return self.success({'data': 'notStudent'})
+        # # user_id = request.user.id
+        # if not request.user.is_student():
+        #     return self.success({'data': 'notStudent'})
+        if not request.GET.get("contest_id"):
+            return self.success({'data': 'notContest'})
         if not contest.lecture_contest_type == "대회":
             return self.success({'data': 'notTest'})
         try:
-            contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+            contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user.id)
         except:
-            ContestUser.objects.create(contest_id=contest_id, user_id=user_id) #first contest open
-            contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user_id)
+            ContestUser.objects.create(contest_id=contest_id, user_id=user.id) #first contest open
+            contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user.id)
         return self.success(ContestExitSerializer(contestUserData).data)
 
 

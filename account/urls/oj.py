@@ -6,7 +6,7 @@ from ..views.oj import (ApplyResetPasswordAPI, ResetPasswordAPI,
                         UserLoginAPI, UserLogoutAPI, UsernameOrEmailCheck,
                         AvatarUploadAPI, TwoFactorAuthAPI, UserProfileAPI,
                         UserRankAPI, CheckTFARequiredAPI, SessionManagementAPI,getPublicKeyAPI,
-                        ProfileProblemDisplayIDRefreshAPI, OpenAPIAppkeyAPI, SSOAPI, SchoolssnCheck, UserProgress)
+                        ProfileProblemDisplayIDRefreshAPI, OpenAPIAppkeyAPI, SSOAPI, SchoolssnCheck, UserProgress, UserEventLogAPI)
 
 from utils.captcha.views import CaptchaAPIView
 
@@ -33,5 +33,8 @@ urlpatterns = [
     url(r"^open_api_appkey/?$", OpenAPIAppkeyAPI.as_view(), name="open_api_appkey_api"),
     url(r"^sso?$", SSOAPI.as_view(), name="sso_api"),
     url(r"^userprogress?$", UserProgress.as_view(), name="userprogress_api"),
-    url(r"^get_public_key/?$", getPublicKeyAPI.as_view(), name="get_public_key_api")
+    url(r"^get_public_key/?$", getPublicKeyAPI.as_view(), name="get_public_key_api"),
+    url(r"^user/event_log/?$", UserEventLogAPI.as_view(), name="user_event_log_api")
 ]
+
+

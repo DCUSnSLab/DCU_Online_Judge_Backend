@@ -11,6 +11,17 @@ from ..models import Lecture, signup_class, ta_admin_class
 from ..serializers import LectureSerializer, SignupClassSerializer
 from problem.serializers import ContestExitSerializer
 
+class TAlistLectureAPI(APIView):
+    def get(self,  request):
+        lecture_id = request.GET.get("lecture_id")
+        lecture = Lecture.objects.get(id=lecture_id)
+        ta_list = ta_admin_class.objects.filter(lecture=lecture)
+        user = request.user
+
+        realTa = ta_admin_class.is_user_ta(lecture, user)
+
+        return self.success(realTa)
+
 class LectureAPI(APIView):
     def post(self, request):
         data = request.data
@@ -68,7 +79,6 @@ class CheckingAIhelperFlagAPI (APIView):
 class LectureListAPI(APIView):
     def get(self, request):
         print("LectureListAPI Called")
-        print("LectureListAPI Called 2")
         from datetime import datetime
         year = datetime.today().year
         semester = (8>datetime.today().month>=3) and 1 or ((3>datetime.today().month>=1) and 3 or 2)

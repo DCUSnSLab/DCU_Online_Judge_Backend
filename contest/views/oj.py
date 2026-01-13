@@ -7,6 +7,7 @@ import xlsxwriter
 from django.http import HttpResponse
 from django.utils.timezone import now
 from django.core.cache import cache
+from django.db.models import Q
 
 from problem.models import Problem
 from lecture.models import Lecture, signup_class, ta_admin_class
@@ -25,6 +26,7 @@ from ..serializers import OIContestRankSerializer, ACMContestRankSerializer
 from account.serializers import ImportUserSeralizer, EditUserSerializer, SignupSerializer, UserAdminSerializer, contestSignupSerializer
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher, LectureDictionaryKeys
 from lecture.views.LectureBuilder import LectureBuilder
+from contest.models import Contest
 
 class ContestAnnouncementListAPI(APIView):
     @check_contest_permission(check_type="announcements")
@@ -47,11 +49,9 @@ class ContestLectureUserAPI(APIView):
         user_id = request.GET.get("id")
         lecture_id = request.GET.get("lectureid")
         contest_id = request.GET.get("contestid")
-        print(lecture_id)
-        print(contest_id)
 
         tauser = ta_admin_class.objects.filter(user__id=request.user.id, lecture__id=lecture_id)
-        if request.user.is_super_admin() or request.user.is_admin() or tauser[0].score_isallow:
+        if request.user.is_super_admin() or request.user.is_admin() or tauser[0].score_isallow: # 뭔가.. 뭔가 이상함 점수 확인 권한을 안주면 퇴실 관리 못함... 일단 되긴 됨
             try:
                 ulist = signup_class.objects.filter(lecture=lecture_id, isallow=True).select_related('lecture').order_by(
                     "realname")  # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
@@ -83,77 +83,103 @@ class ContestLectureUserAPI(APIView):
 class ContestUserAPI(APIView):
     def get(self, request):
         """
-        수강과목이 있는 학생 목록을 가져오기 위한 기능
+        콘테스트 수강 학생 목록 + 부정행위 로그 포함 반환 API
         """
         user_id = request.GET.get("id")
         lecture_id = request.GET.get("lectureid")
         contest_id = request.GET.get("contestid")
-        print(lecture_id)
-        print(contest_id)
 
-        if lecture_id is None:
-            if request.user.is_super_admin() or request.user.is_admin():
-                try:
-                    ulist = signup_class.objects.filter(contest=contest_id).select_related('lecture').order_by(
-                        "realname")  # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
-                    ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
-                except signup_class.DoesNotExist:
-                    return self.error("수강중인 학생이 없습니다.")
-                # test
-                LectureInfo = lecDispatcher()
-                cnt = 0
-                for us in ulist:
-                    us.totalScore = 0
-                    us.exit_status = False
+        print("ContestUserAPI Called")
+        print("lecture_id:", lecture_id)
+        print("contest_id:", contest_id)
 
-                    if us.user is not None and us.isallow is True:
-                        LectureInfo.fromDict(us.score)
-                        # us.totalScore = LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id].Info.data[DataType.SCORE]
-                        # print(LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id])
-                        cu = ContestUser.objects.get(contest_id=contest_id, user_id=us.user)
-                        if cu.end_time is not None:
-                            us.exit_status = True
-                        else:
-                            us.exit_status = False
-                        print(us.exit_status)
-                    cnt += 1
-                return self.success(self.paginate_data(request, ulist, contestSignupSerializer))
-            return self.success()
+        if not contest_id:
+            return self.error("contest_id is required")
+
+        # 문제 목록 가져오기 (공통)
+        problem_queryset = Problem.objects.filter(contest_id=contest_id)
+        problem_list = list(problem_queryset.values("id", "title"))
+
+        if problem_queryset.exists():
+            first_problem = problem_queryset.first()
+            rule_type = first_problem.rule_type
         else:
-            tauser = ta_admin_class.objects.filter(user__id=request.user.id, lecture__id=lecture_id)
-            if request.user.is_super_admin() or request.user.is_admin() or tauser[0].score_isallow:
-                try:
-                    ulist = signup_class.objects.filter(lecture=lecture_id).select_related('lecture').order_by(
-                        "realname")  # lecture_signup_class 테이블의 모든 값, 외래키가 있는 lecture 테이블의 값을 가져온다
-                    ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
-                except signup_class.DoesNotExist:
-                    return self.error("수강중인 학생이 없습니다.")
-                # test
-                print("test")
-                LectureInfo = lecDispatcher()
-                cnt = 0
-                for us in ulist:
-                    us.totalScore = 0
-                    us.exit_status = False
-                    us.start_time = ''
-                    us.end_time = ''
-                    if us.user is not None and us.isallow is True:
-                        LectureInfo.fromDict(us.score)
-                        # us.totalScore = LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id].Info.data[DataType.SCORE]
-                        # print(LectureInfo.contAnalysis[ContestType.CONTEST].contests[contest_id]
-                        try:
-                            cu = ContestUser.objects.get(contest_id=contest_id, user_id=us.user)
-                            if cu.end_time is not None:                                                                                   
-                                us.exit_status = True
-                                us.end_time = cu.end_time                                                                                            
-                            if cu.start_time is not None:
-                                us.start_time = cu.start_time
-                        except:
-                            pass 
+            rule_type = None
+            print("문제 없음", flush=True)
 
-                    cnt += 1
-                return self.success(self.paginate_data(request, ulist, contestSignupSerializer))
-            return self.success()
+        try:
+            ulist = signup_class.objects.all()
+
+            if lecture_id:
+                ulist = ulist.filter(lecture=lecture_id)
+            else:
+                ulist = ulist.filter(contest=contest_id)
+            ulist = ulist.filter(isallow=True)
+            ulist = ulist.select_related("lecture", "user").order_by("realname")
+            ulist = ulist.exclude(user__admin_type__in=[AdminType.ADMIN, AdminType.SUPER_ADMIN])
+
+        except signup_class.DoesNotExist:
+            return self.error("수강중인 학생이 없습니다.")
+
+        LectureInfo = lecDispatcher()
+
+        for us in ulist:
+            us.totalScore = 0
+            us.exit_status = False
+            us.start_time = ''
+            us.end_time = ''
+            us.cheat_log = {}
+
+            if us.user is not None and us.isallow:
+                # 성적 처리
+                LectureInfo.fromDict(us.score)
+
+                # 콘테스트 입퇴장 기록
+                try:
+                    cu = ContestUser.objects.get(contest_id=contest_id, user_id=us.user)
+                    if cu.end_time:
+                        us.exit_status = True
+                        us.end_time = cu.end_time
+                    if cu.start_time:
+                        us.start_time = cu.start_time
+                except ContestUser.DoesNotExist:
+                    pass
+
+                try:
+                    user_profile = us.user.userprofile
+
+                    # rule_type에 따라 참조할 문제 상태 선택
+                    if rule_type == "ACM":
+                        all_status = user_profile.acm_problems_status.get("contest_problems", {})
+                    else:
+                        all_status = user_profile.oi_problems_status.get("contest_problems", {})
+
+                    cheat_log = {}
+
+                    # 현재 콘테스트에 등록된 문제 ID 집합 (Problem 모델의 id 기준)
+                    contest_problem_ids = set(str(p["id"]) for p in problem_list)
+
+                    for pid, pdata in all_status.items():
+                        if pid in contest_problem_ids:
+                            cheat_log[pid] = {
+                                "copied": pdata.get("copied", 0),
+                                "focusing": pdata.get("focusing", 0)
+                            }
+
+                    # 누락된 문제 0으로 채우기
+                    for p in problem_list:
+                        pid = str(p["id"])
+                        if pid not in cheat_log:
+                            cheat_log[pid] = {"copied": 0, "focusing": 0}
+
+                    us.cheat_log = cheat_log
+                except Exception as e:
+                    print("부정행위 로그 처리 오류:", e, flush=True)
+
+        return self.success({
+            "problem_list": problem_list,
+            "student_list": self.paginate_data(request, ulist, contestSignupSerializer)
+        })
 
 class ContestExitStudentAPI(APIView):
     def post(self, request):
@@ -199,7 +225,13 @@ class ContestCheckInAPI(APIView):
     def post(self, request):                                                                                                                 
         data = request.data                                                                                                            
         user_id = request.user.id
-        if not request.user.is_student():
+
+        contest = Contest.objects.get(id=data.get("contest_id"))
+        lecture = contest.lecture
+        user = request.user
+        realTa = ta_admin_class.is_user_ta(lecture, user)
+
+        if not user.is_student() and not user.is_semi_admin() or user.is_semi_admin() and realTa:
             return self.success()
         if data.get("contest_id") and user_id:                                                                                       
             try:                                                                                                                      
@@ -230,23 +262,30 @@ class ContestAPI(APIView):
         print("ContestAPI Called")
         id = request.GET.get("id")
 
+        contest = Contest.objects.get(id=id)
+        lecture = contest.lecture
+        user = request.user
+        ta_list = ta_admin_class.objects.filter(lecture=lecture)
+        realTa = ta_admin_class.is_user_ta(lecture, user)
+        ta_user_ids = [ta.user_id for ta in ta_list]
+
         if not id or not check_is_id(id):
             return self.error("Invalid parameter, id is required")
         try:
             contest = Contest.objects.get(id=id, visible=True)
         except Contest.DoesNotExist:
             return self.error("Contest does not exist 12")
-
+        
         LU = LectureUtil()
         #print("lid = ",contest.lecture_id)
-        lecsign = LU.getSignupList(request.user.id, lid=contest.lecture_id)
+        lecsign = LU.getSignupList(user.id, lid=contest.lecture_id)
         #print("lid = ", contest.lecture)
         if not contest.lecture:     # 강의가 아닌 경우
             if contest.private:     # 비공개 대회인 경우
-                if request.user.is_super_admin():   # 관리자인 경우 True
+                if user.is_super_admin():   # 관리자인 경우 True
                     contest.visible = True
-                elif request.user.is_student() or request.user.is_semi_admin():     # 학생이나 준관리자인 경우 True
-                    PermitToCont = signup_class.objects.filter(user=request.user, contest=contest)
+                elif user.is_student() or user.is_semi_admin():     # 학생이나 준관리자인 경우 True
+                    PermitToCont = signup_class.objects.filter(user=user, contest=contest)
                     if PermitToCont.exists():
                         contest.visible = True
                     else:
@@ -257,7 +296,7 @@ class ContestAPI(APIView):
             #print("Lecture allow : ", lecsign[0].isallow)
             contest.visible = True
         else:
-            if request.user.is_admin_role(): # 문제 접근을 위한 visible 값 수정
+            if user.is_admin_role() and not user.is_semi_admin() or user.is_semi_admin() and realTa: # 문제 접근을 위한 visible 값 수정
                 contest.visible = True
             else:
                 contest.visible = False
@@ -286,16 +325,18 @@ class ContestAPI(APIView):
 class ContestListAPI(APIView):
     def get(self, request):
         print("ContestListAPI Called")
-        # contests = Contest.objects.get(lecture=request.get('lecture_id'))
-        # return self.success(self.paginate_data(request, contests, ContestSerializer))
+
         lectureid = request.GET.get('lectureid')
+        user = request.user
+        realTa = ta_admin_class.is_user_ta(lectureid, user)
+
         try:
             lecture = Lecture.objects.get(id=lectureid)
         except:
             print("lecture not exist")
         contests = Contest.objects.select_related("created_by").filter(visible=True, lecture=lectureid)
         if lectureid is None:
-            if request.user.is_student():
+            if user.is_student() or user.is_semi_admin() and not realTa:
                 access_contest = signup_class.objects.filter(user=request.user, lecture=None)
                 permit_cont = []
                 for cont in access_contest:
@@ -353,6 +394,7 @@ class ContestAccessAPI(APIView):
 
 class ContestExitAPI(APIView):   # working by soojung (대회 퇴실 API)
     def get(self, request):
+        print("ContestExitAPI Called")
         contest_id = request.GET.get("contest_id")
         user_id = request.user.id
         # if not contest_id:
@@ -400,16 +442,37 @@ class ContestScoreInfoAPI(APIView): # working by soojung (대회 내 학생 점�
 
 class ContestRankAPI(APIView):
     def get_rank(self):
+
+        contest = self.contest
+        lecture = contest.lecture
+        user = User.objects.get(id=self.request.user.id)
+
+        ta_list = ta_admin_class.objects.filter(lecture=lecture)
+        ta_user_ids = [ta.user_id for ta in ta_list]
+        
+        # if self.contest.rule_type == ContestRuleType.ACM:
+        #     return ACMContestRank.objects.filter(contest=self.contest,
+        #                                          user__admin_type=AdminType.REGULAR_USER,
+        #                                         # user__admin_type=AdminType.TA_Admin,
+        #                                          user__is_disabled=False).\
+        #         select_related("user").order_by("-accepted_number", "total_time")
+        # else:
+        #     return OIContestRank.objects.filter(contest=self.contest,
+        #                                         user__admin_type=AdminType.REGULAR_USER,
+        #                                         # user__admin_type=AdminType.TA_Admin,
+        #                                         user__is_disabled=False).\
+        #         select_related("user").order_by("-total_score")
+
         if self.contest.rule_type == ContestRuleType.ACM:
-            return ACMContestRank.objects.filter(contest=self.contest,
-                                                 user__admin_type=AdminType.REGULAR_USER,
-                                                 user__is_disabled=False).\
-                select_related("user").order_by("-accepted_number", "total_time")
+            users = User.objects.filter(Q(admin_type=AdminType.REGULAR_USER) | (Q(admin_type=AdminType.TA_ADMIN) & ~Q(id__in=ta_user_ids)),is_disabled=False)
+            return ACMContestRank.objects.filter(contest=contest, user__in=users) \
+                .select_related("user") \
+                .order_by("-accepted_number", "total_time")
         else:
-            return OIContestRank.objects.filter(contest=self.contest,
-                                                user__admin_type=AdminType.REGULAR_USER,
-                                                user__is_disabled=False). \
-                select_related("user").order_by("-total_score")
+            users = User.objects.filter(Q(admin_type=AdminType.REGULAR_USER) | (Q(admin_type=AdminType.TA_ADMIN) & ~Q(id__in=ta_user_ids)),is_disabled=False)
+            return OIContestRank.objects.filter(contest=contest, user__in=users) \
+                .select_related("user") \
+                .order_by("-total_score")
 
     def column_string(self, n):
         string = ""
