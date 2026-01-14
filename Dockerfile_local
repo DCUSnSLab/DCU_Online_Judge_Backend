@@ -1,0 +1,43 @@
+# VS Code Remote 연결을 위한 개발용 Dockerfile (Debian slim 기반)
+FROM python:3.7-slim-bullseye
+
+ENV OJ_ENV=production
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# 필수 패키지 설치 (Alpine apk -> Debian apt-get)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    nginx \
+    openssl \
+    curl \
+    unzip \
+    supervisor \
+    libjpeg-dev \
+    zlib1g-dev \
+    libpq-dev \
+    libfreetype6-dev \
+    git \
+    procps \
+    python2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 소스 코드 복사
+ADD . /app
+
+# Python 패키지 설치
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r /app/deploy/requirements.txt
+
+# Frontend dist 다운로드
+RUN mkdir -p dist && \
+    curl -o dist.tar.gz http://203.250.33.103:31439/dcucode_dev/latest.tar.gz && \
+    tar -xvzf dist.tar.gz -C dist && \
+    rm dist.tar.gz
+
+# 헬스체크 (python3 사용)
+HEALTHCHECK --interval=5s --retries=3 CMD python2 /app/deploy/health_check_local.py
+
+ENTRYPOINT ["/bin/bash", "/app/deploy/entrypoint_local.sh"]
