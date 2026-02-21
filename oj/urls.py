@@ -25,5 +25,6 @@ urlpatterns = [
     url(r"^api/admin/", include("utils.urls")),
 	url(r"^api/", include("heartbeat.urls")),
     url(r"^api/", include("qna.urls.oj")),
+    url(r"^api/admin/", include("llm.urls.admin")),
+    url(r"^api/internal/", include("llm.urls.internal")),
 ]
-

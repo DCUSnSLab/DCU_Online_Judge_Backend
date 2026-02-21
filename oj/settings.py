@@ -55,6 +55,7 @@ LOCAL_APPS = [
     'judge',
     'lecture',
     'qna',
+    'llm',
 ]
 
 CRONJOBS = [
