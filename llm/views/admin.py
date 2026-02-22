@@ -4,8 +4,16 @@ from account.decorators import super_admin_required
 from utils.api import APIView, validate_serializer
 from utils.shortcuts import rand_str
 
-from ..models import LLMAuditLog, LLMApiKey, LLMKeyStatus
-from ..serializers import LLMApiKeySerializer, LLMKeyCreateSerializer, LLMKeyRevokeSerializer
+from ..models import LLMAuditLog, LLMApiKey, LLMKeyStatus, LLMRouteMap
+from ..serializers import (
+    LLMApiKeySerializer,
+    LLMKeyCreateSerializer,
+    LLMKeyRevokeSerializer,
+    LLMRouteCreateSerializer,
+    LLMRouteDeleteSerializer,
+    LLMRouteSerializer,
+    LLMRouteUpdateSerializer,
+)
 
 
 def make_llm_key():
@@ -74,4 +82,63 @@ class LLMKeyRevokeAPI(APIView):
             target_key=key,
             metadata={"id": str(key.id)},
         )
+        return self.success()
+
+
+class LLMRouteAdminAPI(APIView):
+    @super_admin_required
+    def get(self, request):
+        route_id = request.GET.get("id")
+        if route_id:
+            route = LLMRouteMap.objects.filter(id=route_id).select_related("updated_by").first()
+            if not route:
+                return self.error("Route does not exist")
+            return self.success(LLMRouteSerializer(route).data)
+
+        queryset = LLMRouteMap.objects.all().select_related("updated_by")
+        model_name = request.GET.get("model_name")
+        if model_name:
+            queryset = queryset.filter(model_name=model_name)
+
+        if request.GET.get("paging") == "true":
+            data = self.paginate_data(request, queryset, LLMRouteSerializer)
+            return self.success(data)
+        return self.success(LLMRouteSerializer(queryset, many=True).data)
+
+    @super_admin_required
+    @validate_serializer(LLMRouteCreateSerializer)
+    def post(self, request):
+        data = request.data
+        route = LLMRouteMap.objects.create(
+            model_name=data["model_name"],
+            upstream_url=data["upstream_url"],
+            priority=data.get("priority", 100),
+            weight=data.get("weight", 100),
+            enabled=data.get("enabled", True),
+            updated_by=request.user,
+        )
+        return self.success(LLMRouteSerializer(route).data)
+
+    @super_admin_required
+    @validate_serializer(LLMRouteUpdateSerializer)
+    def put(self, request):
+        route = LLMRouteMap.objects.filter(id=request.data["id"]).first()
+        if not route:
+            return self.error("Route does not exist")
+
+        for field in ["model_name", "upstream_url", "priority", "weight", "enabled"]:
+            if field in request.data:
+                setattr(route, field, request.data[field])
+
+        route.updated_by = request.user
+        route.save()
+        return self.success(LLMRouteSerializer(route).data)
+
+    @super_admin_required
+    @validate_serializer(LLMRouteDeleteSerializer)
+    def delete(self, request):
+        route = LLMRouteMap.objects.filter(id=request.data["id"]).first()
+        if not route:
+            return self.error("Route does not exist")
+        route.delete()
         return self.success()

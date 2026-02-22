@@ -1,13 +1,14 @@
 import hashlib
 import hmac
 
+from django.db.models import F, Max
 from django.utils import timezone
 
 from utils.api import CSRFExemptAPIView, validate_serializer
 from utils.shortcuts import get_env
 
-from ..models import LLMAuditLog, LLMApiKey, LLMKeyStatus
-from ..serializers import LLMValidateKeySerializer
+from ..models import LLMAuditLog, LLMApiKey, LLMKeyStatus, LLMRouteMap
+from ..serializers import LLMUsageReportSerializer, LLMValidateKeySerializer
 
 
 def hash_key(raw_key):
@@ -25,14 +26,19 @@ def _has_scope(scope, model):
     return "*" in models or model in models
 
 
+def _check_internal_secret(request):
+    expected_secret = get_env("LLM_INTERNAL_SHARED_SECRET", "")
+    if not expected_secret:
+        return True
+    client_secret = request.META.get("HTTP_X_INTERNAL_SECRET", "")
+    return hmac.compare_digest(client_secret, expected_secret)
+
+
 class LLMValidateKeyAPI(CSRFExemptAPIView):
     @validate_serializer(LLMValidateKeySerializer)
     def post(self, request):
-        expected_secret = get_env("LLM_INTERNAL_SHARED_SECRET", "")
-        if expected_secret:
-            client_secret = request.META.get("HTTP_X_INTERNAL_SECRET", "")
-            if not hmac.compare_digest(client_secret, expected_secret):
-                return self.error(msg="Invalid internal secret", err="permission-denied")
+        if not _check_internal_secret(request):
+            return self.error(msg="Invalid internal secret", err="permission-denied")
 
         raw_key = request.data["key"]
         model = request.data.get("model")
@@ -57,7 +63,8 @@ class LLMValidateKeyAPI(CSRFExemptAPIView):
             return self.success({"valid": False, "reason": "scope-denied"})
 
         key.last_used_at = timezone.now()
-        key.save(update_fields=["last_used_at", "updated_at"])
+        key.total_requests = F("total_requests") + 1
+        key.save(update_fields=["last_used_at", "total_requests", "updated_at"])
 
         LLMAuditLog.objects.create(
             actor=key.created_by,
@@ -66,17 +73,62 @@ class LLMValidateKeyAPI(CSRFExemptAPIView):
             metadata={"model": model, "path": request.data.get("path")},
         )
 
+        key.refresh_from_db(fields=["total_requests", "total_prompt_tokens"])
+
         return self.success({
             "valid": True,
             "reason": "ok",
             "key_id": str(key.id),
             "scope": key.scope,
             "status": key.status,
-            "expires_at": key.expires_at,
+            "expires_at": key.expires_at.isoformat() if key.expires_at else None,
             "rate_limit": {"rpm": 60},
             "owner": {
                 "id": key.created_by.id,
                 "username": key.created_by.username,
                 "realname": key.created_by.realname,
             },
+        })
+
+
+class LLMUsageReportAPI(CSRFExemptAPIView):
+    @validate_serializer(LLMUsageReportSerializer)
+    def post(self, request):
+        if not _check_internal_secret(request):
+            return self.error(msg="Invalid internal secret", err="permission-denied")
+
+        key = LLMApiKey.objects.filter(id=request.data["key_id"]).first()
+        if not key:
+            return self.success({"ok": False, "reason": "key-not-found"})
+
+        prompt_tokens = request.data.get("prompt_tokens", 0)
+        key.total_prompt_tokens = F("total_prompt_tokens") + int(prompt_tokens)
+        key.save(update_fields=["total_prompt_tokens", "updated_at"])
+
+        return self.success({"ok": True})
+
+
+class LLMRoutesAPI(CSRFExemptAPIView):
+    def get(self, request):
+        if not _check_internal_secret(request):
+            return self.error(msg="Invalid internal secret", err="permission-denied")
+
+        routes = LLMRouteMap.objects.filter(enabled=True).order_by("model_name", "priority", "-weight")
+        data = [
+            {
+                "id": str(row["id"]),
+                "model_name": row["model_name"],
+                "upstream_url": row["upstream_url"],
+                "priority": row["priority"],
+                "weight": row["weight"],
+                "enabled": row["enabled"],
+            }
+            for row in routes.values("id", "model_name", "upstream_url", "priority", "weight", "enabled")
+        ]
+        agg = routes.aggregate(updated_at=Max("updated_at"))
+        updated_at = agg.get("updated_at")
+        return self.success({
+            "version": int(updated_at.timestamp()) if updated_at else 0,
+            "updated_at": updated_at.isoformat() if updated_at else None,
+            "routes": data,
         })
