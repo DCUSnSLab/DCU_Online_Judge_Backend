@@ -12,7 +12,7 @@ from utils.api import APIView, validate_serializer
 from utils.cache import cache
 from utils.captcha import Captcha
 from utils.throttling import TokenBucket
-from ..models import Submission
+from ..models import Submission, JudgeStatus
 from ..serializers import (CreateSubmissionSerializer, SubmissionModelSerializer,
                            ShareSubmissionSerializer)
 from ..serializers import SubmissionSafeModelSerializer, SubmissionListSerializer
@@ -69,7 +69,8 @@ class SubmissionAPI(APIView):
         focusing = data.get("focusing", 0)
         rule_type = data.get("rule_type")
         hide_id = False
-
+        print("testtesttesttest")
+        print(str(data["problem_id"]))
         # 부정행위 로그 업데이트
         try:
             profile = request.user.userprofile
@@ -82,10 +83,12 @@ class SubmissionAPI(APIView):
 
             problem_id = str(data["problem_id"])
             problem_data = status_root[key].get(problem_id, {"_id": problem_id})
+            # Keep status/score keys for judge dispatcher compatibility.
+            problem_data.setdefault("status", JudgeStatus.PENDING)
+            problem_data.setdefault("score", 0)
 
             prev_copied = problem_data.get("copied", 0)
             prev_focusing = problem_data.get("focusing", 0)
-            print(f"prev_copied: {prev_copied}, prev_focusing: {prev_focusing}")
 
             if isinstance(copied, int):
                 problem_data["copied"] = max(prev_copied, copied)
