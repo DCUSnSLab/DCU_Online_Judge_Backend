@@ -246,7 +246,7 @@ class JudgeDispatcher(DispatcherBase):
             profile = User.objects.select_for_update().get(id=self.submission.user_id).userprofile
             if problem.rule_type == ProblemRuleType.ACM:
                 acm_problems_status = profile.acm_problems_status.get("problems", {})
-                if acm_problems_status[problem_id].get("status", JudgeStatus.PENDING) != JudgeStatus.ACCEPTED:
+                if acm_problems_status[problem_id]["status"] != JudgeStatus.ACCEPTED:
                     acm_problems_status[problem_id]["status"] = self.submission.result
                     if self.submission.result == JudgeStatus.ACCEPTED:
                         profile.accepted_number += 1
@@ -256,7 +256,7 @@ class JudgeDispatcher(DispatcherBase):
             else:
                 oi_problems_status = profile.oi_problems_status.get("problems", {})
                 score = self.submission.statistic_info["score"]
-                if oi_problems_status[problem_id].get("status", JudgeStatus.PENDING) != JudgeStatus.ACCEPTED:
+                if oi_problems_status[problem_id]["status"] != JudgeStatus.ACCEPTED:
                     # minus last time score, add this tim score
                     profile.add_score(this_time_score=score,
                                       last_time_score=oi_problems_status[problem_id]["score"])
@@ -290,7 +290,7 @@ class JudgeDispatcher(DispatcherBase):
                     acm_problems_status[problem_id] = {"status": self.submission.result, "_id": self.problem._id}
                     if self.submission.result == JudgeStatus.ACCEPTED:
                         user_profile.accepted_number += 1
-                elif acm_problems_status[problem_id].get("status", JudgeStatus.PENDING) != JudgeStatus.ACCEPTED:
+                elif acm_problems_status[problem_id]["status"] != JudgeStatus.ACCEPTED:
                     acm_problems_status[problem_id]["status"] = self.submission.result
                     if self.submission.result == JudgeStatus.ACCEPTED:
                         user_profile.accepted_number += 1
@@ -307,7 +307,7 @@ class JudgeDispatcher(DispatcherBase):
                                                       "score": score}
                     if self.submission.result == JudgeStatus.ACCEPTED:
                         user_profile.accepted_number += 1
-                elif oi_problems_status[problem_id].get("status", JudgeStatus.PENDING) != JudgeStatus.ACCEPTED:
+                elif oi_problems_status[problem_id]["status"] != JudgeStatus.ACCEPTED:
                     # minus last time score, add this time score
                     user_profile.add_score(this_time_score=score,
                                            last_time_score=oi_problems_status[problem_id]["score"])
@@ -327,7 +327,7 @@ class JudgeDispatcher(DispatcherBase):
                 contest_problems_status = user_profile.acm_problems_status.get("contest_problems", {})
                 if problem_id not in contest_problems_status:
                     contest_problems_status[problem_id] = {"status": self.submission.result, "_id": self.problem._id}
-                elif contest_problems_status[problem_id].get("status", JudgeStatus.PENDING) != JudgeStatus.ACCEPTED:
+                elif contest_problems_status[problem_id]["status"] != JudgeStatus.ACCEPTED:
                     contest_problems_status[problem_id]["status"] = self.submission.result
                 else:
                     # 如果已AC， 直接跳过 不计入任何计数器

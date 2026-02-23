@@ -111,7 +111,7 @@ class APIView(View):
         self.server_error("")
 
     def server_error(self, data):
-        return self.error(err=str(data), msg="server error")
+        return self.error(err=data, msg="server error")
 
     def post_paginate_data(self, request, query_set, object_serializer=None):
         """
