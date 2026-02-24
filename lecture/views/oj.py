@@ -26,11 +26,17 @@ class LectureAPI(APIView):
     def post(self, request):
         data = request.data
         contestID = data.get("contestID")
-        if contestID:
-            lecture = Contest.objects.get(id=contestID)
-            lecture = lecture.lecture.id
-            return self.success(lecture)
-        return self.error()
+        if not contestID:
+            return self.success(None)
+        if not check_is_id(contestID):
+            return self.error("invalid parameter.")
+        try:
+            contest = Contest.objects.select_related("lecture").get(id=contestID)
+        except Contest.DoesNotExist:
+            return self.error("Contest does not exist")
+        if not contest.lecture_id:
+            return self.success(None)
+        return self.success(contest.lecture_id)
 
     def get(self, request):
         id = request.GET.get("id")
@@ -65,16 +71,19 @@ class CheckingAIhelperFlagAPI (APIView):
     def post(self, request):
         data = request.data
         contestID = data.get("contestID")
-        if contestID:
-            lecture = Contest.objects.get(id=contestID)
-            if lecture.lecture_contest_type=="대회":
-                aihelperflag = False
-                return self.success(aihelperflag)
-            lecture = lecture.lecture.id
-            aihelperflag = Lecture.objects.get(id=lecture)
-            aihelperflag = aihelperflag.aihelper_status
-            return self.success(aihelperflag)
-        return self.error()
+        if not contestID:
+            return self.success(False)
+        if not check_is_id(contestID):
+            return self.error("invalid parameter.")
+        try:
+            contest = Contest.objects.select_related("lecture").get(id=contestID)
+        except Contest.DoesNotExist:
+            return self.error("Contest does not exist")
+        if contest.lecture_contest_type == "대회":
+            return self.success(False)
+        if not contest.lecture_id:
+            return self.success(False)
+        return self.success(contest.lecture.aihelper_status)
 
 class LectureListAPI(APIView):
     def get(self, request):
