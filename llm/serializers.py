@@ -45,6 +45,11 @@ class LLMRouteDeleteSerializer(serializers.Serializer):
     id = serializers.UUIDField()
 
 
+class LLMGatewayConfigUpdateSerializer(serializers.Serializer):
+    api_key = serializers.CharField(required=False, allow_blank=True, max_length=512)
+    default_model = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+
 class LLMApiKeySerializer(serializers.ModelSerializer):
     created_by = serializers.SerializerMethodField()
 

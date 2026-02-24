@@ -1,12 +1,14 @@
 import hashlib
+import os
 
 from account.decorators import super_admin_required
 from utils.api import APIView, validate_serializer
-from utils.shortcuts import rand_str
+from utils.shortcuts import get_env, rand_str
 
 from ..models import LLMAuditLog, LLMApiKey, LLMKeyStatus, LLMRouteMap
 from ..serializers import (
     LLMApiKeySerializer,
+    LLMGatewayConfigUpdateSerializer,
     LLMKeyCreateSerializer,
     LLMKeyRevokeSerializer,
     LLMRouteCreateSerializer,
@@ -22,6 +24,77 @@ def make_llm_key():
 
 def hash_key(raw_key):
     return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+
+
+def _gateway_api_key_file_path():
+    return get_env("LLM_GATEWAY_API_KEY_FILE", "/data/config/llm_gateway_api_key")
+
+
+def _gateway_default_model_file_path():
+    return get_env("LLM_DEFAULT_MODEL_FILE", "/data/config/llm_gateway_model")
+
+
+def _read_config_file(path):
+    try:
+        with open(path, "r") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def _write_config_file(path, value):
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    with open(path, "w") as f:
+        f.write(value.strip())
+
+
+def _mask_key(value):
+    if not value:
+        return ""
+    if len(value) <= 12:
+        return "*" * len(value)
+    return "{}...{}".format(value[:8], value[-4:])
+
+
+def _build_gateway_config_payload():
+    key = _read_config_file(_gateway_api_key_file_path())
+    default_model = _read_config_file(_gateway_default_model_file_path())
+    return {
+        "api_key_configured": bool(key),
+        "api_key_preview": _mask_key(key),
+        "default_model": default_model,
+    }
+
+
+class LLMGatewayConfigAdminAPI(APIView):
+    @super_admin_required
+    def get(self, request):
+        return self.success(_build_gateway_config_payload())
+
+    @super_admin_required
+    @validate_serializer(LLMGatewayConfigUpdateSerializer)
+    def post(self, request):
+        api_key = request.data.get("api_key")
+        default_model = request.data.get("default_model")
+
+        if api_key is None and default_model is None:
+            return self.error("api_key or default_model is required")
+
+        if api_key is not None:
+            api_key = api_key.strip()
+            if not api_key:
+                return self.error("api_key cannot be blank")
+            _write_config_file(_gateway_api_key_file_path(), api_key)
+
+        if default_model is not None:
+            default_model = default_model.strip()
+            if not default_model:
+                return self.error("default_model cannot be blank")
+            _write_config_file(_gateway_default_model_file_path(), default_model)
+
+        return self.success(_build_gateway_config_payload())
 
 
 class LLMKeyAdminAPI(APIView):
