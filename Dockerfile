@@ -1,19 +1,28 @@
-FROM python:3.7-alpine3.9
+FROM python:3.12-alpine3.20
 
 ENV OJ_ENV production
 
-ADD . /app
+COPY . /app
 WORKDIR /app
 
-RUN apk add gcc
-RUN apk add linux-headers
-RUN apk add musl-dev
+HEALTHCHECK --interval=5s --retries=3 CMD python3 /app/deploy/health_check.py
 
-HEALTHCHECK --interval=5s --retries=3 CMD python2 /app/deploy/health_check.py
-
-RUN apk add --update --no-cache build-base nginx openssl curl unzip supervisor jpeg-dev zlib-dev postgresql-dev freetype-dev && \
+RUN apk add --no-cache \
+    build-base \
+    linux-headers \
+    musl-dev \
+    nginx \
+    openssl \
+    openssh \
+    curl \
+    unzip \
+    supervisor \
+    libjpeg-turbo-dev \
+    zlib-dev \
+    postgresql-dev \
+    freetype-dev && \
     pip install --no-cache-dir -r /app/deploy/requirements.txt && \
-    apk del build-base --purge
+    apk del build-base linux-headers musl-dev postgresql-dev
 
 RUN mkdir dist
 RUN curl -o dist.tar.gz http://203.250.33.103:31439/dcucode/latest.tar.gz   && \
