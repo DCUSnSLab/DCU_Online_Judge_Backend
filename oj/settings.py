@@ -127,10 +127,7 @@ USE_L10N = True
 
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:1024",
-    "http://127.0.0.1:1024",
-]
+CSRF_TRUSTED_ORIGINS = ["http://*", "https://*"]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.8/howto/static-files/

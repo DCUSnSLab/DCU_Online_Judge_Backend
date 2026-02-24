@@ -1,6 +1,6 @@
 FROM python:3.12-alpine3.20
 
-ENV OJ_ENV production
+ENV OJ_ENV=production
 
 COPY . /app
 WORKDIR /app
