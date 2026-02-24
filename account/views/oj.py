@@ -90,7 +90,7 @@ class UserProgress(APIView):
             return self.error("로그인 후 사용 가능합니다.")
 
         if request.user.is_super_admin(): # 관리자 계정의 개설 과목 출력
-            return
+            return self.success()
         print(request.user)
 
         from datetime import datetime

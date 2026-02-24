@@ -82,7 +82,6 @@ class SubmissionAPI(APIView):
 
             problem_id = str(data["problem_id"])
             problem_data = status_root[key].get(problem_id, {"_id": problem_id})
-
             prev_copied = problem_data.get("copied", 0)
             prev_focusing = problem_data.get("focusing", 0)
             print(f"prev_copied: {prev_copied}, prev_focusing: {prev_focusing}")
