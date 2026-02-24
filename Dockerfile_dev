@@ -25,7 +25,7 @@ RUN apk add --no-cache \
     apk del build-base linux-headers musl-dev postgresql-dev
 
 RUN mkdir dist
-RUN curl -o dist.tar.gz http://203.250.33.103:31439/dcucode/latest.tar.gz   && \
+RUN curl -o dist.tar.gz http://203.250.33.103:31439/dcucode_dev/latest.tar.gz   && \
     tar -xvzf dist.tar.gz -C dist && \
     rm dist.tar.gz
 
