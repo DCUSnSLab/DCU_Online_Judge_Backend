@@ -27,7 +27,8 @@ def _has_scope(scope, model):
 
 
 def _check_internal_secret(request):
-    expected_secret = get_env("LLM_INTERNAL_SHARED_SECRET", "")
+    # Prefer dedicated LLM secret; fallback to judge token for unified env usage.
+    expected_secret = get_env("LLM_INTERNAL_SHARED_SECRET", "") or get_env("JUDGE_SERVER_TOKEN", "")
     if not expected_secret:
         return True
     client_secret = request.META.get("HTTP_X_INTERNAL_SECRET", "")
