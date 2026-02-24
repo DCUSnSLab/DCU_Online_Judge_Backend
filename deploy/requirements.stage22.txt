@@ -1,0 +1,28 @@
+# Stage 2: Django 2.2 LTS compatibility pass
+# Note: This stage is for incremental code adaptation. Runtime on Python 3.12 may fail.
+
+Django==2.2.28
+
+djangorestframework==3.12.4
+
+django-redis==4.12.1
+redis==3.5.3
+
+psycopg2-binary==2.9.9
+
+gunicorn==20.1.0
+
+django-dbconn-retry==0.1.5
+
+django-dramatiq==0.13.0
+dramatiq==1.17.1
+
+djangorestframework-simplejwt==4.8.0
+
+requests==2.31.0
+python-dateutil==2.9.0.post0
+Pillow==10.4.0
+pycryptodome==3.21.0
+jsonfield==3.1.0
+
+sentry-sdk==2.35.1

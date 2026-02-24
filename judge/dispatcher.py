@@ -94,12 +94,12 @@ class JudgeDispatcher(DispatcherBase):
     def __init__(self, submission, problem_id, sample_test_status=False):
         super().__init__()
         self.sample_test_status = sample_test_status
-        
-        if self.sample_test_status:
+
+        if isinstance(submission, Submission):
             self.submission = submission
         else:
             self.submission = Submission.objects.get(id=submission)
-        
+
         self.contest_id = self.submission.contest_id
         self.last_result = self.submission.result if self.submission.info else None
         
