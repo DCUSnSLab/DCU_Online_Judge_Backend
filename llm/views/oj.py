@@ -127,7 +127,7 @@ def _recent_messages_for_prompt(session, recent_count=10):
 
 
 def _build_gateway_payload(session, data):
-    model_name = data.get("model") or session.model_name or _read_default_model()
+    model_name = data.get("model") or _read_default_model() or session.model_name
     messages = [{"role": "system", "content": _read_system_prompt()}]
     messages.extend(_recent_messages_for_prompt(session))
     payload = {
