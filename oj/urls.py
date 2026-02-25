@@ -25,6 +25,7 @@ urlpatterns = [
     re_path(r"^api/admin/", include("utils.urls")),
 	re_path(r"^api/", include("heartbeat.urls")),
     re_path(r"^api/", include("qna.urls.oj")),
+    re_path(r"^api/", include("llm.urls.oj")),
     re_path(r"^api/admin/", include("llm.urls.admin")),
     re_path(r"^api/internal/", include("llm.urls.internal")),
 ]

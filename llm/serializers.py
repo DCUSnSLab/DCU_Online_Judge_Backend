@@ -1,6 +1,6 @@
 from utils.api import serializers
 
-from .models import LLMApiKey, LLMRouteMap
+from .models import LLMApiKey, LLMChatMessage, LLMChatSession, LLMRouteMap
 
 
 class LLMKeyCreateSerializer(serializers.Serializer):
@@ -43,6 +43,41 @@ class LLMRouteUpdateSerializer(serializers.Serializer):
 
 class LLMRouteDeleteSerializer(serializers.Serializer):
     id = serializers.UUIDField()
+
+
+class LLMGatewayConfigUpdateSerializer(serializers.Serializer):
+    api_key = serializers.CharField(required=False, allow_blank=True, max_length=512)
+    default_model = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+
+class LLMChatSessionCreateSerializer(serializers.Serializer):
+    title = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    model_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+
+class LLMChatSessionUpdateSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    model_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+
+class LLMChatSessionDeleteSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+
+
+class LLMChatMessagesQuerySerializer(serializers.Serializer):
+    session_id = serializers.UUIDField()
+    offset = serializers.IntegerField(required=False, min_value=0, default=0)
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=200, default=100)
+
+
+class LLMChatCompletionsSerializer(serializers.Serializer):
+    session_id = serializers.UUIDField()
+    content = serializers.CharField(max_length=20000)
+    stream = serializers.BooleanField(required=False, default=True)
+    model = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    temperature = serializers.FloatField(required=False)
+    max_tokens = serializers.IntegerField(required=False, min_value=1)
 
 
 class LLMApiKeySerializer(serializers.ModelSerializer):
@@ -96,3 +131,15 @@ class LLMRouteSerializer(serializers.ModelSerializer):
             "username": obj.updated_by.username,
             "realname": obj.updated_by.realname,
         }
+
+
+class LLMChatSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LLMChatSession
+        fields = ("id", "title", "model_name", "created_at", "updated_at")
+
+
+class LLMChatMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LLMChatMessage
+        fields = ("id", "role", "content", "prompt_tokens", "completion_tokens", "created_at")
