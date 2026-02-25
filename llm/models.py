@@ -73,3 +73,42 @@ class LLMAuditLog(models.Model):
     class Meta:
         db_table = "llm_audit_log"
         ordering = ("-created_at",)
+
+
+class LLMChatMessageRole:
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+
+    CHOICES = (
+        (USER, "User"),
+        (ASSISTANT, "Assistant"),
+        (SYSTEM, "System"),
+    )
+
+
+class LLMChatSession(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="llm_chat_sessions")
+    title = models.CharField(max_length=255, default="", blank=True)
+    model_name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "llm_chat_session"
+        ordering = ("-updated_at",)
+
+
+class LLMChatMessage(models.Model):
+    id = models.AutoField(primary_key=True)
+    session = models.ForeignKey(LLMChatSession, on_delete=models.CASCADE, related_name="messages")
+    role = models.CharField(max_length=16, choices=LLMChatMessageRole.CHOICES)
+    content = models.TextField()
+    prompt_tokens = models.IntegerField(default=0)
+    completion_tokens = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "llm_chat_message"
+        ordering = ("created_at",)
