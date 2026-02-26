@@ -21,7 +21,19 @@ from ..serializers import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SYSTEM_PROMPT = "You are a helpful programming assistant. Answer briefly, clearly, and in Korean unless user asks otherwise."
+CHAT_MODE = "chat"
+PROBLEM_HINT_MODE = "problem_hint"
+
+DEFAULT_CHAT_SYSTEM_PROMPT = "You are a helpful programming assistant. Answer briefly, clearly, and in Korean unless user asks otherwise."
+DEFAULT_PROBLEM_HINT_SYSTEM_PROMPT = (
+    "당신은 프로그래밍 교육 조교입니다. 학생이 제출한 코드가 틀렸습니다. 반드시 아래 규칙을 지키세요:\n"
+    "1. 절대로 정답 코드, 수정된 코드, 또는 문제를 풀 수 있는 코드 조각을 제공하지 마세요.\n"
+    "2. 코드 블록(```)을 사용하여 코드를 직접 작성하지 마세요.\n"
+    "3. 어디가 잘못되었는지 개념적 힌트와 방향만 제시하세요.\n"
+    "4. 학생이 스스로 문제를 해결하도록 유도하세요.\n"
+    "5. 한국어로 답변하세요.\n"
+    "6. 답변은 간결하게 3~5문장으로 해주세요."
+)
 
 
 def _read_gateway_api_key():
@@ -56,8 +68,27 @@ def _read_default_model():
     return get_env("LLM_DEFAULT_MODEL", "").strip()
 
 
-def _read_system_prompt():
-    return get_env("LLM_CHAT_SYSTEM_PROMPT", DEFAULT_SYSTEM_PROMPT).strip() or DEFAULT_SYSTEM_PROMPT
+def _infer_mode_from_session(session):
+    title = (session.title or "").strip()
+    if title.startswith("[PROBLEM_HINT]"):
+        return PROBLEM_HINT_MODE
+    return CHAT_MODE
+
+
+def _normalize_chat_mode(raw_mode, session):
+    mode = (raw_mode or "").strip().lower()
+    if mode in (CHAT_MODE, PROBLEM_HINT_MODE):
+        return mode
+    return _infer_mode_from_session(session)
+
+
+def _read_system_prompt(mode):
+    if mode == PROBLEM_HINT_MODE:
+        return (
+            get_env("LLM_PROBLEM_HINT_SYSTEM_PROMPT", DEFAULT_PROBLEM_HINT_SYSTEM_PROMPT).strip()
+            or DEFAULT_PROBLEM_HINT_SYSTEM_PROMPT
+        )
+    return get_env("LLM_CHAT_SYSTEM_PROMPT", DEFAULT_CHAT_SYSTEM_PROMPT).strip() or DEFAULT_CHAT_SYSTEM_PROMPT
 
 
 def _json_resp(payload, status=200):
@@ -126,9 +157,9 @@ def _recent_messages_for_prompt(session, recent_count=10):
     ]
 
 
-def _build_gateway_payload(session, data):
+def _build_gateway_payload(session, data, mode):
     model_name = data.get("model") or _read_default_model() or session.model_name
-    messages = [{"role": "system", "content": _read_system_prompt()}]
+    messages = [{"role": "system", "content": _read_system_prompt(mode)}]
     messages.extend(_recent_messages_for_prompt(session))
     payload = {
         "model": model_name,
@@ -267,7 +298,8 @@ class LLMChatCompletionsAPI(APIView):
             update_fields.append("model_name")
         _touch_session(session, update_fields)
 
-        payload = _build_gateway_payload(session, data)
+        mode = _normalize_chat_mode(data.get("mode"), session)
+        payload = _build_gateway_payload(session, data, mode)
         return self._proxy_with_optional_persist(payload, session)
 
     def _post_legacy_proxy(self, raw_payload):
