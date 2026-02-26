@@ -162,23 +162,26 @@ class ContestExitInfoAPI(APIView):
 #        return self.success(ContestExitSerializer(contestUserData).data)
 
         contest_id = request.GET.get("contest_id")
-        contest = Contest.objects.get(id=contest_id)
+        if not contest_id:
+            return self.success({'data': 'notContest'})
+        if not request.user.is_authenticated:
+            return self.success({'data': 'notStudent'})
+        try:
+            contest = Contest.objects.get(id=contest_id)
+        except Contest.DoesNotExist:
+            return self.success({'data': 'notContest'})
+
         lecture = contest.lecture
         user = request.user
         realTa = ta_admin_class.is_user_ta(lecture, user)
 
         if not user.is_student() and not user.is_semi_admin() or user.is_semi_admin() and realTa:
             return self.success({'data': 'notStudent'})
-        # # user_id = request.user.id
-        # if not request.user.is_student():
-        #     return self.success({'data': 'notStudent'})
-        if not request.GET.get("contest_id"):
-            return self.success({'data': 'notContest'})
         if not contest.lecture_contest_type == "대회":
             return self.success({'data': 'notTest'})
         try:
             contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user.id)
-        except:
+        except ContestUser.DoesNotExist:
             ContestUser.objects.create(contest_id=contest_id, user_id=user.id) #first contest open
             contestUserData = ContestUser.objects.get(contest_id=contest_id, user_id=user.id)
         return self.success(ContestExitSerializer(contestUserData).data)

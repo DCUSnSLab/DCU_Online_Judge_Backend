@@ -1,0 +1,145 @@
+from utils.api import serializers
+
+from .models import LLMApiKey, LLMChatMessage, LLMChatSession, LLMRouteMap
+
+
+class LLMKeyCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=128)
+    scope = serializers.DictField(required=False)
+    expires_at = serializers.DateTimeField(required=False, allow_null=True)
+
+
+class LLMKeyRevokeSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+
+
+class LLMValidateKeySerializer(serializers.Serializer):
+    key = serializers.CharField(max_length=512)
+    model = serializers.CharField(required=False, allow_blank=True)
+    path = serializers.CharField(required=False, allow_blank=True)
+
+
+class LLMUsageReportSerializer(serializers.Serializer):
+    key_id = serializers.UUIDField()
+    prompt_tokens = serializers.IntegerField(min_value=0, required=False, default=0)
+
+
+class LLMRouteCreateSerializer(serializers.Serializer):
+    model_name = serializers.CharField(max_length=255)
+    upstream_url = serializers.CharField(max_length=1024)
+    priority = serializers.IntegerField(required=False, default=100)
+    weight = serializers.IntegerField(required=False, default=100)
+    enabled = serializers.BooleanField(required=False, default=True)
+
+
+class LLMRouteUpdateSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    model_name = serializers.CharField(max_length=255, required=False)
+    upstream_url = serializers.CharField(max_length=1024, required=False)
+    priority = serializers.IntegerField(required=False)
+    weight = serializers.IntegerField(required=False)
+    enabled = serializers.BooleanField(required=False)
+
+
+class LLMRouteDeleteSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+
+
+class LLMGatewayConfigUpdateSerializer(serializers.Serializer):
+    api_key = serializers.CharField(required=False, allow_blank=True, max_length=512)
+    default_model = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+
+class LLMChatSessionCreateSerializer(serializers.Serializer):
+    title = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    model_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+
+class LLMChatSessionUpdateSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    model_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+
+class LLMChatSessionDeleteSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+
+
+class LLMChatMessagesQuerySerializer(serializers.Serializer):
+    session_id = serializers.UUIDField()
+    offset = serializers.IntegerField(required=False, min_value=0, default=0)
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=200, default=100)
+
+
+class LLMChatCompletionsSerializer(serializers.Serializer):
+    session_id = serializers.UUIDField()
+    content = serializers.CharField(max_length=20000)
+    stream = serializers.BooleanField(required=False, default=True)
+    model = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    temperature = serializers.FloatField(required=False)
+    max_tokens = serializers.IntegerField(required=False, min_value=1)
+
+
+class LLMApiKeySerializer(serializers.ModelSerializer):
+    created_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LLMApiKey
+        fields = (
+            "id",
+            "name",
+            "key_prefix",
+            "scope",
+            "status",
+            "expires_at",
+            "last_used_at",
+            "total_requests",
+            "total_prompt_tokens",
+            "created_at",
+            "updated_at",
+            "created_by",
+        )
+
+    def get_created_by(self, obj):
+        return {
+            "id": obj.created_by.id,
+            "username": obj.created_by.username,
+            "realname": obj.created_by.realname,
+        }
+
+
+class LLMRouteSerializer(serializers.ModelSerializer):
+    updated_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LLMRouteMap
+        fields = (
+            "id",
+            "model_name",
+            "upstream_url",
+            "priority",
+            "weight",
+            "enabled",
+            "updated_by",
+            "created_at",
+            "updated_at",
+        )
+
+    def get_updated_by(self, obj):
+        return {
+            "id": obj.updated_by.id,
+            "username": obj.updated_by.username,
+            "realname": obj.updated_by.realname,
+        }
+
+
+class LLMChatSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LLMChatSession
+        fields = ("id", "title", "model_name", "created_at", "updated_at")
+
+
+class LLMChatMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LLMChatMessage
+        fields = ("id", "role", "content", "prompt_tokens", "completion_tokens", "created_at")

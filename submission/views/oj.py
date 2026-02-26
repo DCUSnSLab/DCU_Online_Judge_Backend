@@ -82,7 +82,6 @@ class SubmissionAPI(APIView):
 
             problem_id = str(data["problem_id"])
             problem_data = status_root[key].get(problem_id, {"_id": problem_id})
-
             prev_copied = problem_data.get("copied", 0)
             prev_focusing = problem_data.get("focusing", 0)
             print(f"prev_copied: {prev_copied}, prev_focusing: {prev_focusing}")
@@ -168,27 +167,30 @@ class SubmissionAPI(APIView):
                                                    contest_id=data.get("contest_id"),
                                                    lecture_id=None)
         # run result return
-        try:
-            if data["sample_test"]:
-                submissionResultData = JudgeDispatcher(submission, problem.id, True).judge()
-                outputResultData = []
-                if isinstance(submissionResultData, list):
-                    for i in range(data["sample_count"]):
-                        outputResultData.append({
-                            "output": submissionResultData[i].get('output'),
-                            "result": submissionResultData[i].get('result')
-                        })
-                else: # not list                                              
-                     outputResultData.append({
-                        "output": outputData[:dirStartIndex]+outputData[dirEndIndex:],
-                        "result": 4
+        if data.get("sample_test"):
+            try:
+                submission_result_data = JudgeDispatcher(submission, problem.id, True).judge()
+            except Exception as e:
+                return self.error(err="sample_test_failed", msg=str(e))
+
+            output_result_data = []
+            if isinstance(submission_result_data, list):
+                requested_count = int(data.get("sample_count") or len(submission_result_data))
+                safe_count = min(requested_count, len(submission_result_data))
+                for i in range(safe_count):
+                    output_result_data.append({
+                        "output": submission_result_data[i].get("output"),
+                        "result": submission_result_data[i].get("result")
                     })
-                return self.success({"submission_id": submission.id, "outputResultData": outputResultData})
-        except (Exception,):
-            pass
+            else:
+                output_result_data.append({
+                    "output": str(submission_result_data),
+                    "result": 4
+                })
+            return self.success({"submission_id": submission.id, "outputResultData": output_result_data})
         # use this for debug
         print("아 테스트요 테스트 들어가는지 확인")
-        JudgeDispatcher(submission.id, problem.id).judge()
+        JudgeDispatcher(submission, problem.id).judge()
         #judge_task.send(submission.id, problem.id)
         if hide_id:
             return self.success()

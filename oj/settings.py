@@ -10,10 +10,14 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.8/ref/settings/
 """
 import os
-import raven
 from copy import deepcopy
 from utils.shortcuts import get_env
 from datetime import timedelta
+
+try:
+    import sentry_sdk
+except ImportError:
+    sentry_sdk = None
 
 production_env = get_env("OJ_ENV", "dev") == "production"
 if production_env:
@@ -38,10 +42,6 @@ VENDOR_APPS = [
     'django_dbconn_retry',
 ]
 
-if production_env:
-    VENDOR_APPS.append('raven.contrib.django.raven_compat')
-
-
 LOCAL_APPS = [
 	'heartbeat',
     'account',
@@ -55,6 +55,7 @@ LOCAL_APPS = [
     'judge',
     'lecture',
     'qna',
+    'llm',
 ]
 
 CRONJOBS = [
@@ -125,6 +126,23 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = True
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
+
+def _parse_csv_env(name, default_value=""):
+    raw = get_env(name, default_value)
+    values = []
+    for item in raw.split(","):
+        value = item.strip().rstrip("/")
+        if value and value not in values:
+            values.append(value)
+    return values
+
+
+CSRF_TRUSTED_ORIGINS = _parse_csv_env(
+    "CSRF_TRUSTED_ORIGINS",
+    "http://localhost:1024,http://127.0.0.1:1024,http://localhost:8000,http://127.0.0.1:8000",
+)
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
@@ -145,7 +163,7 @@ UPLOAD_DIR = f"{DATA_DIR}{UPLOAD_PREFIX}"
 STATICFILES_DIRS = [os.path.join(DATA_DIR, "public")]
 
 
-LOGGING_HANDLERS = ['console', 'sentry'] if production_env else ['console']
+LOGGING_HANDLERS = ['console']
 LOGGING = {
    'version': 1,
    'disable_existing_loggers': False,
@@ -161,11 +179,6 @@ LOGGING = {
            'class': 'logging.StreamHandler',
            'formatter': 'standard'
        },
-       'sentry': {
-           'level': 'ERROR',
-           'class': 'raven.contrib.django.raven_compat.handlers.SentryHandler',
-           'formatter': 'standard'
-       }
    },
    'loggers': {
        'django.request': {
@@ -255,8 +268,11 @@ DRAMATIQ_RESULT_BACKEND = {
     }
 }
 
-RAVEN_CONFIG = {
-    'dsn': 'https://b200023b8aed4d708fb593c5e0a6ad3d:1fddaba168f84fcf97e0d549faaeaff0@sentry.io/263057'
-}
+SENTRY_DSN = get_env(
+    "SENTRY_DSN",
+    "https://b200023b8aed4d708fb593c5e0a6ad3d:1fddaba168f84fcf97e0d549faaeaff0@sentry.io/263057"
+)
+if production_env and sentry_sdk and SENTRY_DSN:
+    sentry_sdk.init(dsn=SENTRY_DSN)
 
 IP_HEADER = "HTTP_X_REAL_IP"
