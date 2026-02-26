@@ -74,6 +74,7 @@ class LLMChatMessagesQuerySerializer(serializers.Serializer):
 class LLMChatCompletionsSerializer(serializers.Serializer):
     session_id = serializers.UUIDField()
     content = serializers.CharField(max_length=20000)
+    mode = serializers.CharField(required=False, allow_blank=True, max_length=32)
     stream = serializers.BooleanField(required=False, default=True)
     model = serializers.CharField(required=False, allow_blank=True, max_length=255)
     temperature = serializers.FloatField(required=False)
