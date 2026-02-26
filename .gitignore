@@ -8,10 +8,6 @@ __pycache__/
 # Distribution / packaging
 .Python
 
-# 마이그레이션 디렉토리 생셩을 위한 init 파일을 제외한 모든 마이그레이션 파일은 추적하지 않는다.
-*/migrations/*
-!*/migrations/__init__.py
-
 env/
 bin/
 build/
