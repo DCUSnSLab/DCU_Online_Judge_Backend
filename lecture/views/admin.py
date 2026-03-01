@@ -349,16 +349,66 @@ class BatchMigrateAPI(APIView):
     """년도/학기 조건으로 해당하는 모든 강의의 수강생 성적을 일괄 재계산"""
     @super_admin_required
     def get(self, request):
+        """[최적화] Django annotation으로 N×6 쿼리를 최소화"""
+        from django.db.models import Count, Subquery, OuterRef, IntegerField
+        from django.db.models.functions import Coalesce
+
         year = request.GET.get("year")
         semester = request.GET.get("semester")
 
         if not year or not semester:
             return self.error("year and semester are required")
 
-        target_lectures = Lecture.objects.filter(year=year, semester=semester)
+        target_lectures = Lecture.objects.filter(year=year, semester=semester).select_related('created_by')
         if not target_lectures.exists():
             return self.success({"lectures": [], "summary": {}})
 
+        # 전체 lecture_ids
+        lecture_ids = list(target_lectures.values_list('id', flat=True))
+
+        # 1. 일괄 집계: signup_class (학생 수)
+        from collections import defaultdict
+        student_counts = defaultdict(int)
+        scored_counts = defaultdict(int)
+        for sc in signup_class.objects.filter(
+            lecture_id__in=lecture_ids, isallow=True
+        ).exclude(
+            user__admin_type__in=[AdminType.SUPER_ADMIN, AdminType.ADMIN]
+        ).values('lecture_id', 'score'):
+            student_counts[sc['lecture_id']] += 1
+            if sc['score'] and sc['score'] != {}:
+                scored_counts[sc['lecture_id']] += 1
+
+        # 2. 일괄 집계: Contest 수 (타입별)
+        contest_stats = defaultdict(lambda: {'total': 0, '실습': 0, '과제': 0, '대회': 0})
+        for c in Contest.objects.filter(lecture_id__in=lecture_ids).values('lecture_id', 'lecture_contest_type'):
+            lid = c['lecture_id']
+            contest_stats[lid]['total'] += 1
+            ctype = c['lecture_contest_type']
+            if ctype in contest_stats[lid]:
+                contest_stats[lid][ctype] += 1
+
+        # 3. 일괄 집계: Problem 수
+        problem_counts = defaultdict(int)
+        for p in Problem.objects.filter(
+            contest__lecture_id__in=lecture_ids
+        ).values('contest__lecture_id').annotate(cnt=Count('id')):
+            problem_counts[p['contest__lecture_id']] = p['cnt']
+
+        # 4. 일괄 집계: Submission 수 + ACCEPTED 수
+        submission_stats = defaultdict(lambda: {'total': 0, 'accepted': 0})
+        for s in Submission.objects.filter(
+            lecture_id__in=lecture_ids
+        ).values('lecture_id').annotate(
+            total=Count('id'),
+            accepted=Count('id', filter=Q(result=0))
+        ):
+            submission_stats[s['lecture_id']] = {
+                'total': s['total'],
+                'accepted': s['accepted']
+            }
+
+        # 결과 조합
         lectures_info = []
         total_students = 0
         total_contests = 0
@@ -366,55 +416,32 @@ class BatchMigrateAPI(APIView):
         total_submissions = 0
 
         for lecture in target_lectures:
-            # 수강생 수 (admin 제외)
-            student_count = signup_class.objects.filter(
-                lecture=lecture, isallow=True
-            ).exclude(
-                user__admin_type__in=[AdminType.SUPER_ADMIN, AdminType.ADMIN]
-            ).count()
-
-            # 실습/과제/시험 수
-            contests = Contest.objects.filter(lecture=lecture)
-            training_count = contests.filter(lecture_contest_type="실습").count()
-            assignment_count = contests.filter(lecture_contest_type="과제").count()
-            exam_count = contests.filter(lecture_contest_type="대회").count()
-            contest_count = contests.count()
-
-            # 문제 수
-            problem_count = Problem.objects.filter(contest__lecture=lecture).count()
-
-            # 제출 수
-            submissions = Submission.objects.filter(lecture=lecture)
-            submission_count = submissions.count()
-            accepted_count = submissions.filter(result=0).count()  # JudgeStatus.ACCEPTED = 0
-
-            # 성적 재계산 여부 (score에 데이터가 있는 학생 비율)
-            scored_students = signup_class.objects.filter(
-                lecture=lecture, isallow=True
-            ).exclude(score={}).exclude(
-                user__admin_type__in=[AdminType.SUPER_ADMIN, AdminType.ADMIN]
-            ).count()
+            lid = lecture.id
+            student_count = student_counts[lid]
+            cs = contest_stats[lid]
+            pc = problem_counts[lid]
+            ss = submission_stats[lid]
 
             lectures_info.append({
-                "id": lecture.id,
+                "id": lid,
                 "title": lecture.title,
                 "created_by": lecture.created_by.realname or lecture.created_by.username,
                 "student_count": student_count,
-                "training_count": training_count,
-                "assignment_count": assignment_count,
-                "exam_count": exam_count,
-                "contest_count": contest_count,
-                "problem_count": problem_count,
-                "submission_count": submission_count,
-                "accepted_count": accepted_count,
-                "scored_students": scored_students,
+                "training_count": cs['실습'],
+                "assignment_count": cs['과제'],
+                "exam_count": cs['대회'],
+                "contest_count": cs['total'],
+                "problem_count": pc,
+                "submission_count": ss['total'],
+                "accepted_count": ss['accepted'],
+                "scored_students": scored_counts[lid],
                 "status": lecture.status,
             })
 
             total_students += student_count
-            total_contests += contest_count
-            total_problems += problem_count
-            total_submissions += submission_count
+            total_contests += cs['total']
+            total_problems += pc
+            total_submissions += ss['total']
 
         return self.success({
             "lectures": lectures_info,
@@ -429,6 +456,8 @@ class BatchMigrateAPI(APIView):
 
     @super_admin_required
     def put(self, request):
+        """[최적화] 데이터 프리로딩 + Python dict 그룹핑 + bulk_update"""
+        import time as _time
         data = request.data
         lecture_id = data.get("lecture_id")
 
@@ -440,42 +469,80 @@ class BatchMigrateAPI(APIView):
         except Lecture.DoesNotExist:
             return self.error(f"강의 ID {lecture_id}를 찾을 수 없습니다.")
 
+        t_start = _time.time()
         lecture_student_count = 0
+
         try:
-            signups = signup_class.objects.filter(lecture=lecture)
-            lid = -1
+            # ── 1. 수강생 목록 (admin 제외) ──
+            signups = list(
+                signup_class.objects.filter(lecture=lecture, isallow=True)
+                .select_related('user')
+                .exclude(user__admin_type__in=[AdminType.SUPER_ADMIN, AdminType.ADMIN])
+            )
+            if not signups:
+                return self.success({
+                    "lecture_id": lecture.id, "title": lecture.title,
+                    "student_count": 0, "elapsed_ms": 0
+                })
 
-            for lec in signups:
-                if not lec.isallow:
+            student_user_ids = {s.user_id for s in signups}
+
+            # ── 2. 문제 목록 & LectureInfo 구조 구성 (1회) ──
+            plist = Problem.objects.filter(
+                contest__lecture=lecture
+            ).select_related('contest')
+
+            LectureInfo = lecDispatcher()
+            for p in plist:
+                LectureInfo.migrateProblem(p)
+
+            # ── 3. 핵심 최적화: 제출 데이터 1회 프리로딩 (code 제외) ──
+            all_subs = list(
+                Submission.objects.filter(lecture=lecture)
+                .defer('code')
+                .select_related('contest', 'problem')
+                .order_by('-create_time')
+            )
+
+            # ── 4. Python에서 user별 → (contest,problem)별 최신 제출 그룹핑 ──
+            from collections import defaultdict
+            user_latest_subs = defaultdict(dict)  # {user_id: {(contest_id, problem_id): submission}}
+
+            for sub in all_subs:
+                if sub.user_id not in student_user_ids:
                     continue
-                if lec.user.admin_type == AdminType.SUPER_ADMIN or lec.user.admin_type == AdminType.ADMIN:
-                    continue
+                key = (sub.contest_id, sub.problem_id)
+                if key not in user_latest_subs[sub.user_id]:
+                    # 이미 -create_time DESC로 정렬되어 있으므로 첫 번째가 최신
+                    user_latest_subs[sub.user_id][key] = sub
 
-                if lid != lec.lecture_id:
-                    lid = lec.lecture_id
-                    plist = Problem.objects.filter(contest__lecture=lec.lecture_id).prefetch_related('contest')
-                    LectureInfo = lecDispatcher()
-                    for p in plist:
-                        LectureInfo.migrateProblem(p)
-                    sublist = Submission.objects.filter(lecture=lec.lecture_id)
+            # ── 5. 학생별 성적 계산 (DB 쿼리 없음, 순수 Python) ──
+            updated_signups = []
+            for signup in signups:
+                uid = signup.user_id
+                latest_subs = user_latest_subs.get(uid, {})
 
-                ldates = sublist.filter(user=lec.user).values('contest', 'problem').annotate(
-                    latest_created_at=Max('create_time'))
-                sdata = sublist.filter(create_time__in=ldates.values('latest_created_at')).order_by('-create_time')
                 LectureInfo.cleanDataForScorebard()
+                for sub in latest_subs.values():
+                    LectureInfo.associateSubmission(sub)
 
-                for submit in sdata:
-                    LectureInfo.associateSubmission(submit)
-
-                lec.score = LectureInfo.toDict()
-                lec.save()
+                signup.score = LectureInfo.toDict()
+                updated_signups.append(signup)
                 lecture_student_count += 1
 
-            print(f"[BatchMigrate] Lecture '{lecture.title}' (id={lecture.id}) - {lecture_student_count} students completed")
+            # ── 6. Bulk Save (1회 DB write) ──
+            if updated_signups:
+                signup_class.objects.bulk_update(updated_signups, ['score'], batch_size=50)
+
+            elapsed_ms = int((_time.time() - t_start) * 1000)
+            print(f"[BatchMigrate] Lecture '{lecture.title}' (id={lecture.id}) "
+                  f"- {lecture_student_count} students, {len(all_subs)} submissions, {elapsed_ms}ms")
+
             return self.success({
                 "lecture_id": lecture.id,
                 "title": lecture.title,
-                "student_count": lecture_student_count
+                "student_count": lecture_student_count,
+                "elapsed_ms": elapsed_ms
             })
 
         except Exception as e:
