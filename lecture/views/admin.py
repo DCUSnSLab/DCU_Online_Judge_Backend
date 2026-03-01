@@ -532,7 +532,7 @@ class BatchMigrateAPI(APIView):
                 for sub in subs:
                     LectureInfo.associateSubmission(sub)
 
-                signup.score = LectureInfo.toDict()
+                signup.score = copy.deepcopy(LectureInfo.toDict())
                 updated_signups.append(signup)
                 lecture_student_count += 1
 
