@@ -266,7 +266,7 @@ class ContestAPI(APIView):
         lecture = contest.lecture
         user = request.user
         ta_list = ta_admin_class.objects.filter(lecture=lecture)
-        realTa = ta_admin_class.is_user_ta(lecture, user)
+        realTa = ta_admin_class.is_user_ta(lecture, user) if user.is_authenticated else False
         ta_user_ids = [ta.user_id for ta in ta_list]
 
         if not id or not check_is_id(id):
