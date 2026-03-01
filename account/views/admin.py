@@ -4,6 +4,7 @@ import xlsxwriter
 
 from django.db import transaction, IntegrityError
 from django.db.models import Q
+from django.conf import settings
 from django.http import HttpResponse
 from django.contrib.auth.hashers import make_password
 
@@ -76,7 +77,7 @@ class PublicContInfoAPI(APIView):
 
 class UserAdminAPI(APIView):
     def decrypt_password(self, encrypt_password):
-        with open("/data/config/private_key.pem", "r") as key_file:
+        with open(os.path.join(settings.DATA_DIR, "config", "private_key.pem"), "r") as key_file:
             private_key = RSA.import_key(key_file.read())
         encrypt_password_bytes = base64.b64decode(encrypt_password)
         cipher = PKCS1_v1_5.new(private_key)
@@ -221,6 +222,10 @@ class UserAdminAPI(APIView):
                 #collect lecture info
                 plist = Problem.objects.filter(contest__lecture=lecture_id).prefetch_related('contest')
 
+                # Count registered/unregistered before iterating the queryset
+                registered_count = ulist.filter(isallow=True).count()
+                unregistered_count = ulist.filter(isallow=False).count()
+
                 #test
                 LectureInfo = lecDispatcher()
 
@@ -267,7 +272,10 @@ class UserAdminAPI(APIView):
                     us.maxScore = LectureInfo.Info.data[DataType.POINT]
                     cnt += 1
 
-                return self.success(self.paginate_data(request, ulist, SignupSerializer))
+                data = self.paginate_data(request, ulist, SignupSerializer)
+                data["registered_count"] = registered_count
+                data["unregistered_count"] = unregistered_count
+                return self.success(data)
             return self.success()
 
         """
