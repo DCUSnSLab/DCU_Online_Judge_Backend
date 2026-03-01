@@ -267,7 +267,7 @@ class CheckTFARequiredAPI(APIView):
 
 class getPublicKeyAPI(APIView):
     def get(self, requset):
-        with open("/data/config/public_key.pem", "r") as key_file:
+        with open(os.path.join(settings.DATA_DIR, "config", "public_key.pem"), "r") as key_file:
             public_key = key_file.read()
         return self.success({"public_key": public_key})
 
@@ -311,7 +311,7 @@ class TokenRefreshAPI(CSRFExemptAPIView):
 
 class UserLoginAPI(CSRFExemptAPIView):
     def decrypt_password(self, encrypt_password):
-        with open("/data/config/private_key.pem", "r") as key_file:
+        with open(os.path.join(settings.DATA_DIR, "config", "private_key.pem"), "r") as key_file:
             private_key = RSA.import_key(key_file.read())
         encrypt_password_bytes = base64.b64decode(encrypt_password)
         cipher = PKCS1_v1_5.new(private_key)
@@ -410,8 +410,8 @@ class SchoolssnCheck(APIView):
         return self.success(result)
 
 class UserRegisterAPI(APIView):
-    def decrypt_password(self, encrypt_password):                                                                                 
-        with open("/data/config/private_key.pem", "r") as key_file:                                              
+    def decrypt_password(self, encrypt_password):
+        with open(os.path.join(settings.DATA_DIR, "config", "private_key.pem"), "r") as key_file:
             private_key = RSA.import_key(key_file.read())                                              
         encrypt_password_bytes = base64.b64decode(encrypt_password)                                                                      
         cipher = PKCS1_v1_5.new(private_key)                                                                                      
@@ -492,8 +492,8 @@ class UserChangeEmailAPI(APIView):
 
 
 class UserChangePasswordAPI(APIView):
-    def decrypt_password(self, encrypt_password):                                                                                                               
-        with open("/data/config/private_key.pem", "r") as key_file:                                                                             
+    def decrypt_password(self, encrypt_password):
+        with open(os.path.join(settings.DATA_DIR, "config", "private_key.pem"), "r") as key_file:
             private_key = RSA.import_key(key_file.read())                                                    
         encrypt_password_bytes = base64.b64decode(encrypt_password)                                                                       
         cipher = PKCS1_v1_5.new(private_key)                                                                      

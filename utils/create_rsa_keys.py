@@ -2,8 +2,13 @@ import os
 import subprocess
 from Crypto.PublicKey import RSA
 
-private_key_path = '/data/config/private_key.pem'
-public_key_path = '/data/config/public_key.pem'
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "oj.settings")
+import django
+django.setup()
+from django.conf import settings
+
+private_key_path = os.path.join(settings.DATA_DIR, "config", "private_key.pem")
+public_key_path = os.path.join(settings.DATA_DIR, "config", "public_key.pem")
 
 os.makedirs(os.path.dirname(private_key_path), exist_ok=True)
 os.makedirs(os.path.dirname(public_key_path), exist_ok=True)

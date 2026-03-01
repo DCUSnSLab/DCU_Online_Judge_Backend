@@ -6,7 +6,7 @@ from ipaddress import ip_network
 import dateutil.parser
 from django.http import FileResponse
 
-from account.decorators import ensure_created_by
+from account.decorators import ensure_created_by, super_admin_required
 from problem.models import Problem
 from submission.models import Submission
 from utils.api import APIView, validate_serializer
@@ -343,3 +343,149 @@ class WaitStudentAddAPI(APIView):
                             print("no matching user")
 
         return self.success()
+
+
+class BatchMigrateAPI(APIView):
+    """년도/학기 조건으로 해당하는 모든 강의의 수강생 성적을 일괄 재계산"""
+    @super_admin_required
+    def get(self, request):
+        year = request.GET.get("year")
+        semester = request.GET.get("semester")
+
+        if not year or not semester:
+            return self.error("year and semester are required")
+
+        target_lectures = Lecture.objects.filter(year=year, semester=semester)
+        if not target_lectures.exists():
+            return self.success({"lectures": [], "summary": {}})
+
+        lectures_info = []
+        total_students = 0
+        total_contests = 0
+        total_problems = 0
+        total_submissions = 0
+
+        for lecture in target_lectures:
+            # 수강생 수 (admin 제외)
+            student_count = signup_class.objects.filter(
+                lecture=lecture, isallow=True
+            ).exclude(
+                user__admin_type__in=[AdminType.SUPER_ADMIN, AdminType.ADMIN]
+            ).count()
+
+            # 실습/과제/시험 수
+            contests = Contest.objects.filter(lecture=lecture)
+            training_count = contests.filter(lecture_contest_type="실습").count()
+            assignment_count = contests.filter(lecture_contest_type="과제").count()
+            exam_count = contests.filter(lecture_contest_type="대회").count()
+            contest_count = contests.count()
+
+            # 문제 수
+            problem_count = Problem.objects.filter(contest__lecture=lecture).count()
+
+            # 제출 수
+            submissions = Submission.objects.filter(lecture=lecture)
+            submission_count = submissions.count()
+            accepted_count = submissions.filter(result=0).count()  # JudgeStatus.ACCEPTED = 0
+
+            # 성적 재계산 여부 (score에 데이터가 있는 학생 비율)
+            scored_students = signup_class.objects.filter(
+                lecture=lecture, isallow=True
+            ).exclude(score={}).exclude(
+                user__admin_type__in=[AdminType.SUPER_ADMIN, AdminType.ADMIN]
+            ).count()
+
+            lectures_info.append({
+                "id": lecture.id,
+                "title": lecture.title,
+                "created_by": lecture.created_by.realname or lecture.created_by.username,
+                "student_count": student_count,
+                "training_count": training_count,
+                "assignment_count": assignment_count,
+                "exam_count": exam_count,
+                "contest_count": contest_count,
+                "problem_count": problem_count,
+                "submission_count": submission_count,
+                "accepted_count": accepted_count,
+                "scored_students": scored_students,
+                "status": lecture.status,
+            })
+
+            total_students += student_count
+            total_contests += contest_count
+            total_problems += problem_count
+            total_submissions += submission_count
+
+        return self.success({
+            "lectures": lectures_info,
+            "summary": {
+                "total_lectures": len(lectures_info),
+                "total_students": total_students,
+                "total_contests": total_contests,
+                "total_problems": total_problems,
+                "total_submissions": total_submissions,
+            }
+        })
+
+    @super_admin_required
+    def put(self, request):
+        data = request.data
+        lecture_id = data.get("lecture_id")
+
+        if not lecture_id:
+            return self.error("lecture_id is required")
+
+        try:
+            lecture = Lecture.objects.get(id=lecture_id)
+        except Lecture.DoesNotExist:
+            return self.error(f"강의 ID {lecture_id}를 찾을 수 없습니다.")
+
+        lecture_student_count = 0
+        try:
+            signups = signup_class.objects.filter(lecture=lecture)
+            lid = -1
+
+            for lec in signups:
+                if not lec.isallow:
+                    continue
+                if lec.user.admin_type == AdminType.SUPER_ADMIN or lec.user.admin_type == AdminType.ADMIN:
+                    continue
+
+                if lid != lec.lecture_id:
+                    lid = lec.lecture_id
+                    plist = Problem.objects.filter(contest__lecture=lec.lecture_id).prefetch_related('contest')
+                    LectureInfo = lecDispatcher()
+                    for p in plist:
+                        LectureInfo.migrateProblem(p)
+                    sublist = Submission.objects.filter(lecture=lec.lecture_id)
+
+                ldates = sublist.filter(user=lec.user).values('contest', 'problem').annotate(
+                    latest_created_at=Max('create_time'))
+                sdata = sublist.filter(create_time__in=ldates.values('latest_created_at')).order_by('-create_time')
+                LectureInfo.cleanDataForScorebard()
+
+                for submit in sdata:
+                    LectureInfo.associateSubmission(submit)
+
+                lec.score = LectureInfo.toDict()
+                lec.save()
+                lecture_student_count += 1
+
+            print(f"[BatchMigrate] Lecture '{lecture.title}' (id={lecture.id}) - {lecture_student_count} students completed")
+            return self.success({
+                "lecture_id": lecture.id,
+                "title": lecture.title,
+                "student_count": lecture_student_count
+            })
+
+        except Exception as e:
+            import traceback
+            print(f"[BatchMigrate] Error in lecture '{lecture.title}' (id={lecture.id})")
+            print(traceback.format_exc())
+            return self.success({
+                "lecture_id": lecture.id,
+                "title": lecture.title,
+                "student_count": lecture_student_count,
+                "error": str(e)
+            })
+

@@ -1,7 +1,9 @@
 import json
 import logging
+import os
 
 import requests
+from django.conf import settings
 from django.http import HttpResponse, StreamingHttpResponse
 
 from account.decorators import login_required
@@ -37,7 +39,7 @@ DEFAULT_PROBLEM_HINT_SYSTEM_PROMPT = (
 
 
 def _read_gateway_api_key():
-    key_file = get_env("LLM_GATEWAY_API_KEY_FILE", "/data/config/llm_gateway_api_key")
+    key_file = get_env("LLM_GATEWAY_API_KEY_FILE", os.path.join(settings.DATA_DIR, "config", "llm_gateway_api_key"))
     try:
         with open(key_file, "r") as f:
             key_from_file = f.read().strip()
@@ -57,7 +59,7 @@ def _build_gateway_url():
 
 
 def _read_default_model():
-    model_file = get_env("LLM_DEFAULT_MODEL_FILE", "/data/config/llm_gateway_model")
+    model_file = get_env("LLM_DEFAULT_MODEL_FILE", os.path.join(settings.DATA_DIR, "config", "llm_gateway_model"))
     try:
         with open(model_file, "r") as f:
             model_from_file = f.read().strip()
