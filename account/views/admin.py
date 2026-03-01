@@ -6,6 +6,7 @@ from django.db import transaction, IntegrityError
 from django.db.models import Q
 from django.http import HttpResponse
 from django.contrib.auth.hashers import make_password
+from django.conf import settings
 
 from contest.models import Contest, OIContestRank
 from lecture.views.LectureAnalysis import LectureAnalysis, DataType, ContestType, lecDispatcher
@@ -76,7 +77,7 @@ class PublicContInfoAPI(APIView):
 
 class UserAdminAPI(APIView):
     def decrypt_password(self, encrypt_password):
-        with open("/data/config/private_key.pem", "r") as key_file:
+        with open(os.path.join(settings.DATA_DIR, "config", "private_key.pem"), "r") as key_file:
             private_key = RSA.import_key(key_file.read())
         encrypt_password_bytes = base64.b64decode(encrypt_password)
         cipher = PKCS1_v1_5.new(private_key)

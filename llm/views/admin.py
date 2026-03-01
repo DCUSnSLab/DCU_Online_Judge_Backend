@@ -2,6 +2,7 @@ import hashlib
 import os
 
 from account.decorators import super_admin_required
+from django.conf import settings
 from utils.api import APIView, validate_serializer
 from utils.shortcuts import get_env, rand_str
 
@@ -27,11 +28,11 @@ def hash_key(raw_key):
 
 
 def _gateway_api_key_file_path():
-    return get_env("LLM_GATEWAY_API_KEY_FILE", "/data/config/llm_gateway_api_key")
+    return get_env("LLM_GATEWAY_API_KEY_FILE", os.path.join(settings.DATA_DIR, "config", "llm_gateway_api_key"))
 
 
 def _gateway_default_model_file_path():
-    return get_env("LLM_DEFAULT_MODEL_FILE", "/data/config/llm_gateway_model")
+    return get_env("LLM_DEFAULT_MODEL_FILE", os.path.join(settings.DATA_DIR, "config", "llm_gateway_model"))
 
 
 def _read_config_file(path):
