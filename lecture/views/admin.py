@@ -456,8 +456,11 @@ class BatchMigrateAPI(APIView):
 
     @super_admin_required
     def put(self, request):
-        """[최적화] 데이터 프리로딩 + Python dict 그룹핑 + bulk_update"""
+        """[메모리 최적화] DB GROUP BY 집계로 최신 제출만 가져오기 (OOMKilled 방지)"""
         import time as _time
+        import gc
+        from collections import defaultdict
+
         data = request.data
         lecture_id = data.get("lecture_id")
 
@@ -496,34 +499,37 @@ class BatchMigrateAPI(APIView):
             for p in plist:
                 LectureInfo.migrateProblem(p)
 
-            # ── 3. 핵심 최적화: 제출 데이터 1회 프리로딩 (code 제외) ──
-            all_subs = list(
-                Submission.objects.filter(lecture=lecture)
-                .defer('code')
-                .select_related('contest', 'problem')
-                .order_by('-create_time')
+            # ── 3. [메모리 최적화] DB에서 (user, contest, problem)별 최신 제출 ID만 집계 ──
+            # 기존: list(Submission.objects.filter(lecture=lecture)) → 30만건 전체 메모리 로딩 (OOMKilled 원인)
+            # 변경: DB GROUP BY로 최신 ID만 가져옴 → ~5천건만 메모리 로딩
+            latest_sub_ids = list(
+                Submission.objects.filter(
+                    lecture=lecture,
+                    user_id__in=student_user_ids
+                )
+                .values('user_id', 'contest_id', 'problem_id')
+                .annotate(latest_id=Max('id'))
+                .values_list('latest_id', flat=True)
             )
 
-            # ── 4. Python에서 user별 → (contest,problem)별 최신 제출 그룹핑 ──
-            from collections import defaultdict
-            user_latest_subs = defaultdict(dict)  # {user_id: {(contest_id, problem_id): submission}}
+            # ── 4. 최신 제출만 가져와서 user별 그룹핑 ──
+            user_latest_subs = defaultdict(list)
+            for sub in Submission.objects.filter(
+                id__in=latest_sub_ids
+            ).select_related('contest', 'problem').defer('code').iterator():
+                user_latest_subs[sub.user_id].append(sub)
 
-            for sub in all_subs:
-                if sub.user_id not in student_user_ids:
-                    continue
-                key = (sub.contest_id, sub.problem_id)
-                if key not in user_latest_subs[sub.user_id]:
-                    # 이미 -create_time DESC로 정렬되어 있으므로 첫 번째가 최신
-                    user_latest_subs[sub.user_id][key] = sub
+            total_latest_count = len(latest_sub_ids)
+            del latest_sub_ids  # 메모리 해제
 
             # ── 5. 학생별 성적 계산 (DB 쿼리 없음, 순수 Python) ──
             updated_signups = []
             for signup in signups:
                 uid = signup.user_id
-                latest_subs = user_latest_subs.get(uid, {})
+                subs = user_latest_subs.get(uid, [])
 
                 LectureInfo.cleanDataForScorebard()
-                for sub in latest_subs.values():
+                for sub in subs:
                     LectureInfo.associateSubmission(sub)
 
                 signup.score = LectureInfo.toDict()
@@ -536,7 +542,11 @@ class BatchMigrateAPI(APIView):
 
             elapsed_ms = int((_time.time() - t_start) * 1000)
             print(f"[BatchMigrate] Lecture '{lecture.title}' (id={lecture.id}) "
-                  f"- {lecture_student_count} students, {len(all_subs)} submissions, {elapsed_ms}ms")
+                  f"- {lecture_student_count} students, {total_latest_count} latest subs (memory-optimized), {elapsed_ms}ms")
+
+            # ── 7. 메모리 정리 (gunicorn 워커 재사용 대비) ──
+            del user_latest_subs, updated_signups, signups
+            gc.collect()
 
             return self.success({
                 "lecture_id": lecture.id,
@@ -549,6 +559,7 @@ class BatchMigrateAPI(APIView):
             import traceback
             print(f"[BatchMigrate] Error in lecture '{lecture.title}' (id={lecture.id})")
             print(traceback.format_exc())
+            gc.collect()
             return self.success({
                 "lecture_id": lecture.id,
                 "title": lecture.title,
