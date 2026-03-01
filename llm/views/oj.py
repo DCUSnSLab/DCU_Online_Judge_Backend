@@ -159,10 +159,29 @@ def _recent_messages_for_prompt(session, recent_count=10):
     ]
 
 
+PROBLEM_HINT_REMINDER = (
+    "[리마인더] 절대로 정답 코드나 수정된 코드를 직접 제공하지 마세요. "
+    "코드 블록(```)을 사용하지 마세요. "
+    "개념적 힌트와 방향만 간결하게 제시하세요."
+)
+
+
 def _build_gateway_payload(session, data, mode):
     model_name = data.get("model") or _read_default_model() or session.model_name
     messages = [{"role": "system", "content": _read_system_prompt(mode)}]
-    messages.extend(_recent_messages_for_prompt(session))
+    recent = _recent_messages_for_prompt(session)
+
+    # problem_hint 모드에서 추가 질문이 있으면 마지막 user 메시지 앞에 리마인더 삽입
+    if mode == PROBLEM_HINT_MODE and len(recent) > 2:
+        # 마지막 user 메시지 직전에 리마인더를 끼워넣음
+        insert_idx = len(recent)
+        for i in range(len(recent) - 1, -1, -1):
+            if recent[i]["role"] == "user":
+                insert_idx = i
+                break
+        recent.insert(insert_idx, {"role": "system", "content": PROBLEM_HINT_REMINDER})
+
+    messages.extend(recent)
     payload = {
         "model": model_name,
         "messages": messages,
