@@ -6,7 +6,7 @@ from ipaddress import ip_network
 import dateutil.parser
 from django.http import FileResponse
 
-from account.decorators import ensure_created_by
+from account.decorators import ensure_created_by, super_admin_required
 from problem.models import Problem
 from submission.models import Submission
 from utils.api import APIView, validate_serializer
@@ -343,3 +343,227 @@ class WaitStudentAddAPI(APIView):
                             print("no matching user")
 
         return self.success()
+
+
+class BatchMigrateAPI(APIView):
+    """년도/학기 조건으로 해당하는 모든 강의의 수강생 성적을 일괄 재계산"""
+    @super_admin_required
+    def get(self, request):
+        """[최적화] Django annotation으로 N×6 쿼리를 최소화"""
+        from django.db.models import Count, Subquery, OuterRef, IntegerField
+        from django.db.models.functions import Coalesce
+
+        year = request.GET.get("year")
+        semester = request.GET.get("semester")
+
+        if not year or not semester:
+            return self.error("year and semester are required")
+
+        target_lectures = Lecture.objects.filter(year=year, semester=semester).select_related('created_by')
+        if not target_lectures.exists():
+            return self.success({"lectures": [], "summary": {}})
+
+        # 전체 lecture_ids
+        lecture_ids = list(target_lectures.values_list('id', flat=True))
+
+        # 1. 일괄 집계: signup_class (학생 수)
+        from collections import defaultdict
+        student_counts = defaultdict(int)
+        scored_counts = defaultdict(int)
+        for sc in signup_class.objects.filter(
+            lecture_id__in=lecture_ids, isallow=True
+        ).exclude(
+            user__admin_type__in=[AdminType.SUPER_ADMIN, AdminType.ADMIN]
+        ).values('lecture_id', 'score'):
+            student_counts[sc['lecture_id']] += 1
+            if sc['score'] and sc['score'] != {}:
+                scored_counts[sc['lecture_id']] += 1
+
+        # 2. 일괄 집계: Contest 수 (타입별)
+        contest_stats = defaultdict(lambda: {'total': 0, '실습': 0, '과제': 0, '대회': 0})
+        for c in Contest.objects.filter(lecture_id__in=lecture_ids).values('lecture_id', 'lecture_contest_type'):
+            lid = c['lecture_id']
+            contest_stats[lid]['total'] += 1
+            ctype = c['lecture_contest_type']
+            if ctype in contest_stats[lid]:
+                contest_stats[lid][ctype] += 1
+
+        # 3. 일괄 집계: Problem 수
+        problem_counts = defaultdict(int)
+        for p in Problem.objects.filter(
+            contest__lecture_id__in=lecture_ids
+        ).values('contest__lecture_id').annotate(cnt=Count('id')):
+            problem_counts[p['contest__lecture_id']] = p['cnt']
+
+        # 4. 일괄 집계: Submission 수 + ACCEPTED 수
+        submission_stats = defaultdict(lambda: {'total': 0, 'accepted': 0})
+        for s in Submission.objects.filter(
+            lecture_id__in=lecture_ids
+        ).values('lecture_id').annotate(
+            total=Count('id'),
+            accepted=Count('id', filter=Q(result=0))
+        ):
+            submission_stats[s['lecture_id']] = {
+                'total': s['total'],
+                'accepted': s['accepted']
+            }
+
+        # 결과 조합
+        lectures_info = []
+        total_students = 0
+        total_contests = 0
+        total_problems = 0
+        total_submissions = 0
+
+        for lecture in target_lectures:
+            lid = lecture.id
+            student_count = student_counts[lid]
+            cs = contest_stats[lid]
+            pc = problem_counts[lid]
+            ss = submission_stats[lid]
+
+            lectures_info.append({
+                "id": lid,
+                "title": lecture.title,
+                "created_by": lecture.created_by.realname or lecture.created_by.username,
+                "student_count": student_count,
+                "training_count": cs['실습'],
+                "assignment_count": cs['과제'],
+                "exam_count": cs['대회'],
+                "contest_count": cs['total'],
+                "problem_count": pc,
+                "submission_count": ss['total'],
+                "accepted_count": ss['accepted'],
+                "scored_students": scored_counts[lid],
+                "status": lecture.status,
+            })
+
+            total_students += student_count
+            total_contests += cs['total']
+            total_problems += pc
+            total_submissions += ss['total']
+
+        return self.success({
+            "lectures": lectures_info,
+            "summary": {
+                "total_lectures": len(lectures_info),
+                "total_students": total_students,
+                "total_contests": total_contests,
+                "total_problems": total_problems,
+                "total_submissions": total_submissions,
+            }
+        })
+
+    @super_admin_required
+    def put(self, request):
+        """[메모리 최적화] DB GROUP BY 집계로 최신 제출만 가져오기 (OOMKilled 방지)"""
+        import time as _time
+        import gc
+        from collections import defaultdict
+
+        data = request.data
+        lecture_id = data.get("lecture_id")
+
+        if not lecture_id:
+            return self.error("lecture_id is required")
+
+        try:
+            lecture = Lecture.objects.get(id=lecture_id)
+        except Lecture.DoesNotExist:
+            return self.error(f"강의 ID {lecture_id}를 찾을 수 없습니다.")
+
+        t_start = _time.time()
+        lecture_student_count = 0
+
+        try:
+            # ── 1. 수강생 목록 (admin 제외) ──
+            signups = list(
+                signup_class.objects.filter(lecture=lecture, isallow=True)
+                .select_related('user')
+                .exclude(user__admin_type__in=[AdminType.SUPER_ADMIN, AdminType.ADMIN])
+            )
+            if not signups:
+                return self.success({
+                    "lecture_id": lecture.id, "title": lecture.title,
+                    "student_count": 0, "elapsed_ms": 0
+                })
+
+            student_user_ids = {s.user_id for s in signups}
+
+            # ── 2. 문제 목록 & LectureInfo 구조 구성 (1회) ──
+            plist = Problem.objects.filter(
+                contest__lecture=lecture
+            ).select_related('contest')
+
+            LectureInfo = lecDispatcher()
+            for p in plist:
+                LectureInfo.migrateProblem(p)
+
+            # ── 3. [메모리 최적화] DB에서 (user, contest, problem)별 최신 제출 ID만 집계 ──
+            # 기존: list(Submission.objects.filter(lecture=lecture)) → 30만건 전체 메모리 로딩 (OOMKilled 원인)
+            # 변경: DB GROUP BY로 최신 ID만 가져옴 → ~5천건만 메모리 로딩
+            latest_sub_ids = list(
+                Submission.objects.filter(
+                    lecture=lecture,
+                    user_id__in=student_user_ids
+                )
+                .values('user_id', 'contest_id', 'problem_id')
+                .annotate(latest_id=Max('id'))
+                .values_list('latest_id', flat=True)
+            )
+
+            # ── 4. 최신 제출만 가져와서 user별 그룹핑 ──
+            user_latest_subs = defaultdict(list)
+            for sub in Submission.objects.filter(
+                id__in=latest_sub_ids
+            ).select_related('contest', 'problem').defer('code').iterator():
+                user_latest_subs[sub.user_id].append(sub)
+
+            total_latest_count = len(latest_sub_ids)
+            del latest_sub_ids  # 메모리 해제
+
+            # ── 5. 학생별 성적 계산 (DB 쿼리 없음, 순수 Python) ──
+            updated_signups = []
+            for signup in signups:
+                uid = signup.user_id
+                subs = user_latest_subs.get(uid, [])
+
+                LectureInfo.cleanDataForScorebard()
+                for sub in subs:
+                    LectureInfo.associateSubmission(sub)
+
+                signup.score = copy.deepcopy(LectureInfo.toDict())
+                updated_signups.append(signup)
+                lecture_student_count += 1
+
+            # ── 6. Bulk Save (1회 DB write) ──
+            if updated_signups:
+                signup_class.objects.bulk_update(updated_signups, ['score'], batch_size=50)
+
+            elapsed_ms = int((_time.time() - t_start) * 1000)
+            print(f"[BatchMigrate] Lecture '{lecture.title}' (id={lecture.id}) "
+                  f"- {lecture_student_count} students, {total_latest_count} latest subs (memory-optimized), {elapsed_ms}ms")
+
+            # ── 7. 메모리 정리 (gunicorn 워커 재사용 대비) ──
+            del user_latest_subs, updated_signups, signups
+            gc.collect()
+
+            return self.success({
+                "lecture_id": lecture.id,
+                "title": lecture.title,
+                "student_count": lecture_student_count,
+                "elapsed_ms": elapsed_ms
+            })
+
+        except Exception as e:
+            import traceback
+            print(f"[BatchMigrate] Error in lecture '{lecture.title}' (id={lecture.id})")
+            print(traceback.format_exc())
+            gc.collect()
+            return self.success({
+                "lecture_id": lecture.id,
+                "title": lecture.title,
+                "student_count": lecture_student_count,
+                "error": str(e)
+            })
+

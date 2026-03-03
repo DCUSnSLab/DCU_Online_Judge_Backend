@@ -297,10 +297,9 @@ class ProblemAPI(ProblemBase):
 
         #problems = Problem.objects.filter(contest_id__isnull=True).order_by("-create_time")
         if showPublic == 'true':
-            problems = Problem.objects.all().order_by("-create_time")
+            problems = Problem.objects.filter(contest_id__isnull=True).order_by("-create_time")
         else:
-            problems = Problem.objects.all().order_by("-create_time")
-            problems = problems.filter(contest_id__isnull=False)
+            problems = Problem.objects.filter(contest_id__isnull=False).order_by("-create_time")
 
         if rule_type:
             if rule_type not in ProblemRuleType.choices():
