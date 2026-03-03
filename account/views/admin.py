@@ -4,6 +4,7 @@ import xlsxwriter
 
 from django.db import transaction, IntegrityError
 from django.db.models import Q
+from django.conf import settings
 from django.http import HttpResponse
 from django.contrib.auth.hashers import make_password
 from django.conf import settings
@@ -222,6 +223,10 @@ class UserAdminAPI(APIView):
                 #collect lecture info
                 plist = Problem.objects.filter(contest__lecture=lecture_id).prefetch_related('contest')
 
+                # Count registered/unregistered before iterating the queryset
+                registered_count = ulist.filter(isallow=True).count()
+                unregistered_count = ulist.filter(isallow=False).count()
+
                 #test
                 LectureInfo = lecDispatcher()
 
@@ -268,7 +273,10 @@ class UserAdminAPI(APIView):
                     us.maxScore = LectureInfo.Info.data[DataType.POINT]
                     cnt += 1
 
-                return self.success(self.paginate_data(request, ulist, SignupSerializer))
+                data = self.paginate_data(request, ulist, SignupSerializer)
+                data["registered_count"] = registered_count
+                data["unregistered_count"] = unregistered_count
+                return self.success(data)
             return self.success()
 
         """
