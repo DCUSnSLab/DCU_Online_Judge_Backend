@@ -76,6 +76,7 @@ class CreateOrEditProblemSerializer(serializers.Serializer):
     hint = serializers.CharField(allow_blank=True, allow_null=True)
     source = serializers.CharField(max_length=256, allow_blank=True, allow_null=True)
     share_submission = serializers.BooleanField()
+    is_public = serializers.BooleanField(default=False)
 
 
 class CreateProblemSerializer(CreateOrEditProblemSerializer):
@@ -106,9 +107,23 @@ class CompileSPJSerializer(serializers.Serializer):
     spj_code = serializers.CharField()
 
 
+class JSONSerializerField(serializers.Field):
+    """Ensures JSONField values are serialized as native JSON types, not Python repr strings."""
+    def to_representation(self, value):
+        return value
+
+    def to_internal_value(self, data):
+        return data
+
+
 class BaseProblemSerializer(serializers.ModelSerializer):
     tags = serializers.SlugRelatedField(many=True, slug_field="name", read_only=True)
     created_by = UsernameSerializer()
+    # Override JSONField serialization to return proper JSON types
+    samples = JSONSerializerField()
+    languages = JSONSerializerField()
+    io_mode = JSONSerializerField()
+    statistic_info = JSONSerializerField()
 
     def get_public_template(self, obj):
         ret = {}
