@@ -26,6 +26,9 @@ class Contest(models.Model):
     private = models.BooleanField(default=False)
     allowed_ip_ranges = JSONField(default=list)
     lecture = models.ForeignKey(Lecture, blank=True, null=True, on_delete=models.CASCADE, default=None)
+    # "대회"(시험) 유형에서 제출/실행 실패 시 우측 AI 힌트 패널 활성화 여부.
+    # 실습/과제 유형에서는 이 값과 무관하게 항상 활성화됨.
+    llm_hint_enabled = models.BooleanField(default=False)
 
     @property
     def status(self):
