@@ -184,7 +184,7 @@ class PlagChecker:
             ret += 'c'
         elif data == 'C++':
             ret += 'cpp'
-        elif data == 'Python3' or data == 'Python2':
+        elif data == 'Python3':
             ret += 'py'
         elif data == 'Java':
             ret += 'java'
@@ -198,7 +198,7 @@ class PlagChecker:
             ret += 'c/c++'
         elif lang == 'C++':
             ret += 'c/c++'
-        elif lang == 'Python3' or lang == 'Python2':
+        elif lang == 'Python3':
             ret += 'python3'
         elif lang == 'Java':
             ret += 'java11'

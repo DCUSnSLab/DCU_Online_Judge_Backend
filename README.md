@@ -10,7 +10,7 @@
 + Amazing charting and visualization
 + Template-problem support
 + More reasonable permission control
-+ Multi-language support: `C`, `C++`, `Java`, `Python2`, `Python3`
++ Multi-language support: `C`, `C++`, `Java`, `Python3`
 + Markdown & MathJax support
 + Contest participants IP limit(CIDR)
 

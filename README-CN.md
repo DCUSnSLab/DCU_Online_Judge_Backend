@@ -17,7 +17,7 @@
 + 丰富的可视化图表，一图胜千言
 + 支持 Template Problem，可以添加函数题甚至填空题
 + 更细致的权限划分，超级管理员和普通管理员各司其职
-+ 多语言支持：`C`, `C++`, `Java`, `Python2`, `Python3`，题目可以选择使用的语言
++ 多语言支持：`C`, `C++`, `Java`, `Python3`，题目可以选择使用的语言
 + Markdown & MathJax 支持
 + 比赛用户IP限制 (CIDR ranges)
 
