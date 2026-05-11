@@ -186,10 +186,14 @@ class EvalStatusView(View):
 # ─────────────────────────────────────────────────────────────────────
 
 def _job_to_dict(job):
+    # select_related("lecture", "contest") 가정 — N+1 회피
     return {
         "job_id": str(job.id),
         "lecture_id": job.lecture_id,
+        "lecture_title": job.lecture.title if job.lecture_id else None,
         "contest_id": job.contest_id,
+        "contest_title": job.contest.title if job.contest_id else None,
+        "contest_type": job.contest.lecture_contest_type if job.contest_id else None,
         "status": job.status,
         "force": job.force,
         "n_total": job.n_total,
@@ -265,8 +269,9 @@ class QualitativeEvalTriggerView(View):
             queue_position = EvalJob.objects.filter(
                 status=EvalJobStatus.QUEUED, enqueued_at__lte=job.enqueued_at,
             ).count()
-        slots_in_use = EvalJob.objects.filter(status=EvalJobStatus.RUNNING).count()
-        slots_total = 3  # PR 6 cleanup 단계에서 admin endpoint 와 통일
+        from ..services import slots as slots_service
+        slots_in_use = slots_service.get_in_flight()
+        slots_total = slots_service.get_max()
 
         return _ok({
             "job_id": str(job.id),
@@ -288,18 +293,29 @@ class QueueView(View):
         err = _require_any_score_perm(request)
         if err:
             return err
-        running_qs = EvalJob.objects.filter(status=EvalJobStatus.RUNNING).prefetch_related("requesters")
-        pending_qs = EvalJob.objects.filter(status=EvalJobStatus.QUEUED).prefetch_related("requesters")
+        # select_related: 응답마다 lecture/contest title 포함 — N+1 회피
+        running_qs = (
+            EvalJob.objects.filter(status=EvalJobStatus.RUNNING)
+            .select_related("lecture", "contest")
+            .prefetch_related("requesters")
+        )
+        pending_qs = (
+            EvalJob.objects.filter(status=EvalJobStatus.QUEUED)
+            .select_related("lecture", "contest")
+            .prefetch_related("requesters")
+            .order_by("enqueued_at")
+        )
         running = [_job_to_dict(j) for j in running_qs]
-        pending_list = list(pending_qs.order_by("enqueued_at"))
         pending = []
-        for i, j in enumerate(pending_list, 1):
+        for i, j in enumerate(pending_qs, 1):
             d = _job_to_dict(j)
             d["queue_position"] = i
             pending.append(d)
+        # slots_total 은 admin 설정값
+        from ..services import slots as slots_service
         return _ok({
-            "slots_total": 3,
-            "slots_in_use": len(running),
+            "slots_total": slots_service.get_max(),
+            "slots_in_use": slots_service.get_in_flight(),
             "queue_size": len(pending),
             "running": running,
             "pending": pending,
@@ -315,7 +331,12 @@ class JobDetailView(View):
         if err:
             return err
         try:
-            job = EvalJob.objects.prefetch_related("requesters").get(id=job_id)
+            job = (
+                EvalJob.objects
+                .select_related("lecture", "contest")
+                .prefetch_related("requesters")
+                .get(id=job_id)
+            )
         except (EvalJob.DoesNotExist, ValueError):
             return _err("job not found", 404)
         events = list(

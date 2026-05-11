@@ -27,24 +27,50 @@ def _snapshot():
     in_flight = slots_service.get_in_flight()
     running = list(
         EvalJob.objects.filter(status=EvalJobStatus.RUNNING)
+        .select_related("lecture", "contest")
         .order_by("started_at")
-        .values("id", "lecture_id", "contest_id", "n_done", "n_failed", "n_total", "started_at")
+        .values(
+            "id", "lecture_id", "contest_id",
+            "lecture__title", "contest__title", "contest__lecture_contest_type",
+            "n_done", "n_failed", "n_total", "started_at",
+        )
     )
     pending = list(
         EvalJob.objects.filter(status=EvalJobStatus.QUEUED)
+        .select_related("lecture", "contest")
         .order_by("enqueued_at")
-        .values("id", "lecture_id", "contest_id", "n_total", "enqueued_at")
+        .values(
+            "id", "lecture_id", "contest_id",
+            "lecture__title", "contest__title", "contest__lecture_contest_type",
+            "n_total", "enqueued_at",
+        )
     )
-    for r in running:
-        r["started_at"] = r["started_at"].isoformat() if r["started_at"] else None
-    for p in pending:
-        p["enqueued_at"] = p["enqueued_at"].isoformat() if p["enqueued_at"] else None
+    # values() 컬럼명 정리 + datetime iso
+    def _flatten(rows, ts_field):
+        out = []
+        for r in rows:
+            d = {
+                "id": r["id"],
+                "lecture_id": r["lecture_id"],
+                "lecture_title": r.get("lecture__title"),
+                "contest_id": r["contest_id"],
+                "contest_title": r.get("contest__title"),
+                "contest_type": r.get("contest__lecture_contest_type"),
+                "n_total": r["n_total"],
+            }
+            if "n_done" in r:
+                d["n_done"] = r["n_done"]
+                d["n_failed"] = r["n_failed"]
+            t = r.get(ts_field)
+            d[ts_field] = t.isoformat() if t else None
+            out.append(d)
+        return out
     return {
         "slots_total": max_n,
         "slots_in_use": in_flight,
         "queue_size": len(pending),
-        "running": running,
-        "pending": pending,
+        "running": _flatten(running, "started_at"),
+        "pending": _flatten(pending, "enqueued_at"),
     }
 
 
