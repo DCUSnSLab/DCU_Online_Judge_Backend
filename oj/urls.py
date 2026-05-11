@@ -2,10 +2,7 @@ from django.urls import include, re_path
 
 from django.urls import path
 
-from lecture.views.eval_proxy import EvalProxyAPI
-
 urlpatterns = [
-    re_path(r"^eval-api/(?P<subpath>.*)$", EvalProxyAPI.as_view(), name="eval-proxy"),
     re_path(r"^api/", include("account.urls.oj")),
     re_path(r"^api/admin/", include("account.urls.admin")),
     re_path(r"^api/", include("announcement.urls.oj")),
@@ -25,7 +22,7 @@ urlpatterns = [
     re_path(r"^api/admin/", include("lecture.urls.admin")),
     ###########################################
 
-    # LLM 정성평가 (eval app — PR 1 skeleton, 본 endpoint 는 PR 2+ 에서 채움)
+    # LLM 정성평가 (eval app)
     re_path(r"^api/eval/", include("eval.urls.oj")),
     re_path(r"^api/admin/eval/", include("eval.urls.admin")),
 

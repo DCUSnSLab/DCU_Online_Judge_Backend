@@ -1,9 +1,6 @@
 """
 /api/eval/ read + write endpoints.
 
-응답 shape 는 사이드카(eval-dashboard FastAPI) 와 byte-equal 을 목표 — Frontend 가
-baseURL `/eval-api` → `/api/eval` 만 바꾸면 작동.
-
 권한:
 - 메타 endpoint (/years, /semesters, /lectures, /queue, /jobs) → has_any_score_permission
 - contest 단위 endpoint (scoreboard, cell, eval-status, trigger) → has_lecture_score_permission
