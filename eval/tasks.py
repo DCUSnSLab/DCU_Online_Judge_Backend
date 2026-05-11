@@ -28,6 +28,7 @@ from .models import (
     EvalSubmissionSnapshot,
 )
 from .services import scoreboard as sb_service
+from .services import slots as slots_service
 from .services.llm_client import LLMClient, LLMClientError
 from .services.prompts import ai_usage as ai_usage_mod
 from .services.prompts import llm as llm_mod
@@ -143,78 +144,87 @@ def evaluate_pair(snapshot_id, force=False, job_id=None):
         _bump_job_counter(job_id, success=True)
         return
 
+    # Redis 기반 slot semaphore — admin 설정한 동시 한도 enforce.
+    # acquire 실패 시 (timeout) 작업 실패로 처리.
+    if not slots_service.acquire(timeout=600.0):
+        log.warning("evaluate_pair: slot acquire timeout for snapshot %s", snapshot_id)
+        _bump_job_counter(job_id, success=False)
+        return
+
     task = _build_task(snap)
     client = LLMClient()
     model_used = client.default_model
     had_error = False
-
-    # 정성평가
     try:
-        parsed, raw, latency = llm_mod.call_with_retry(
-            client,
-            prompt_mod.build_messages(task),
-            parser=lambda t: llm_mod.parse_response(t, total_score=task.problem.total_score),
-            model=None,
-            temperature=0.2,
-            max_tokens=2048,
-            retries=1,
-        )
-        EvalQualitative.objects.update_or_create(
-            snapshot=snap,
-            defaults=dict(
-                scores=parsed["scores"], comments=parsed["comments"],
-                overall=parsed["overall"], suggested_partial_score=parsed["suggested_partial_score"],
-                summary=parsed["summary"], model_used=model_used, llm_latency_ms=latency,
-                error="", raw_response=raw[:50000], recomputed=parsed.get("recomputed") or {},
-            ),
-        )
-    except (llm_mod.LLMResponseError, LLMClientError) as e:
-        had_error = True
-        log.warning("evaluate_pair qualitative failed snap=%s: %s", snapshot_id, e)
-        EvalQualitative.objects.update_or_create(
-            snapshot=snap,
-            defaults=dict(
-                scores={}, comments={}, overall=None, suggested_partial_score=None, summary="",
-                model_used=model_used, llm_latency_ms=None, error=str(e)[:5000],
-                raw_response=(getattr(e, "last_raw", "") or "")[:50000], recomputed={},
-            ),
-        )
+        # 정성평가
+        try:
+            parsed, raw, latency = llm_mod.call_with_retry(
+                client,
+                prompt_mod.build_messages(task),
+                parser=lambda t: llm_mod.parse_response(t, total_score=task.problem.total_score),
+                model=None,
+                temperature=0.2,
+                max_tokens=2048,
+                retries=1,
+            )
+            EvalQualitative.objects.update_or_create(
+                snapshot=snap,
+                defaults=dict(
+                    scores=parsed["scores"], comments=parsed["comments"],
+                    overall=parsed["overall"], suggested_partial_score=parsed["suggested_partial_score"],
+                    summary=parsed["summary"], model_used=model_used, llm_latency_ms=latency,
+                    error="", raw_response=raw[:50000], recomputed=parsed.get("recomputed") or {},
+                ),
+            )
+        except (llm_mod.LLMResponseError, LLMClientError) as e:
+            had_error = True
+            log.warning("evaluate_pair qualitative failed snap=%s: %s", snapshot_id, e)
+            EvalQualitative.objects.update_or_create(
+                snapshot=snap,
+                defaults=dict(
+                    scores={}, comments={}, overall=None, suggested_partial_score=None, summary="",
+                    model_used=model_used, llm_latency_ms=None, error=str(e)[:5000],
+                    raw_response=(getattr(e, "last_raw", "") or "")[:50000], recomputed={},
+                ),
+            )
 
-    # AI 사용 평가
-    try:
-        parsed_ai, raw_ai, latency_ai = llm_mod.call_with_retry(
-            client,
-            ai_usage_mod.build_messages(task),
-            parser=ai_usage_mod.parse_response,
-            model=None,
-            temperature=0.2,
-            max_tokens=1024,
-            retries=1,
-        )
-        EvalAIUsage.objects.update_or_create(
-            snapshot=snap,
-            defaults=dict(
-                likelihood_score=parsed_ai["likelihood_score"],
-                confidence=parsed_ai["confidence"],
-                signals=[s.__dict__ for s in parsed_ai["signals"]],
-                counter_signals=parsed_ai["counter_signals"],
-                summary=parsed_ai["summary"], disclaimer=parsed_ai["disclaimer"],
-                model_used=model_used, llm_latency_ms=latency_ai,
-                error="", raw_response=raw_ai[:50000],
-            ),
-        )
-    except (llm_mod.LLMResponseError, LLMClientError) as e:
-        had_error = True
-        log.warning("evaluate_pair ai_usage failed snap=%s: %s", snapshot_id, e)
-        EvalAIUsage.objects.update_or_create(
-            snapshot=snap,
-            defaults=dict(
-                likelihood_score=None, confidence="low", signals=[], counter_signals=[],
-                summary="", disclaimer=ai_usage_mod.DISCLAIMER_TEXT, model_used=model_used,
-                llm_latency_ms=None, error=str(e)[:5000],
-                raw_response=(getattr(e, "last_raw", "") or "")[:50000],
-            ),
-        )
+        # AI 사용 평가
+        try:
+            parsed_ai, raw_ai, latency_ai = llm_mod.call_with_retry(
+                client,
+                ai_usage_mod.build_messages(task),
+                parser=ai_usage_mod.parse_response,
+                model=None,
+                temperature=0.2,
+                max_tokens=1024,
+                retries=1,
+            )
+            EvalAIUsage.objects.update_or_create(
+                snapshot=snap,
+                defaults=dict(
+                    likelihood_score=parsed_ai["likelihood_score"],
+                    confidence=parsed_ai["confidence"],
+                    signals=[s.__dict__ for s in parsed_ai["signals"]],
+                    counter_signals=parsed_ai["counter_signals"],
+                    summary=parsed_ai["summary"], disclaimer=parsed_ai["disclaimer"],
+                    model_used=model_used, llm_latency_ms=latency_ai,
+                    error="", raw_response=raw_ai[:50000],
+                ),
+            )
+        except (llm_mod.LLMResponseError, LLMClientError) as e:
+            had_error = True
+            log.warning("evaluate_pair ai_usage failed snap=%s: %s", snapshot_id, e)
+            EvalAIUsage.objects.update_or_create(
+                snapshot=snap,
+                defaults=dict(
+                    likelihood_score=None, confidence="low", signals=[], counter_signals=[],
+                    summary="", disclaimer=ai_usage_mod.DISCLAIMER_TEXT, model_used=model_used,
+                    llm_latency_ms=None, error=str(e)[:5000],
+                    raw_response=(getattr(e, "last_raw", "") or "")[:50000],
+                ),
+            )
+    finally:
+        slots_service.release()
 
     _bump_job_counter(job_id, success=not had_error)
 

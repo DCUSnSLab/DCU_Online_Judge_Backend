@@ -246,3 +246,20 @@ class EvalJobEvent(models.Model):
         indexes = [
             models.Index(fields=["job", "ts"]),
         ]
+
+
+class EvalConfig(models.Model):
+    """LLM 정성평가 운영 옵션. 단일 row(id=1)만 사용 (singleton pattern).
+
+    런타임에 admin 이 GUI 로 변경 → Redis key 즉시 갱신 → actor 가 다음 acquire 시 반영.
+    """
+    max_concurrent_eval_jobs = models.IntegerField(default=3)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "eval_config"
+
+    @classmethod
+    def get_singleton(cls):
+        obj, _ = cls.objects.get_or_create(id=1)
+        return obj
