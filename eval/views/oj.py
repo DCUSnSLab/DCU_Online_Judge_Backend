@@ -1,14 +1,16 @@
 """
-/api/eval/ read endpoints.
+/api/eval/ read + write endpoints.
 
 응답 shape 는 사이드카(eval-dashboard FastAPI) 와 byte-equal 을 목표 — Frontend 가
 baseURL `/eval-api` → `/api/eval` 만 바꾸면 작동.
 
 권한:
 - 메타 endpoint (/years, /semesters, /lectures, /queue, /jobs) → has_any_score_permission
-- contest 단위 endpoint (scoreboard, cell, eval-status) → has_lecture_score_permission
+- contest 단위 endpoint (scoreboard, cell, eval-status, trigger) → has_lecture_score_permission
 """
-from django.db import connection
+import json
+
+from django.db import IntegrityError, connection, transaction
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -16,6 +18,13 @@ from django.views.decorators.csrf import csrf_exempt
 
 from contest.models import Contest
 
+from ..models import (
+    EvalJob,
+    EvalJobEvent,
+    EvalJobEventType,
+    EvalJobRequester,
+    EvalJobStatus,
+)
 from ..services import scoreboard as sb_service
 from ..services.permissions import has_any_score_permission, has_lecture_score_permission
 
@@ -171,3 +180,150 @@ class EvalStatusView(View):
         if err:
             return err
         return _ok(sb_service.get_eval_status(contest_id))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Write: trigger / queue / job detail
+# ─────────────────────────────────────────────────────────────────────
+
+def _job_to_dict(job):
+    return {
+        "job_id": str(job.id),
+        "lecture_id": job.lecture_id,
+        "contest_id": job.contest_id,
+        "status": job.status,
+        "force": job.force,
+        "n_total": job.n_total,
+        "n_done": job.n_done,
+        "n_failed": job.n_failed,
+        "started_at": job.started_at.isoformat() if job.started_at else None,
+        "finished_at": job.finished_at.isoformat() if job.finished_at else None,
+        "enqueued_at": job.enqueued_at.isoformat() if job.enqueued_at else None,
+        "error": job.error or None,
+        "requester_ids": list(job.requesters.values_list("user_id", flat=True)),
+    }
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class QualitativeEvalTriggerView(View):
+    """POST /api/eval/contests/<cid>/qualitative-eval
+
+    body: {"force": bool}
+    response: {job_id, n_total, n_to_run, joined_existing, queue_position, slots_in_use, slots_total}
+    """
+
+    def post(self, request, contest_id):
+        lecture_id = _resolve_lecture_for_contest(contest_id)
+        if lecture_id is None:
+            return _err("contest not found", 404)
+        err = _require_lecture_perm(request, lecture_id)
+        if err:
+            return err
+
+        try:
+            body = json.loads(request.body or b"{}")
+        except json.JSONDecodeError:
+            return _err("invalid JSON body", 400)
+        force = bool(body.get("force"))
+
+        # 같은 contest 에 active job 이 있는지 확인 → 합류 vs 신규 생성
+        joined = False
+        try:
+            with transaction.atomic():
+                job = EvalJob.objects.create(
+                    lecture_id=lecture_id,
+                    contest_id=contest_id,
+                    status=EvalJobStatus.QUEUED,
+                    force=force,
+                )
+                EvalJobRequester.objects.create(job=job, user=request.user)
+        except IntegrityError:
+            # partial unique constraint 충돌 → 기존 active job 에 합류
+            job = EvalJob.objects.filter(
+                contest_id=contest_id, status__in=EvalJobStatus.ACTIVE
+            ).first()
+            if job is None:
+                return _err("conflict but no active job (race?)", 500)
+            EvalJobRequester.objects.get_or_create(job=job, user=request.user)
+            joined = True
+
+        # 신규 job 만 actor 발행 (합류는 이미 발행됨)
+        if not joined:
+            # 지연 import — Django 앱 로드 순서 의존
+            from ..tasks import run_eval_job
+            try:
+                run_eval_job.send(job.id)
+            except Exception as e:
+                # Dramatiq broker 미가동 시에도 row 는 보존 — 운영팀이 워커 띄우면 재시도
+                EvalJobEvent.objects.create(
+                    job=job, event_type=EvalJobEventType.WARN,
+                    data={"message": f"dramatiq dispatch failed: {e}"},
+                )
+
+        # 대기열 위치는 단순화: queued job 의 enqueued_at 순위
+        queue_position = None
+        if job.status == EvalJobStatus.QUEUED:
+            queue_position = EvalJob.objects.filter(
+                status=EvalJobStatus.QUEUED, enqueued_at__lte=job.enqueued_at,
+            ).count()
+        slots_in_use = EvalJob.objects.filter(status=EvalJobStatus.RUNNING).count()
+        slots_total = 3  # PR 6 cleanup 단계에서 admin endpoint 와 통일
+
+        return _ok({
+            "job_id": str(job.id),
+            "n_total": job.n_total,
+            "n_already_evaluated": 0,  # 정확한 값은 actor 실행 후 갱신
+            "n_to_run": job.n_total,
+            "joined_existing": joined,
+            "queue_position": queue_position,
+            "slots_in_use": slots_in_use,
+            "slots_total": slots_total,
+        })
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class QueueView(View):
+    """GET /api/eval/queue — 활성 job 스냅샷."""
+
+    def get(self, request):
+        err = _require_any_score_perm(request)
+        if err:
+            return err
+        running_qs = EvalJob.objects.filter(status=EvalJobStatus.RUNNING).prefetch_related("requesters")
+        pending_qs = EvalJob.objects.filter(status=EvalJobStatus.QUEUED).prefetch_related("requesters")
+        running = [_job_to_dict(j) for j in running_qs]
+        pending_list = list(pending_qs.order_by("enqueued_at"))
+        pending = []
+        for i, j in enumerate(pending_list, 1):
+            d = _job_to_dict(j)
+            d["queue_position"] = i
+            pending.append(d)
+        return _ok({
+            "slots_total": 3,
+            "slots_in_use": len(running),
+            "queue_size": len(pending),
+            "running": running,
+            "pending": pending,
+        })
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class JobDetailView(View):
+    """GET /api/eval/jobs/<jid> — Job 메타 + 최근 이벤트."""
+
+    def get(self, request, job_id):
+        err = _require_any_score_perm(request)
+        if err:
+            return err
+        try:
+            job = EvalJob.objects.prefetch_related("requesters").get(id=job_id)
+        except (EvalJob.DoesNotExist, ValueError):
+            return _err("job not found", 404)
+        events = list(
+            EvalJobEvent.objects.filter(job=job).order_by("-ts").values("event_type", "data", "ts")[:50]
+        )
+        for e in events:
+            e["ts"] = e["ts"].isoformat()
+        data = _job_to_dict(job)
+        data["events"] = events
+        return _ok(data)

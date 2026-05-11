@@ -11,9 +11,12 @@ from ..views.oj import (
     CellDetailView,
     ContestScoreboardView,
     EvalStatusView,
+    JobDetailView,
     LectureContestsView,
     LectureDetailView,
     LecturesView,
+    QualitativeEvalTriggerView,
+    QueueView,
     SemestersView,
     YearsView,
 )
@@ -51,6 +54,14 @@ urlpatterns = [
         name="eval_contest_status",
     ),
 
-    # PR 3: POST /contests/<id>/qualitative-eval, /queue, /jobs/<id>
+    # Trigger / Queue / Job detail (PR 3)
+    re_path(
+        r"^contests/(?P<contest_id>\d+)/qualitative-eval/?$",
+        QualitativeEvalTriggerView.as_view(),
+        name="eval_qualitative_trigger",
+    ),
+    re_path(r"^queue/?$", QueueView.as_view(), name="eval_queue"),
+    re_path(r"^jobs/(?P<job_id>\d+)/?$", JobDetailView.as_view(), name="eval_job_detail"),
+
     # PR 4: /contests/<id>/score_export, /lectures/<id>/score_export
 ]
