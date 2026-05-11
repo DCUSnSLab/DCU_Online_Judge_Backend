@@ -9,9 +9,10 @@ baseURL `/eval-api` → `/api/eval` 만 바꾸면 작동.
 - contest 단위 endpoint (scoreboard, cell, eval-status, trigger) → has_lecture_score_permission
 """
 import json
+from urllib.parse import quote
 
 from django.db import IntegrityError, connection, transaction
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -25,6 +26,7 @@ from ..models import (
     EvalJobRequester,
     EvalJobStatus,
 )
+from ..services import export as export_service
 from ..services import scoreboard as sb_service
 from ..services.permissions import has_any_score_permission, has_lecture_score_permission
 
@@ -327,3 +329,50 @@ class JobDetailView(View):
         data = _job_to_dict(job)
         data["events"] = events
         return _ok(data)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Score Export (CSV / XLSX)
+# ─────────────────────────────────────────────────────────────────────
+
+def _safe_filename(name):
+    return quote((name or "export").encode("utf-8"), safe="")
+
+
+def _export_response(stem, content, content_type, ext):
+    resp = HttpResponse(content, content_type=content_type)
+    resp["Content-Disposition"] = f"attachment; filename*=UTF-8''{_safe_filename(stem)}.{ext}"
+    return resp
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ContestExportView(View):
+    def get(self, request, contest_id):
+        lecture_id = _resolve_lecture_for_contest(contest_id)
+        if lecture_id is None:
+            return _err("contest not found", 404)
+        err = _require_lecture_perm(request, lecture_id)
+        if err:
+            return err
+        fmt = (request.GET.get("format") or "xlsx").lower()
+        if fmt not in ("csv", "xlsx"):
+            return _err("unsupported format", 400)
+        stem, content, content_type = export_service.build_contest_export(contest_id, fmt)
+        if stem is None:
+            return _err(content, 404 if "not found" in (content or "").lower() else 400)
+        return _export_response(stem, content, content_type, fmt)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class LectureExportView(View):
+    def get(self, request, lecture_id):
+        err = _require_lecture_perm(request, lecture_id)
+        if err:
+            return err
+        fmt = (request.GET.get("format") or "xlsx").lower()
+        if fmt not in ("csv", "xlsx"):
+            return _err("unsupported format", 400)
+        stem, content, content_type = export_service.build_lecture_export(lecture_id, fmt)
+        if stem is None:
+            return _err(content, 404 if "not found" in (content or "").lower() else 400)
+        return _export_response(stem, content, content_type, fmt)

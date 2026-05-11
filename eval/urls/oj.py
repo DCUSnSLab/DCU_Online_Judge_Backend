@@ -9,11 +9,13 @@ from django.urls import re_path
 
 from ..views.oj import (
     CellDetailView,
+    ContestExportView,
     ContestScoreboardView,
     EvalStatusView,
     JobDetailView,
     LectureContestsView,
     LectureDetailView,
+    LectureExportView,
     LecturesView,
     QualitativeEvalTriggerView,
     QueueView,
@@ -63,5 +65,15 @@ urlpatterns = [
     re_path(r"^queue/?$", QueueView.as_view(), name="eval_queue"),
     re_path(r"^jobs/(?P<job_id>\d+)/?$", JobDetailView.as_view(), name="eval_job_detail"),
 
-    # PR 4: /contests/<id>/score_export, /lectures/<id>/score_export
+    # Score export (PR 4)
+    re_path(
+        r"^contests/(?P<contest_id>\d+)/score_export/?$",
+        ContestExportView.as_view(),
+        name="eval_contest_export",
+    ),
+    re_path(
+        r"^lectures/(?P<lecture_id>\d+)/score_export/?$",
+        LectureExportView.as_view(),
+        name="eval_lecture_export",
+    ),
 ]
