@@ -1,11 +1,10 @@
 """
-/api/eval/ 하위 사용자 측 endpoint.
+/api/eval/ 사용자 측 endpoint.
 
-PR2 — read endpoints (navigation + scoreboard + cell detail + eval-status).
-PR3 — POST trigger, /queue, /jobs/<id>
-PR4 — /score_export
+path converter `<int:...>` 사용 — re_path 의 named group 은 str 로 들어와 ORM
+자동 coerce 에 의존하게 됨. path converter 는 int 타입 보장.
 """
-from django.urls import re_path
+from django.urls import path
 
 from ..views.oj import (
     CellDetailView,
@@ -25,55 +24,27 @@ from ..views.oj import (
 
 urlpatterns = [
     # Navigation
-    re_path(r"^years/?$", YearsView.as_view(), name="eval_years"),
-    re_path(r"^years/(?P<year>\d+)/semesters/?$", SemestersView.as_view(), name="eval_semesters"),
-    re_path(
-        r"^years/(?P<year>\d+)/semesters/(?P<semester>\d+)/lectures/?$",
-        LecturesView.as_view(),
-        name="eval_lectures",
-    ),
-    re_path(r"^lectures/(?P<lecture_id>\d+)/?$", LectureDetailView.as_view(), name="eval_lecture_detail"),
-    re_path(
-        r"^lectures/(?P<lecture_id>\d+)/contests/?$",
-        LectureContestsView.as_view(),
-        name="eval_lecture_contests",
-    ),
+    path("years", YearsView.as_view(), name="eval_years"),
+    path("years/<int:year>/semesters", SemestersView.as_view(), name="eval_semesters"),
+    path("years/<int:year>/semesters/<int:semester>/lectures", LecturesView.as_view(), name="eval_lectures"),
+    path("lectures/<int:lecture_id>", LectureDetailView.as_view(), name="eval_lecture_detail"),
+    path("lectures/<int:lecture_id>/contests", LectureContestsView.as_view(), name="eval_lecture_contests"),
 
     # Scoreboard / Detail / Status
-    re_path(
-        r"^contests/(?P<contest_id>\d+)/scoreboard/?$",
-        ContestScoreboardView.as_view(),
-        name="eval_contest_scoreboard",
-    ),
-    re_path(
-        r"^contests/(?P<contest_id>\d+)/students/(?P<user_id>\d+)/problems/(?P<problem_id>\d+)/?$",
+    path("contests/<int:contest_id>/scoreboard", ContestScoreboardView.as_view(), name="eval_contest_scoreboard"),
+    path(
+        "contests/<int:contest_id>/students/<int:user_id>/problems/<int:problem_id>",
         CellDetailView.as_view(),
         name="eval_contest_cell",
     ),
-    re_path(
-        r"^contests/(?P<contest_id>\d+)/eval-status/?$",
-        EvalStatusView.as_view(),
-        name="eval_contest_status",
-    ),
+    path("contests/<int:contest_id>/eval-status", EvalStatusView.as_view(), name="eval_contest_status"),
 
-    # Trigger / Queue / Job detail (PR 3)
-    re_path(
-        r"^contests/(?P<contest_id>\d+)/qualitative-eval/?$",
-        QualitativeEvalTriggerView.as_view(),
-        name="eval_qualitative_trigger",
-    ),
-    re_path(r"^queue/?$", QueueView.as_view(), name="eval_queue"),
-    re_path(r"^jobs/(?P<job_id>\d+)/?$", JobDetailView.as_view(), name="eval_job_detail"),
+    # Trigger / Queue / Job detail
+    path("contests/<int:contest_id>/qualitative-eval", QualitativeEvalTriggerView.as_view(), name="eval_qualitative_trigger"),
+    path("queue", QueueView.as_view(), name="eval_queue"),
+    path("jobs/<int:job_id>", JobDetailView.as_view(), name="eval_job_detail"),
 
-    # Score export (PR 4)
-    re_path(
-        r"^contests/(?P<contest_id>\d+)/score_export/?$",
-        ContestExportView.as_view(),
-        name="eval_contest_export",
-    ),
-    re_path(
-        r"^lectures/(?P<lecture_id>\d+)/score_export/?$",
-        LectureExportView.as_view(),
-        name="eval_lecture_export",
-    ),
+    # Score export
+    path("contests/<int:contest_id>/score_export", ContestExportView.as_view(), name="eval_contest_export"),
+    path("lectures/<int:lecture_id>/score_export", LectureExportView.as_view(), name="eval_lecture_export"),
 ]
