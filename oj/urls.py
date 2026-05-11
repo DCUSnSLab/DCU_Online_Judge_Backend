@@ -2,7 +2,10 @@ from django.urls import include, re_path
 
 from django.urls import path
 
+from lecture.views.eval_proxy import EvalProxyAPI
+
 urlpatterns = [
+    re_path(r"^eval-api/(?P<subpath>.*)$", EvalProxyAPI.as_view(), name="eval-proxy"),
     re_path(r"^api/", include("account.urls.oj")),
     re_path(r"^api/admin/", include("account.urls.admin")),
     re_path(r"^api/", include("announcement.urls.oj")),
