@@ -22,6 +22,10 @@ urlpatterns = [
     re_path(r"^api/admin/", include("lecture.urls.admin")),
     ###########################################
 
+    # LLM 정성평가 (eval app)
+    re_path(r"^api/eval/", include("eval.urls.oj")),
+    re_path(r"^api/admin/eval/", include("eval.urls.admin")),
+
     re_path(r"^api/admin/", include("utils.urls")),
 	re_path(r"^api/", include("heartbeat.urls")),
     re_path(r"^api/", include("qna.urls.oj")),

@@ -56,6 +56,7 @@ LOCAL_APPS = [
     'lecture',
     'qna',
     'llm',
+    'eval',
 ]
 
 CRONJOBS = [
