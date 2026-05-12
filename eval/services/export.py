@@ -33,6 +33,46 @@ def _classify(t):
     return TYPE_GROUP.get(t, "other")
 
 
+def _norm_weights(weights):
+    """examWeights normalize: {contest_id (str|int): number} → {int: float}."""
+    out = {}
+    if not isinstance(weights, dict):
+        return out
+    for k, v in weights.items():
+        try:
+            cid = int(k)
+            w = float(v)
+            if w > 0:
+                out[cid] = w
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _norm_scales(scales):
+    """groupScaleMax normalize: {group_key: number} → {key: float}."""
+    out = {}
+    if not isinstance(scales, dict):
+        return out
+    for k, v in scales.items():
+        if k in GROUP_LABELS:
+            try:
+                f = float(v)
+                if f > 0:
+                    out[k] = f
+            except (TypeError, ValueError):
+                continue
+    return out
+
+
+def _ssn_str(s):
+    """schoolssn 표시 — 0 또는 None 이면 빈 문자열."""
+    v = s.get("schoolssn") if isinstance(s, dict) else None
+    if not v:
+        return ""
+    return str(v)
+
+
 def _flat_rows_for_contest(scoreboard):
     """단일 contest 의 학생 × 문제 평탄화 행."""
     contest = scoreboard["contest"]
@@ -50,6 +90,7 @@ def _flat_rows_for_contest(scoreboard):
                 "user_id": s["user_id"],
                 "username": s["username"],
                 "realname": s.get("realname") or "",
+                "schoolssn": _ssn_str(s),
                 "problem_label": p["label"],
                 "problem_title": p["title"],
                 "problem_total_score": p.get("total_score", 0),
@@ -88,6 +129,7 @@ def _student_totals_for_contest(scoreboard):
             "user_id": s["user_id"],
             "username": s["username"],
             "realname": s.get("realname") or "",
+            "schoolssn": _ssn_str(s),
             "auto_total": earned,
             "auto_max": max_total,
             "qual_overall_avg": round(qual_sum / qual_n, 1) if qual_n else None,
@@ -99,14 +141,14 @@ def write_contest_csv(scoreboard):
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow([
-        "학번", "이름",
+        "이름", "ID", "학번",
         "문제", "문제명", "총점",
         "자동결과", "자동점수", "언어", "시간(ms)", "메모리(KB)",
         "정성_overall", "제안부분점수", "AI_likelihood", "AI_confidence"
     ])
     for r in _flat_rows_for_contest(scoreboard):
         w.writerow([
-            r["username"], r["realname"],
+            r["realname"], r["username"], r["schoolssn"],
             r["problem_label"], r["problem_title"], r["problem_total_score"],
             r["auto_result"], r["auto_score"], r["language"], r["time_ms"], r["memory_kb"],
             r["qual_overall"] if r["qual_overall"] is not None else "",
@@ -121,7 +163,7 @@ def write_lecture_csv(lecture, contests, scoreboards):
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow([
-        "그룹", "컨테스트", "학번", "이름",
+        "그룹", "컨테스트", "이름", "ID", "학번",
         "문제", "문제명", "총점",
         "자동결과", "자동점수",
         "정성_overall", "제안부분점수", "AI_likelihood"
@@ -134,7 +176,7 @@ def write_lecture_csv(lecture, contests, scoreboards):
         ctitle = (sb.get("contest") or {}).get("title", "")
         for r in _flat_rows_for_contest(sb):
             w.writerow([
-                glabel, ctitle, r["username"], r["realname"],
+                glabel, ctitle, r["realname"], r["username"], r["schoolssn"],
                 r["problem_label"], r["problem_title"], r["problem_total_score"],
                 r["auto_result"], r["auto_score"],
                 r["qual_overall"] if r["qual_overall"] is not None else "",
@@ -144,7 +186,10 @@ def write_lecture_csv(lecture, contests, scoreboards):
     return buf.getvalue().encode("utf-8-sig")
 
 
-def write_contest_xlsx(scoreboard):
+def write_contest_xlsx(scoreboard, weight=None):
+    """단일 contest export.
+    weight: 이 contest 의 환산 만점 (시험/대회 그룹). None 또는 0 이면 환산 컬럼 미표시.
+    """
     buf = io.BytesIO()
     wb = xlsxwriter.Workbook(buf, {"in_memory": True})
     contest = scoreboard["contest"]
@@ -155,65 +200,86 @@ def write_contest_xlsx(scoreboard):
     })
     fmt_center = wb.add_format({"align": "center", "border": 1})
     fmt_num = wb.add_format({"align": "center", "border": 1, "num_format": "0"})
+    fmt_num1 = wb.add_format({"align": "center", "border": 1, "num_format": "0.0"})
     fmt_pct = wb.add_format({"align": "center", "border": 1, "num_format": "0.0%"})
 
     ws = wb.add_worksheet("매트릭스")
     ws.merge_range(
-        0, 0, 0, 1 + len(problems) * 2,
+        0, 0, 0, 2 + len(problems) * 2,
         f"{contest['title']} ({contest.get('lecture_contest_type', '')})",
         fmt_header,
     )
-    ws.write(2, 0, "학번", fmt_header)
-    ws.write(2, 1, "이름", fmt_header)
+    ws.write(2, 0, "이름", fmt_header)
+    ws.write(2, 1, "ID", fmt_header)
+    ws.write(2, 2, "학번", fmt_header)
     for i, p in enumerate(problems):
-        ws.merge_range(1, 2 + i * 2, 1, 3 + i * 2, f"{p['label']} {p['title']} (/{p.get('total_score', 0)})", fmt_header)
-        ws.write(2, 2 + i * 2, "자동", fmt_header)
-        ws.write(2, 3 + i * 2, "정성", fmt_header)
+        ws.merge_range(1, 3 + i * 2, 1, 4 + i * 2, f"{p['label']} {p['title']} (/{p.get('total_score', 0)})", fmt_header)
+        ws.write(2, 3 + i * 2, "자동", fmt_header)
+        ws.write(2, 4 + i * 2, "정성", fmt_header)
 
     row = 3
     for s in scoreboard.get("students", []):
-        ws.write(row, 0, s["username"], fmt_center)
-        ws.write(row, 1, s.get("realname") or "", fmt_center)
+        ws.write(row, 0, s.get("realname") or "", fmt_center)
+        ws.write(row, 1, s["username"], fmt_center)
+        ws.write(row, 2, _ssn_str(s), fmt_center)
         for i, p in enumerate(problems):
             cell = (s.get("by_problem") or {}).get(p["label"]) or {}
             tc = cell.get("testcase") or {}
             qa = cell.get("qualitative") or {}
-            ws.write(row, 2 + i * 2, tc.get("score", "") if tc else "", fmt_num)
-            ws.write(row, 3 + i * 2, qa.get("overall", "") if qa else "", fmt_num)
+            ws.write(row, 3 + i * 2, tc.get("score", "") if tc else "", fmt_num)
+            ws.write(row, 4 + i * 2, qa.get("overall", "") if qa else "", fmt_num)
         row += 1
 
-    ws.set_column(0, 0, 14)
-    ws.set_column(1, 1, 14)
-    ws.set_column(2, 1 + len(problems) * 2, 9)
+    ws.set_column(0, 2, 14)
+    ws.set_column(3, 2 + len(problems) * 2, 9)
 
     ws2 = wb.add_worksheet("학생합계")
-    ws2.write_row(0, 0, ["학번", "이름", "자동총점", "자동만점", "취득비율", "정성평균(0-100)"], fmt_header)
+    headers2 = ["이름", "ID", "학번", "자동총점", "자동만점", "취득비율", "정성평균(0-100)"]
+    if weight:
+        headers2.append(f"환산(/{weight})")
+    ws2.write_row(0, 0, headers2, fmt_header)
     for i, t in enumerate(_student_totals_for_contest(scoreboard)):
-        ws2.write(i + 1, 0, t["username"], fmt_center)
-        ws2.write(i + 1, 1, t["realname"], fmt_center)
-        ws2.write(i + 1, 2, t["auto_total"], fmt_num)
-        ws2.write(i + 1, 3, t["auto_max"], fmt_num)
-        ws2.write(i + 1, 4, (t["auto_total"] / t["auto_max"]) if t["auto_max"] else 0, fmt_pct)
-        ws2.write(i + 1, 5, t["qual_overall_avg"] if t["qual_overall_avg"] is not None else "", fmt_num)
-    ws2.set_column(0, 0, 14)
-    ws2.set_column(1, 1, 14)
-    ws2.set_column(2, 5, 12)
+        ws2.write(i + 1, 0, t["realname"], fmt_center)
+        ws2.write(i + 1, 1, t["username"], fmt_center)
+        ws2.write(i + 1, 2, t["schoolssn"], fmt_center)
+        ws2.write(i + 1, 3, t["auto_total"], fmt_num)
+        ws2.write(i + 1, 4, t["auto_max"], fmt_num)
+        ws2.write(i + 1, 5, (t["auto_total"] / t["auto_max"]) if t["auto_max"] else 0, fmt_pct)
+        ws2.write(i + 1, 6, t["qual_overall_avg"] if t["qual_overall_avg"] is not None else "", fmt_num)
+        if weight:
+            conv = (t["auto_total"] / t["auto_max"]) * weight if t["auto_max"] else 0
+            ws2.write(i + 1, 7, round(conv, 1), fmt_num1)
+    ws2.set_column(0, 2, 14)
+    ws2.set_column(3, len(headers2) - 1, 12)
 
     wb.close()
     return buf.getvalue()
 
 
-def write_lecture_xlsx(lecture, contests, scoreboards):
+def write_lecture_xlsx(lecture, contests, scoreboards, weights=None, scales=None):
+    """전체 lecture export.
+    weights: {contest_id (int): 환산 만점 (점)}. 시험/대회 그룹의 contest 에만 적용.
+    scales:  {group_key: 그룹 전체 환산 만점 (점)}. 비-시험 그룹에만 적용.
+    """
+    weights = weights or {}
+    scales = scales or {}
     buf = io.BytesIO()
     wb = xlsxwriter.Workbook(buf, {"in_memory": True})
 
     fmt_header = wb.add_format({
         "bold": True, "bg_color": "#F0F2F5", "border": 1, "align": "center", "valign": "vcenter"
     })
+    fmt_header_conv = wb.add_format({
+        "bold": True, "bg_color": "#FDECEC", "border": 1, "align": "center", "valign": "vcenter", "font_color": "#C0392B"
+    })
     fmt_center = wb.add_format({"align": "center", "border": 1})
     fmt_num = wb.add_format({"align": "center", "border": 1, "num_format": "0"})
+    fmt_num1 = wb.add_format({"align": "center", "border": 1, "num_format": "0.0"})
     fmt_pct = wb.add_format({"align": "center", "border": 1, "num_format": "0.0%"})
     fmt_bold = wb.add_format({"bold": True, "align": "center", "border": 1, "num_format": "0"})
+    fmt_bold_conv = wb.add_format({
+        "bold": True, "align": "center", "border": 1, "num_format": "0.0", "font_color": "#C0392B"
+    })
 
     student_idx = {}
     contest_max = {}
@@ -239,6 +305,7 @@ def write_lecture_xlsx(lecture, contests, scoreboards):
                     "user_id": u,
                     "username": s["username"],
                     "realname": s.get("realname") or "",
+                    "schoolssn": _ssn_str(s),
                     "by_contest": {},
                     "by_group": {g: 0 for g in GROUP_ORDER},
                     "total": 0,
@@ -257,68 +324,129 @@ def write_lecture_xlsx(lecture, contests, scoreboards):
     students = sorted(student_idx.values(), key=lambda r: -r["total"])
     total_max = sum(contest_max.values())
 
-    ws = wb.add_worksheet("종합")
-    ws.merge_range(0, 0, 0, 5, f"{lecture.get('title', '')}  ({lecture.get('year', '')}-{lecture.get('semester', '')})", fmt_header)
+    def _exam_total_conv(s):
+        """학생의 시험/대회 전체 환산점 — sum(c_score / c_max × weight)."""
+        acc = 0
+        for cid, w in weights.items():
+            cmax = contest_max.get(cid, 0)
+            if not cmax or contest_to_group.get(cid) != "exam":
+                continue
+            acc += (s["by_contest"].get(cid, 0) / cmax) * w
+        return round(acc, 1)
 
-    headers = ["학번", "이름", "총점", f"만점({total_max})", "취득%"]
+    def _group_conv(s, gkey):
+        gmax = contest_group_max[gkey] or 0
+        smax = scales.get(gkey, 0)
+        if not gmax or not smax:
+            return 0
+        return round((s["by_group"][gkey] / gmax) * smax, 1)
+
+    exam_weight_sum = sum(w for cid, w in weights.items() if contest_to_group.get(cid) == "exam")
+
+    # ─── 종합 시트 ───
+    ws = wb.add_worksheet("종합")
+    ws.merge_range(0, 0, 0, 6, f"{lecture.get('title', '')}  ({lecture.get('year', '')}-{lecture.get('semester', '')})", fmt_header)
+    headers = ["이름", "ID", "학번", "총점", f"만점({total_max})", "취득%"]
+    # 그룹 소계
     for g in GROUP_ORDER:
         if contest_group_max[g] > 0:
             headers.append(f"{GROUP_LABELS[g]}({contest_group_max[g]})")
+    # 그룹 전체 환산점 — 설정된 그룹만
+    conv_cols = []
+    if exam_weight_sum > 0 and contest_group_max["exam"] > 0:
+        headers.append(f"시험·대회 환산(/{exam_weight_sum:g})")
+        conv_cols.append(("exam", exam_weight_sum))
+    for g in ("lab", "assignment", "other"):
+        if scales.get(g, 0) > 0 and contest_group_max[g] > 0:
+            headers.append(f"{GROUP_LABELS[g]} 환산(/{scales[g]:g})")
+            conv_cols.append((g, scales[g]))
     for i, h in enumerate(headers):
-        ws.write(2, i, h, fmt_header)
+        is_conv = i >= len(headers) - len(conv_cols)
+        ws.write(2, i, h, fmt_header_conv if is_conv else fmt_header)
 
     row = 3
     for s in students:
-        ws.write(row, 0, s["username"], fmt_center)
-        ws.write(row, 1, s["realname"], fmt_center)
-        ws.write(row, 2, s["total"], fmt_bold)
-        ws.write(row, 3, total_max, fmt_num)
-        ws.write(row, 4, (s["total"] / total_max) if total_max else 0, fmt_pct)
-        col = 5
+        ws.write(row, 0, s["realname"], fmt_center)
+        ws.write(row, 1, s["username"], fmt_center)
+        ws.write(row, 2, s["schoolssn"], fmt_center)
+        ws.write(row, 3, s["total"], fmt_bold)
+        ws.write(row, 4, total_max, fmt_num)
+        ws.write(row, 5, (s["total"] / total_max) if total_max else 0, fmt_pct)
+        col = 6
         for g in GROUP_ORDER:
             if contest_group_max[g] > 0:
                 ws.write(row, col, s["by_group"][g], fmt_num)
                 col += 1
+        for gkey, _ in conv_cols:
+            v = _exam_total_conv(s) if gkey == "exam" else _group_conv(s, gkey)
+            ws.write(row, col, v, fmt_bold_conv)
+            col += 1
         row += 1
-    ws.freeze_panes(3, 2)
-    ws.set_column(0, 0, 14)
-    ws.set_column(1, 1, 14)
-    ws.set_column(2, len(headers) - 1, 12)
+    ws.freeze_panes(3, 3)
+    ws.set_column(0, 2, 14)
+    ws.set_column(3, len(headers) - 1, 14)
 
+    # ─── 그룹별 시트 ───
     for gkey in GROUP_ORDER:
         contests_in_group = [c for c in scoreboards if c and contest_to_group.get(c["contest"]["id"]) == gkey]
         if not contests_in_group:
             continue
         wsg = wb.add_worksheet(GROUP_LABELS[gkey][:30])
-        wsg.write(0, 0, "학번", fmt_header)
-        wsg.write(0, 1, "이름", fmt_header)
-        col = 2
-        col_to_cid = {}
+        wsg.write(0, 0, "이름", fmt_header)
+        wsg.write(0, 1, "ID", fmt_header)
+        wsg.write(0, 2, "학번", fmt_header)
+        col = 3
+        col_to_cid = {}            # 원점수 컬럼
+        conv_col_to_cid = {}       # 환산점 컬럼 (시험/대회 만)
         for sb in contests_in_group:
             cid = sb["contest"]["id"]
             wsg.write(0, col, f"{sb['contest']['title']} (/{contest_max[cid]})", fmt_header)
             col_to_cid[col] = cid
             col += 1
+            if gkey == "exam" and weights.get(cid, 0) > 0:
+                wsg.write(0, col, f"{sb['contest']['title']} 환산(/{weights[cid]:g})", fmt_header_conv)
+                conv_col_to_cid[col] = cid
+                col += 1
         wsg.write(0, col, f"소계(/{contest_group_max[gkey]})", fmt_header)
         sub_col = col
         wsg.write(0, col + 1, "취득%", fmt_header)
         pct_col = col + 1
+        col = pct_col + 1
+        # 그룹 전체 환산 컬럼
+        group_total_max = 0
+        if gkey == "exam" and exam_weight_sum > 0:
+            group_total_max = exam_weight_sum
+            wsg.write(0, col, f"전체 환산(/{exam_weight_sum:g})", fmt_header_conv)
+        elif gkey != "exam" and scales.get(gkey, 0) > 0:
+            group_total_max = scales[gkey]
+            wsg.write(0, col, f"전체 환산(/{scales[gkey]:g})", fmt_header_conv)
+        conv_total_col = col if group_total_max else None
         for i, s in enumerate(students):
             r = i + 1
-            wsg.write(r, 0, s["username"], fmt_center)
-            wsg.write(r, 1, s["realname"], fmt_center)
+            wsg.write(r, 0, s["realname"], fmt_center)
+            wsg.write(r, 1, s["username"], fmt_center)
+            wsg.write(r, 2, s["schoolssn"], fmt_center)
             for c, cid in col_to_cid.items():
                 wsg.write(r, c, s["by_contest"].get(cid, 0), fmt_num)
+            for c, cid in conv_col_to_cid.items():
+                cmax = contest_max.get(cid, 0)
+                w = weights.get(cid, 0)
+                v = (s["by_contest"].get(cid, 0) / cmax * w) if (cmax and w) else 0
+                wsg.write(r, c, round(v, 1), fmt_num1)
             wsg.write(r, sub_col, s["by_group"][gkey], fmt_bold)
             denom = contest_group_max[gkey] or 1
             wsg.write(r, pct_col, s["by_group"][gkey] / denom, fmt_pct)
-        wsg.freeze_panes(1, 2)
-        wsg.set_column(0, 1, 14)
-        wsg.set_column(2, pct_col, 14)
+            if conv_total_col is not None:
+                tv = _exam_total_conv(s) if gkey == "exam" else _group_conv(s, gkey)
+                wsg.write(r, conv_total_col, tv, fmt_bold_conv)
+        wsg.freeze_panes(1, 3)
+        wsg.set_column(0, 2, 14)
+        wsg.set_column(3, conv_total_col or pct_col, 14)
 
+    # ─── Raw 시트 ───
     wsf = wb.add_worksheet("Raw")
     wsf.write_row(0, 0, [
-        "그룹", "컨테스트", "학번", "이름", "문제", "문제명", "총점",
+        "그룹", "컨테스트", "이름", "ID", "학번", "문제", "문제명", "총점",
         "자동결과", "자동점수", "정성_overall", "제안부분점수", "AI_likelihood"
     ], fmt_header)
     rr = 1
@@ -328,7 +456,7 @@ def write_lecture_xlsx(lecture, contests, scoreboards):
         group = _classify((sb.get("contest") or {}).get("lecture_contest_type"))
         for r in _flat_rows_for_contest(sb):
             wsf.write_row(rr, 0, [
-                GROUP_LABELS[group], r["contest_title"], r["username"], r["realname"],
+                GROUP_LABELS[group], r["contest_title"], r["realname"], r["username"], r["schoolssn"],
                 r["problem_label"], r["problem_title"], r["problem_total_score"],
                 r["auto_result"], r["auto_score"],
                 r["qual_overall"] if r["qual_overall"] is not None else "",
@@ -338,7 +466,7 @@ def write_lecture_xlsx(lecture, contests, scoreboards):
             rr += 1
     wsf.freeze_panes(1, 0)
     wsf.set_column(0, 1, 14)
-    wsf.set_column(2, 11, 12)
+    wsf.set_column(2, 12, 12)
 
     wb.close()
     return buf.getvalue()
@@ -348,25 +476,30 @@ def write_lecture_xlsx(lecture, contests, scoreboards):
 # In-process orchestrators
 # ─────────────────────────────────────────────────────────────────────
 
-def build_contest_export(contest_id, fmt):
-    """contest 1건 export. (filename_stem, bytes, content_type) 반환 또는 (None, error, None)."""
+def build_contest_export(contest_id, fmt, weights=None, scales=None):
+    """contest 1건 export. weights 에 이 contest 의 환산 만점이 있으면 환산 컬럼 포함."""
     sb, err = sb_service.build_scoreboard(contest_id)
     if err:
         return None, err, None
     title = (sb.get("contest") or {}).get("title") or f"contest_{contest_id}"
+    w_norm = _norm_weights(weights)
+    this_weight = w_norm.get(int(contest_id), 0)
     if fmt == "csv":
         return title.replace("/", "_"), write_contest_csv(sb), "text/csv; charset=utf-8"
     elif fmt == "xlsx":
         return (
             title.replace("/", "_"),
-            write_contest_xlsx(sb),
+            write_contest_xlsx(sb, weight=this_weight or None),
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
     return None, "unsupported format", None
 
 
-def build_lecture_export(lecture_id, fmt):
-    """lecture 전체 export — 모든 contest 의 scoreboard 합쳐서."""
+def build_lecture_export(lecture_id, fmt, weights=None, scales=None):
+    """lecture 전체 export — 모든 contest 의 scoreboard 합쳐서.
+    weights: {contest_id: 환산 만점} — 시험/대회 그룹에 적용.
+    scales:  {group_key: 그룹 전체 환산 만점} — 비-시험 그룹에 적용.
+    """
     lecture = sb_service.get_lecture_dict(lecture_id)
     if not lecture:
         return None, "lecture not found", None
@@ -376,12 +509,14 @@ def build_lecture_export(lecture_id, fmt):
         sb, err = sb_service.build_scoreboard(c["id"])
         scoreboards.append(sb)  # err 면 None 으로 (skip)
     title = (lecture.get("title") or f"lecture_{lecture_id}").replace("/", "_")
+    w_norm = _norm_weights(weights)
+    s_norm = _norm_scales(scales)
     if fmt == "csv":
         return title, write_lecture_csv(lecture, contests, scoreboards), "text/csv; charset=utf-8"
     elif fmt == "xlsx":
         return (
             title,
-            write_lecture_xlsx(lecture, contests, scoreboards),
+            write_lecture_xlsx(lecture, contests, scoreboards, weights=w_norm, scales=s_norm),
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
     return None, "unsupported format", None
