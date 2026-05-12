@@ -1,13 +1,16 @@
 """DCUCODE LLM Gateway HTTP wrapper.
 
-SideProject 의 dcu_llm.LLMClient (onprem Qwen 직접) 를 DCUCODE 운영 패턴 (LLM Gateway)
-으로 교체. 기존 llm/views/oj.py 의 환경변수 패턴과 동일:
-- LLM_GATEWAY_BASE_URL (기본 http://dcucode-llm-gateway:18000)
-- LLM_GATEWAY_API_KEY_FILE (파일 우선)
-- LLM_GATEWAY_API_KEY (env fallback)
-- LLM_GATEWAY_CHAT_COMPLETIONS_URL (직접 override)
+정성평가 전용 LLM 설정은 /data/config/eval_llm_* 파일에서 읽음 — 기존
+llm_gateway_api_key/llm_gateway_model 패턴과 동일.
 
-LLM Gateway 는 OpenAI 호환 /v1/chat/completions 를 노출.
+읽는 우선순위 (각 항목 모두 동일):
+  1) /data/config/eval_llm_api_key | eval_llm_model | eval_llm_url  (파일)
+  2) LLM_GATEWAY_API_KEY_FILE / LLM_GATEWAY_API_KEY env
+     EVAL_LLM_DEFAULT_MODEL / LLM_DEFAULT_MODEL env
+     LLM_GATEWAY_CHAT_COMPLETIONS_URL / LLM_GATEWAY_BASE_URL env
+  3) 기존 llm 앱 fallback (/data/config/llm_gateway_api_key, dcucode-llm-gateway:18000)
+
+운영에서는 PVC `/data` 안의 파일이 SoT — git/manifest 노출 없음. dev 도 동일 패턴.
 """
 from __future__ import annotations
 
@@ -26,15 +29,53 @@ def _data_dir():
     return getattr(settings, "DATA_DIR", "/data")
 
 
+def _read_text_file(path):
+    """텍스트 파일 한 줄 읽기. 없거나 비어있으면 None."""
+    p = Path(path)
+    if not p.is_file():
+        return None
+    try:
+        val = p.read_text(encoding="utf-8").strip()
+        return val or None
+    except OSError:
+        return None
+
+
+def _eval_config_path(name):
+    return os.path.join(_data_dir(), "config", f"eval_llm_{name}")
+
+
 def _load_api_key():
-    key_file = os.environ.get("LLM_GATEWAY_API_KEY_FILE") or os.path.join(_data_dir(), "config", "llm_gateway_api_key")
-    p = Path(key_file)
-    if p.is_file():
-        try:
-            return p.read_text(encoding="utf-8").strip()
-        except OSError:
-            pass
-    return os.environ.get("LLM_GATEWAY_API_KEY", "")
+    # 1) eval 전용 파일
+    v = _read_text_file(_eval_config_path("api_key"))
+    if v:
+        return v
+    # 2) env (LLM_GATEWAY_API_KEY_FILE > LLM_GATEWAY_API_KEY)
+    env_key_file = os.environ.get("LLM_GATEWAY_API_KEY_FILE")
+    if env_key_file:
+        v = _read_text_file(env_key_file)
+        if v:
+            return v
+    env_key = os.environ.get("LLM_GATEWAY_API_KEY")
+    if env_key:
+        return env_key
+    # 3) 기존 llm 앱 파일 fallback
+    v = _read_text_file(os.path.join(_data_dir(), "config", "llm_gateway_api_key"))
+    return v or ""
+
+
+def _default_model():
+    # 1) eval 전용 파일
+    v = _read_text_file(_eval_config_path("model"))
+    if v:
+        return v
+    # 2) env
+    env_model = os.environ.get("EVAL_LLM_DEFAULT_MODEL") or os.environ.get("LLM_DEFAULT_MODEL")
+    if env_model:
+        return env_model
+    # 3) 기존 채팅용 llm 모델 파일 fallback (다른 모델일 수 있음)
+    v = _read_text_file(os.path.join(_data_dir(), "config", "llm_gateway_model"))
+    return v or "default"
 
 
 def _default_base():
@@ -42,14 +83,16 @@ def _default_base():
 
 
 def _completions_url():
+    # 1) eval 전용 파일 — 완전한 URL 한 줄
+    v = _read_text_file(_eval_config_path("url"))
+    if v:
+        return v
+    # 2) env (전체 URL 직접 지정)
     explicit = os.environ.get("LLM_GATEWAY_CHAT_COMPLETIONS_URL")
     if explicit:
         return explicit
+    # 3) base url + 표준 경로
     return f"{_default_base()}/v1/chat/completions"
-
-
-def _default_model():
-    return os.environ.get("EVAL_LLM_DEFAULT_MODEL") or os.environ.get("LLM_DEFAULT_MODEL") or "default"
 
 
 class LLMClient:
