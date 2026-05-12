@@ -79,11 +79,13 @@ def _default_model():
 
 
 def _default_base():
+    # DCUCODE 운영 gateway 는 자체 FastAPI proxy 라 base 가 service hostname:port.
+    # K8s 운영의 hostname 은 NS 포함 (vllm-workspace 등) — 그건 manifest env 로 override.
     return (os.environ.get("LLM_GATEWAY_BASE_URL") or "http://dcucode-llm-gateway:18000").rstrip("/")
 
 
 def _completions_url():
-    # 1) eval 전용 파일 — 완전한 URL 한 줄
+    # 1) eval 전용 파일 — 완전한 URL 한 줄 (path 까지)
     v = _read_text_file(_eval_config_path("url"))
     if v:
         return v
@@ -91,8 +93,10 @@ def _completions_url():
     explicit = os.environ.get("LLM_GATEWAY_CHAT_COMPLETIONS_URL")
     if explicit:
         return explicit
-    # 3) base url + 표준 경로
-    return f"{_default_base()}/v1/chat/completions"
+    # 3) base url + 운영 gateway 의 path prefix ("/llm/v1/chat/completions").
+    # DCUCODE LLM Gateway FastAPI proxy 가 /llm 아래에 모든 OpenAI 호환 endpoint 를 노출.
+    # 1, 2 가 비었을 때만 사용되는 안전망 — 파일 한 줄로 override 권장.
+    return f"{_default_base()}/llm/v1/chat/completions"
 
 
 class LLMClient:
