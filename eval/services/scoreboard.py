@@ -256,6 +256,7 @@ def build_scoreboard(contest_id):
             "user_id": uid,
             "username": user["username"],
             "realname": user.get("realname"),
+            "schoolssn": user.get("schoolssn"),
             "by_problem": by_problem,
         })
 
