@@ -351,15 +351,28 @@ def write_lecture_xlsx(lecture, contests, scoreboards, weights=None, scales=None
     for g in GROUP_ORDER:
         if contest_group_max[g] > 0:
             headers.append(f"{GROUP_LABELS[g]}({contest_group_max[g]})")
-    # 그룹 전체 환산점 — 설정된 그룹만
+    # 환산 컬럼들: 시험·대회 전체 + 시험·대회 contest별 + 비-시험 그룹 전체
+    # conv_cols 항목 형식: ("exam_total" | "exam_contest" | "group", key)
     conv_cols = []
     if exam_weight_sum > 0 and contest_group_max["exam"] > 0:
-        headers.append(f"시험·대회 환산(/{exam_weight_sum:g})")
-        conv_cols.append(("exam", exam_weight_sum))
+        headers.append(f"시험·대회 전체 환산(/{exam_weight_sum:g})")
+        conv_cols.append(("exam_total", None))
+        # 시험·대회 그룹의 각 contest 환산 (weight 설정된 것만)
+        for sb in scoreboards:
+            if not sb:
+                continue
+            cid = sb["contest"]["id"]
+            if contest_to_group.get(cid) != "exam":
+                continue
+            w = weights.get(cid, 0)
+            if w <= 0:
+                continue
+            headers.append(f"{sb['contest']['title']} 환산(/{w:g})")
+            conv_cols.append(("exam_contest", cid))
     for g in ("lab", "assignment", "other"):
         if scales.get(g, 0) > 0 and contest_group_max[g] > 0:
             headers.append(f"{GROUP_LABELS[g]} 환산(/{scales[g]:g})")
-            conv_cols.append((g, scales[g]))
+            conv_cols.append(("group", g))
     for i, h in enumerate(headers):
         is_conv = i >= len(headers) - len(conv_cols)
         ws.write(2, i, h, fmt_header_conv if is_conv else fmt_header)
@@ -377,8 +390,15 @@ def write_lecture_xlsx(lecture, contests, scoreboards, weights=None, scales=None
             if contest_group_max[g] > 0:
                 ws.write(row, col, s["by_group"][g], fmt_num)
                 col += 1
-        for gkey, _ in conv_cols:
-            v = _exam_total_conv(s) if gkey == "exam" else _group_conv(s, gkey)
+        for kind, key in conv_cols:
+            if kind == "exam_total":
+                v = _exam_total_conv(s)
+            elif kind == "exam_contest":
+                cmax = contest_max.get(key, 0)
+                w = weights.get(key, 0)
+                v = round((s["by_contest"].get(key, 0) / cmax) * w, 1) if (cmax and w) else 0
+            else:  # group
+                v = _group_conv(s, key)
             ws.write(row, col, v, fmt_bold_conv)
             col += 1
         row += 1
