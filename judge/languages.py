@@ -126,29 +126,6 @@ _java_lang_config = {
 }
 
 
-_py2_lang_config = {
-    "template": """//PREPEND BEGIN
-//PREPEND END
-
-//TEMPLATE BEGIN
-//TEMPLATE END
-
-//APPEND BEGIN
-//APPEND END""",
-    "compile": {
-        "src_name": "solution.py",
-        "exe_name": "solution.pyc",
-        "max_cpu_time": 3000,
-        "max_real_time": 10000,
-        "max_memory": 128 * 1024 * 1024,
-        "compile_command": "/usr/bin/python -m py_compile {src_path}",
-    },
-    "run": {
-        "command": "/usr/bin/python {exe_path}",
-        "seccomp_rule": "general",
-        "env": default_env
-    }
-}
 _py3_lang_config = {
     "template": """//PREPEND BEGIN
 //PREPEND END
@@ -160,7 +137,7 @@ _py3_lang_config = {
 //APPEND END""",
     "compile": {
         "src_name": "solution.py",
-        "exe_name": "__pycache__/solution.cpython-36.pyc",
+        "exe_name": "__pycache__/solution.cpython-310.pyc",
         "max_cpu_time": 3000,
         "max_real_time": 10000,
         "max_memory": 128 * 1024 * 1024,
@@ -179,6 +156,5 @@ languages = [
     {"config": _cpp_lang_config, "spj": {"compile": _cpp_lang_spj_compile, "config": _cpp_lang_spj_config},
      "name": "C++", "description": "G++ 5.4", "content_type": "text/x-c++src"},
     {"config": _java_lang_config, "name": "Java", "description": "OpenJDK 1.8", "content_type": "text/x-java"},
-    {"config": _py2_lang_config, "name": "Python2", "description": "Python 2.7", "content_type": "text/x-python"},
-    {"config": _py3_lang_config, "name": "Python3", "description": "Python 3.5", "content_type": "text/x-python"},
+    {"config": _py3_lang_config, "name": "Python3", "description": "Python 3.10", "content_type": "text/x-python"},
 ]

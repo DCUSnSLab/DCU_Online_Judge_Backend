@@ -22,6 +22,23 @@ class TAlistLectureAPI(APIView):
 
         return self.success(realTa)
 
+
+class LectureScorePermissionAPI(APIView):
+    """프론트가 이 lecture에 대해 점수/평가 탭을 보여줘야 하는지 판정용."""
+    def get(self, request):
+        from account.models import AdminType
+        lecture_id = request.GET.get("lecture_id")
+        if not lecture_id or not check_is_id(lecture_id):
+            return self.error("invalid parameter.")
+        if not request.user.is_authenticated:
+            return self.success({"can_view_scores": False})
+        if request.user.admin_type in (AdminType.SUPER_ADMIN, AdminType.ADMIN):
+            return self.success({"can_view_scores": True})
+        allowed = ta_admin_class.objects.filter(
+            lecture_id=lecture_id, user=request.user, score_isallow=True
+        ).exists()
+        return self.success({"can_view_scores": allowed})
+
 class LectureAPI(APIView):
     def post(self, request):
         data = request.data
