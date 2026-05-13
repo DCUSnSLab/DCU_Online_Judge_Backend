@@ -363,6 +363,18 @@ def _export_response(stem, content, content_type, ext):
     return resp
 
 
+def _parse_json_param(request, name):
+    """query 의 JSON 인코딩된 값 파싱. 비어있거나 잘못된 JSON 이면 None."""
+    raw = request.GET.get(name)
+    if not raw:
+        return None
+    try:
+        v = json.loads(raw)
+        return v if isinstance(v, dict) else None
+    except (ValueError, TypeError):
+        return None
+
+
 @method_decorator(csrf_exempt, name="dispatch")
 class ContestExportView(View):
     def get(self, request, contest_id):
@@ -375,7 +387,12 @@ class ContestExportView(View):
         fmt = (request.GET.get("format") or "xlsx").lower()
         if fmt not in ("csv", "xlsx"):
             return _err("unsupported format", 400)
-        stem, content, content_type = export_service.build_contest_export(contest_id, fmt)
+        weights = _parse_json_param(request, "weights")
+        scales = _parse_json_param(request, "scales")
+        use_qual = _parse_json_param(request, "use_qual")
+        stem, content, content_type = export_service.build_contest_export(
+            contest_id, fmt, weights=weights, scales=scales, use_qual=use_qual
+        )
         if stem is None:
             return _err(content, 404 if "not found" in (content or "").lower() else 400)
         return _export_response(stem, content, content_type, fmt)
@@ -390,7 +407,12 @@ class LectureExportView(View):
         fmt = (request.GET.get("format") or "xlsx").lower()
         if fmt not in ("csv", "xlsx"):
             return _err("unsupported format", 400)
-        stem, content, content_type = export_service.build_lecture_export(lecture_id, fmt)
+        weights = _parse_json_param(request, "weights")
+        scales = _parse_json_param(request, "scales")
+        use_qual = _parse_json_param(request, "use_qual")
+        stem, content, content_type = export_service.build_lecture_export(
+            lecture_id, fmt, weights=weights, scales=scales, use_qual=use_qual
+        )
         if stem is None:
             return _err(content, 404 if "not found" in (content or "").lower() else 400)
         return _export_response(stem, content, content_type, fmt)
