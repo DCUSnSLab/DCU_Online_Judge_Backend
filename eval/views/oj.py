@@ -389,8 +389,9 @@ class ContestExportView(View):
             return _err("unsupported format", 400)
         weights = _parse_json_param(request, "weights")
         scales = _parse_json_param(request, "scales")
+        use_qual = _parse_json_param(request, "use_qual")
         stem, content, content_type = export_service.build_contest_export(
-            contest_id, fmt, weights=weights, scales=scales
+            contest_id, fmt, weights=weights, scales=scales, use_qual=use_qual
         )
         if stem is None:
             return _err(content, 404 if "not found" in (content or "").lower() else 400)
@@ -408,8 +409,9 @@ class LectureExportView(View):
             return _err("unsupported format", 400)
         weights = _parse_json_param(request, "weights")
         scales = _parse_json_param(request, "scales")
+        use_qual = _parse_json_param(request, "use_qual")
         stem, content, content_type = export_service.build_lecture_export(
-            lecture_id, fmt, weights=weights, scales=scales
+            lecture_id, fmt, weights=weights, scales=scales, use_qual=use_qual
         )
         if stem is None:
             return _err(content, 404 if "not found" in (content or "").lower() else 400)

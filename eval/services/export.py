@@ -73,6 +73,41 @@ def _ssn_str(s):
     return str(v)
 
 
+def _norm_use_qual(use_qual):
+    """use_qual normalize: {group_key: bool} → 그룹키별 True/False (alien 키는 무시)."""
+    out = {g: False for g in GROUP_ORDER}
+    if not isinstance(use_qual, dict):
+        return out
+    for k, v in use_qual.items():
+        if k in out:
+            out[k] = bool(v)
+    return out
+
+
+def _apply_qual_override(scoreboard, enabled):
+    """enabled=True 이면 testcase.score 를 max(자동, suggested_partial_score) 로 교체.
+    원본 scoreboard dict 를 in-place 수정 (export 1회용 작업이라 무방).
+    qualitative 없는 셀은 그대로.
+    """
+    if not enabled or not scoreboard:
+        return scoreboard
+    for s in scoreboard.get("students", []):
+        for label, cell in (s.get("by_problem") or {}).items():
+            if not cell:
+                continue
+            tc = cell.get("testcase")
+            qa = cell.get("qualitative")
+            if not tc or not qa:
+                continue
+            sps = qa.get("suggested_partial_score")
+            if sps is None:
+                continue
+            auto = tc.get("score") or 0
+            if sps > auto:
+                tc["score"] = sps
+    return scoreboard
+
+
 def _flat_rows_for_contest(scoreboard):
     """단일 contest 의 학생 × 문제 평탄화 행."""
     contest = scoreboard["contest"]
@@ -496,13 +531,18 @@ def write_lecture_xlsx(lecture, contests, scoreboards, weights=None, scales=None
 # In-process orchestrators
 # ─────────────────────────────────────────────────────────────────────
 
-def build_contest_export(contest_id, fmt, weights=None, scales=None):
-    """contest 1건 export. weights 에 이 contest 의 환산 만점이 있으면 환산 컬럼 포함."""
+def build_contest_export(contest_id, fmt, weights=None, scales=None, use_qual=None):
+    """contest 1건 export. weights 에 이 contest 의 환산 만점이 있으면 환산 컬럼 포함.
+    use_qual[group_of_this_contest] 가 True 면 max(자동, 제안부분점수) 로 점수 재계산.
+    """
     sb, err = sb_service.build_scoreboard(contest_id)
     if err:
         return None, err, None
     title = (sb.get("contest") or {}).get("title") or f"contest_{contest_id}"
     w_norm = _norm_weights(weights)
+    uq_norm = _norm_use_qual(use_qual)
+    this_group = _classify((sb.get("contest") or {}).get("lecture_contest_type"))
+    _apply_qual_override(sb, uq_norm.get(this_group, False))
     this_weight = w_norm.get(int(contest_id), 0)
     if fmt == "csv":
         return title.replace("/", "_"), write_contest_csv(sb), "text/csv; charset=utf-8"
@@ -515,18 +555,24 @@ def build_contest_export(contest_id, fmt, weights=None, scales=None):
     return None, "unsupported format", None
 
 
-def build_lecture_export(lecture_id, fmt, weights=None, scales=None):
+def build_lecture_export(lecture_id, fmt, weights=None, scales=None, use_qual=None):
     """lecture 전체 export — 모든 contest 의 scoreboard 합쳐서.
     weights: {contest_id: 환산 만점} — 시험/대회 그룹에 적용.
     scales:  {group_key: 그룹 전체 환산 만점} — 비-시험 그룹에 적용.
+    use_qual: {group_key: bool} — True 인 그룹은 testcase.score 를
+              max(자동, suggested_partial_score) 로 교체 후 합산.
     """
     lecture = sb_service.get_lecture_dict(lecture_id)
     if not lecture:
         return None, "lecture not found", None
     contests = sb_service.list_lecture_contests(lecture_id)
+    uq_norm = _norm_use_qual(use_qual)
     scoreboards = []
     for c in contests:
         sb, err = sb_service.build_scoreboard(c["id"])
+        if sb is not None:
+            gkey = _classify((sb.get("contest") or {}).get("lecture_contest_type"))
+            _apply_qual_override(sb, uq_norm.get(gkey, False))
         scoreboards.append(sb)  # err 면 None 으로 (skip)
     title = (lecture.get("title") or f"lecture_{lecture_id}").replace("/", "_")
     w_norm = _norm_weights(weights)
