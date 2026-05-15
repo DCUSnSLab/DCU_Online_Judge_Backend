@@ -353,13 +353,20 @@ def run_eval_job(job_id):
 
     try:
         _emit(job_id, EvalJobEventType.STAGE, {"name": "snapshot"})
-        # snapshot 재생성은 mode=all 일 때만. failed 는 기존 snapshot 재사용.
-        snap_ids = snapshot_submissions(job.contest_id, force=(job.mode == "all"))
 
         if job.mode == "all":
+            # snapshot_submissions(force=True) 가 모든 snapshot 재생성 + 기존 평가 cascade 삭제 후
+            # to_evaluate 리스트 반환.
+            snap_ids = snapshot_submissions(job.contest_id, force=True)
             pending = list(snap_ids)
         elif job.mode == "failed":
-            # qualitative 또는 ai_usage 에 error 가 기록된 snapshot 만 재평가
+            # snapshot_submissions(force=False) 는 "신규 또는 코드 변경된" 것만 반환하므로
+            # 기존 실패 snapshot 을 못 잡는다 → contest 의 모든 snapshot 을 직접 조회.
+            snap_ids = list(
+                EvalSubmissionSnapshot.objects
+                .filter(contest_id=job.contest_id)
+                .values_list("id", flat=True)
+            )
             failed_qual = set(
                 EvalQualitative.objects.filter(snapshot_id__in=snap_ids)
                 .exclude(error="").values_list("snapshot_id", flat=True)
@@ -370,7 +377,8 @@ def run_eval_job(job_id):
             )
             failed = failed_qual | failed_ai
             pending = [sid for sid in snap_ids if sid in failed]
-        else:  # "pending" — 미평가만
+        else:  # "pending" — 신규/코드변경된 snapshot 중 미평가만
+            snap_ids = snapshot_submissions(job.contest_id, force=False)
             already = set(
                 EvalQualitative.objects.filter(snapshot_id__in=snap_ids).values_list("snapshot_id", flat=True)
             ) & set(
