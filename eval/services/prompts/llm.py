@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 
@@ -13,6 +14,21 @@ from ..llm_client import LLMClient, LLMClientError
 from .rubric import AXES, overall_score, partial_score
 
 log = logging.getLogger(__name__)
+
+
+def _read_retries_default():
+    """env override 가능. 잘못된 값이면 기본 3 사용."""
+    raw = os.environ.get("EVAL_LLM_RETRIES", "3")
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 3
+
+
+# 정성평가/AI 사용 평가 두 호출 모두에서 사용하는 retries 기본값.
+# 초회 + N 회 재시도 = 총 (N+1) 회 호출. 기본 3 → 총 4 회.
+# LLM 의 일시적 JSON 형식 오류(컴마 누락 등) 흡수율을 높이는 게 목적.
+RETRIES_DEFAULT = _read_retries_default()
 
 
 _FENCE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)

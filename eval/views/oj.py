@@ -187,6 +187,9 @@ class EvalStatusView(View):
 # Write: trigger / queue / job detail
 # ─────────────────────────────────────────────────────────────────────
 
+_VALID_TRIGGER_MODES = ("pending", "all", "failed")
+
+
 def _job_to_dict(job):
     # select_related("lecture", "contest") 가정 — N+1 회피
     return {
@@ -198,6 +201,7 @@ def _job_to_dict(job):
         "contest_type": job.contest.lecture_contest_type if job.contest_id else None,
         "status": job.status,
         "force": job.force,
+        "mode": job.mode,
         "n_total": job.n_total,
         "n_done": job.n_done,
         "n_failed": job.n_failed,
@@ -213,7 +217,10 @@ def _job_to_dict(job):
 class QualitativeEvalTriggerView(View):
     """POST /api/eval/contests/<cid>/qualitative-eval
 
-    body: {"force": bool}
+    body:
+      {"mode": "pending"|"all"|"failed"}  (권장)
+      {"force": bool}                      (legacy 호환 — mode 미지정 시 사용)
+        force=True → mode=all, force=False → mode=pending
     response: {job_id, n_total, n_to_run, joined_existing, queue_position, slots_in_use, slots_total}
     """
 
@@ -229,7 +236,15 @@ class QualitativeEvalTriggerView(View):
             body = json.loads(request.body or b"{}")
         except json.JSONDecodeError:
             return _err("invalid JSON body", 400)
-        force = bool(body.get("force"))
+
+        raw_mode = body.get("mode")
+        if raw_mode is not None:
+            mode = str(raw_mode).strip().lower()
+            if mode not in _VALID_TRIGGER_MODES:
+                return _err(f"invalid mode (allowed: {', '.join(_VALID_TRIGGER_MODES)})", 400)
+        else:
+            mode = "all" if bool(body.get("force")) else "pending"
+        force = (mode != "pending")  # legacy 필드는 mode 와 동기화해 채움
 
         # 같은 contest 에 active job 이 있는지 확인 → 합류 vs 신규 생성
         joined = False
@@ -240,6 +255,7 @@ class QualitativeEvalTriggerView(View):
                     contest_id=contest_id,
                     status=EvalJobStatus.QUEUED,
                     force=force,
+                    mode=mode,
                 )
                 EvalJobRequester.objects.create(job=job, user=request.user)
         except IntegrityError:
@@ -279,6 +295,7 @@ class QualitativeEvalTriggerView(View):
 
         return _ok({
             "job_id": str(job.id),
+            "mode": job.mode,
             "n_total": job.n_total,
             "n_already_evaluated": 0,  # 정확한 값은 actor 실행 후 갱신
             "n_to_run": job.n_total,

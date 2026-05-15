@@ -189,6 +189,13 @@ class EvalJob(models.Model):
         max_length=16, choices=EvalJobStatus.CHOICES, default=EvalJobStatus.QUEUED, db_index=True
     )
     force = models.BooleanField(default=False)
+    # 평가 모드: pending(미평가만) / all(전체 재평가) / failed(이전 실패분만 재평가)
+    # force boolean 은 legacy 호환용으로 유지 — trigger API 가 mode 미지정 시 force 로 폴백.
+    mode = models.CharField(
+        max_length=16,
+        choices=(("pending", "pending"), ("all", "all"), ("failed", "failed")),
+        default="pending",
+    )
 
     n_total = models.IntegerField(default=0)
     n_done = models.IntegerField(default=0)
