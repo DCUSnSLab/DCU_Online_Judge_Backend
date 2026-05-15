@@ -3,8 +3,9 @@
 DCUCODE Redis 의 db 5 에 in-flight counter / max 값 보관.
 admin 이 GUI 로 변경하면 즉시 적용 (현재 in-flight 는 계속 실행, 새 actor 부터 한도 영향).
 
-전략: polling-based counter — INCR 후 max 비교, 초과면 DECR + sleep.
-race condition 은 ±1 정도로 자연 수렴 (0.5초 polling).
+전략: Lua 스크립트로 한도 체크 + INCR 을 atomic 하게 처리.
+대안인 "INCR → check → DECR" polling 은 race 사이 transient over-INCR 가 노출돼
+admin UI 의 in_flight 표시가 들쭉날쭉해지는 문제가 있었음.
 """
 from __future__ import annotations
 
@@ -21,6 +22,17 @@ _KEY_INFLIGHT = "eval:in_flight"
 
 # Dramatiq broker 와 다른 DB 번호 사용 — 충돌 회피. cache(1), session(2), dramatiq(4) 와 분리.
 _DB = 5
+
+# 한도 안에 있을 때만 INCR 하는 atomic check-and-incr. 한도 초과면 0 반환.
+# Redis 단일 EVAL 실행 안에서 명령들이 atomic 하므로 transient over-INCR 가 발생하지 않음.
+_LUA_TRY_ACQUIRE = """
+local cur = tonumber(redis.call('GET', KEYS[1]) or '0')
+local max_n = tonumber(ARGV[1])
+if cur < max_n then
+  return redis.call('INCR', KEYS[1])
+end
+return 0
+"""
 
 
 def _redis():
@@ -77,11 +89,9 @@ def acquire(timeout: float = 300.0, poll_interval: float = 0.5) -> bool:
     deadline = time.monotonic() + timeout
     while True:
         n_max = get_max()
-        cur = r.incr(_KEY_INFLIGHT)
-        if cur <= n_max:
+        result = r.eval(_LUA_TRY_ACQUIRE, 1, _KEY_INFLIGHT, n_max)
+        if int(result) > 0:
             return True
-        # over capacity — rollback
-        r.decr(_KEY_INFLIGHT)
         if time.monotonic() >= deadline:
             return False
         time.sleep(poll_interval)
