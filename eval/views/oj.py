@@ -11,6 +11,7 @@ from urllib.parse import quote
 from django.db import IntegrityError, connection, transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -323,9 +324,38 @@ class QueueView(View):
         })
 
 
+_VALID_EVENT_TYPES = {v for v, _ in EvalJobEventType.CHOICES}
+
+
+def _parse_event_query(request):
+    """JobDetailView 쿼리스트링 파싱. 잘못된 값은 조용히 무시."""
+    try:
+        limit = int(request.GET.get("limit", 50))
+    except (TypeError, ValueError):
+        limit = 50
+    limit = max(1, min(limit, 500))
+
+    since_raw = (request.GET.get("since") or "").strip()
+    since_dt = parse_datetime(since_raw) if since_raw else None
+
+    types_raw = (request.GET.get("types") or "").strip()
+    types = None
+    if types_raw:
+        wanted = {t.strip().lower() for t in types_raw.split(",") if t.strip()}
+        valid = wanted & _VALID_EVENT_TYPES
+        types = list(valid) if valid else None
+    return limit, since_dt, types
+
+
 @method_decorator(csrf_exempt, name="dispatch")
 class JobDetailView(View):
-    """GET /api/eval/jobs/<jid> — Job 메타 + 최근 이벤트."""
+    """GET /api/eval/jobs/<jid> — Job 메타 + 이벤트.
+
+    쿼리 파라미터:
+      limit=<1..500> (default 50)
+      since=<ISO8601> — 이 시각 이후(>) 이벤트만 (incremental 폴링용)
+      types=<csv> — event_type 화이트리스트 필터 (warn,error 등)
+    """
 
     def get(self, request, job_id):
         err = _require_any_score_perm(request)
@@ -340,13 +370,27 @@ class JobDetailView(View):
             )
         except (EvalJob.DoesNotExist, ValueError):
             return _err("job not found", 404)
-        events = list(
-            EvalJobEvent.objects.filter(job=job).order_by("-ts").values("event_type", "data", "ts")[:50]
-        )
+
+        limit, since_dt, types = _parse_event_query(request)
+        qs = EvalJobEvent.objects.filter(job=job)
+        if since_dt is not None:
+            qs = qs.filter(ts__gt=since_dt)
+        if types:
+            qs = qs.filter(event_type__in=types)
+        # 한 개 더 끌어와서 truncation 여부 판단
+        rows = list(qs.order_by("-ts").values("event_type", "data", "ts")[: limit + 1])
+        truncated = len(rows) > limit
+        events = rows[:limit]
         for e in events:
             e["ts"] = e["ts"].isoformat()
+
+        # 다음 polling 의 since 로 쓰일 max(ts). 응답은 -ts 정렬이라 events[0] 이 가장 최근.
+        last_ts = events[0]["ts"] if events else (since_dt.isoformat() if since_dt else None)
+
         data = _job_to_dict(job)
         data["events"] = events
+        data["events_truncated"] = truncated
+        data["last_ts"] = last_ts
         return _ok(data)
 
 

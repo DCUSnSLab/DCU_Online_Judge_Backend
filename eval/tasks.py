@@ -73,6 +73,7 @@ def _bump_job_counter(job_id, *, success, error_data=None):
             EvalJob.objects.filter(id=job_id).update(n_failed=F("n_failed") + 1)
         # 완료 체크 — n_done + n_failed >= n_total 이면 done
         job = EvalJob.objects.filter(id=job_id).first()
+        finished_now = False
         if (
             job
             and job.status == EvalJobStatus.RUNNING
@@ -84,6 +85,11 @@ def _bump_job_counter(job_id, *, success, error_data=None):
             _emit(job_id, EvalJobEventType.DONE, {
                 "n_done": job.n_done, "n_failed": job.n_failed, "n_total": job.n_total,
             })
+            finished_now = True
+    if job and not finished_now:
+        _emit(job_id, EvalJobEventType.PROGRESS, {
+            "n_done": job.n_done, "n_failed": job.n_failed, "n_total": job.n_total,
+        })
     if error_data:
         _emit(job_id, EvalJobEventType.ERROR, error_data)
 
