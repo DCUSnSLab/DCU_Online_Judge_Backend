@@ -75,7 +75,10 @@ def _snapshot():
 
 
 class EvalQueueConfigAPI(APIView):
-    """GET 현재 상태 + POST 슬롯 변경. Super Admin 전용."""
+    """GET 현재 상태 + POST 슬롯 변경. Super Admin 전용.
+
+    한도 증가 시 대기 중인 QUEUED job 이 있다면 즉시 promote.
+    """
 
     @super_admin_required
     def get(self, request):
@@ -90,18 +93,10 @@ class EvalQueueConfigAPI(APIView):
         if value < 1 or value > 64:
             return self.error("value 는 1~64 사이여야 합니다")
         applied = slots_service.set_max(value)
+        # 한도가 늘었으면 대기 중인 job 즉시 promote
+        from ..tasks import promote_next_queued
+        try:
+            promote_next_queued()
+        except Exception:
+            pass
         return self.success({"applied": applied, **_snapshot()})
-
-
-class EvalSlotsResetAPI(APIView):
-    """POST in-flight 카운터 강제 0 리셋. 워커 SIGKILL/OOM 으로 release 못 한 leak 복구용.
-
-    주의: 진행 중 evaluate_pair 의 release 가 호출되면 일시적으로 음수가 될 수 있으나
-    slots.release() 의 음수 가드가 이를 0 으로 복구함.
-    """
-
-    @super_admin_required
-    def post(self, request):
-        before = slots_service.get_in_flight()
-        slots_service.reset_in_flight()
-        return self.success({"before": before, "after": 0, **_snapshot()})

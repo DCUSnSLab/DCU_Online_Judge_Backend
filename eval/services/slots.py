@@ -1,38 +1,29 @@
-"""LLM 평가 동시성 제한.
+"""정성평가 동시 진행 요청 한도.
 
-DCUCODE Redis 의 db 5 에 in-flight counter / max 값 보관.
-admin 이 GUI 로 변경하면 즉시 적용 (현재 in-flight 는 계속 실행, 새 actor 부터 한도 영향).
+슬롯의 의미: "동시에 진행 가능한 정성평가 요청(Job) 수".
+한 사용자가 정성평가 버튼을 누르면 EvalJob 1개가 생성되고 슬롯 1개를 점유한다.
+한도를 초과하면 새 요청은 QUEUED 로 대기하고, 진행 중 job 이 끝나는 즉시 promote 된다.
 
-전략: Lua 스크립트로 한도 체크 + INCR 을 atomic 하게 처리.
-대안인 "INCR → check → DECR" polling 은 race 사이 transient over-INCR 가 노출돼
-admin UI 의 in_flight 표시가 들쭉날쭉해지는 문제가 있었음.
+진실 소스(SoT): EvalJob.status.
+  in_flight = COUNT(EvalJob WHERE status='running')
+한도 max 만 Redis 에 캐시 (admin UI 갱신 즉시 반영용) + DB EvalConfig 에 영구화.
+
+과거 모델: 슬롯 = LLM 동시 호출 수 (pair 단위). evaluate_pair 마다 INCR/DECR.
+이 모델은 워커 SIGKILL 시 counter leak + race 사이 transient over-INCR 노이즈 + 운영자
+멘탈모델 불일치 문제가 있었음. DB-truth 로 옮기면 모든 문제 자연 해소.
 """
 from __future__ import annotations
-
-import time
 
 import redis
 from django.conf import settings
 
-from ..models import EvalConfig
+from ..models import EvalConfig, EvalJob, EvalJobStatus
 
 
 _KEY_MAX = "eval:max_concurrent_jobs"
-_KEY_INFLIGHT = "eval:in_flight"
 
 # Dramatiq broker 와 다른 DB 번호 사용 — 충돌 회피. cache(1), session(2), dramatiq(4) 와 분리.
 _DB = 5
-
-# 한도 안에 있을 때만 INCR 하는 atomic check-and-incr. 한도 초과면 0 반환.
-# Redis 단일 EVAL 실행 안에서 명령들이 atomic 하므로 transient over-INCR 가 발생하지 않음.
-_LUA_TRY_ACQUIRE = """
-local cur = tonumber(redis.call('GET', KEYS[1]) or '0')
-local max_n = tonumber(ARGV[1])
-if cur < max_n then
-  return redis.call('INCR', KEYS[1])
-end
-return 0
-"""
 
 
 def _redis():
@@ -40,7 +31,7 @@ def _redis():
 
 
 def get_max() -> int:
-    """현재 동시 평가 한도. Redis 우선, 비어있으면 DB 의 EvalConfig 에서 가져와 캐싱."""
+    """현재 동시 진행 한도. Redis 우선, 비어있으면 DB EvalConfig 에서 복원."""
     r = _redis()
     raw = r.get(_KEY_MAX)
     if raw is not None:
@@ -65,41 +56,5 @@ def set_max(value: int) -> int:
 
 
 def get_in_flight() -> int:
-    r = _redis()
-    raw = r.get(_KEY_INFLIGHT)
-    try:
-        return max(0, int(raw or 0))
-    except ValueError:
-        return 0
-
-
-def reset_in_flight():
-    """비상 시 / 서버 재시작 후 stuck counter 초기화."""
-    _redis().set(_KEY_INFLIGHT, 0)
-
-
-def acquire(timeout: float = 300.0, poll_interval: float = 0.5) -> bool:
-    """슬롯 한 개 확보. 한도 초과면 short polling.
-
-    반환:
-        True  — slot 확보. 짝맞춰 release() 호출 필수.
-        False — timeout 안에 못 확보.
-    """
-    r = _redis()
-    deadline = time.monotonic() + timeout
-    while True:
-        n_max = get_max()
-        result = r.eval(_LUA_TRY_ACQUIRE, 1, _KEY_INFLIGHT, n_max)
-        if int(result) > 0:
-            return True
-        if time.monotonic() >= deadline:
-            return False
-        time.sleep(poll_interval)
-
-
-def release():
-    """slot 반환. 음수로 떨어지지 않게 가드."""
-    r = _redis()
-    cur = r.decr(_KEY_INFLIGHT)
-    if cur < 0:
-        r.set(_KEY_INFLIGHT, 0)
+    """현재 진행 중인 Job 수. DB 가 진실 소스라 별도 동기화/leak 처리 불필요."""
+    return EvalJob.objects.filter(status=EvalJobStatus.RUNNING).count()
