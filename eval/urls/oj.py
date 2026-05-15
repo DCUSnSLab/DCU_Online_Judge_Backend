@@ -11,6 +11,7 @@ from ..views.oj import (
     ContestExportView,
     ContestScoreboardView,
     EvalStatusView,
+    JobCancelView,
     JobDetailView,
     LectureContestsView,
     LectureDetailView,
@@ -43,6 +44,7 @@ urlpatterns = [
     path("contests/<int:contest_id>/qualitative-eval", QualitativeEvalTriggerView.as_view(), name="eval_qualitative_trigger"),
     path("queue", QueueView.as_view(), name="eval_queue"),
     path("jobs/<int:job_id>", JobDetailView.as_view(), name="eval_job_detail"),
+    path("jobs/<int:job_id>/cancel", JobCancelView.as_view(), name="eval_job_cancel"),
 
     # Score export
     path("contests/<int:contest_id>/score_export", ContestExportView.as_view(), name="eval_contest_export"),

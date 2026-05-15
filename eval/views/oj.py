@@ -10,6 +10,7 @@ from urllib.parse import quote
 
 from django.db import IntegrityError, connection, transaction
 from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -347,6 +348,54 @@ class JobDetailView(View):
         data = _job_to_dict(job)
         data["events"] = events
         return _ok(data)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class JobCancelView(View):
+    """POST /api/eval/jobs/<jid>/cancel — 진행 중 job 취소.
+
+    권한: 해당 lecture 의 점수 권한 보유자 (즉 trigger 권한과 동일).
+    효과:
+    - QUEUED/RUNNING → CANCELLED 전이
+    - In-flight evaluate_pair 메시지는 다음 진입 시 _is_job_active 체크에서 자동 skip
+    - watchdog finalize_stuck_job 도 CANCELLED 면 no-op
+    이미 종결된 job(done/failed/cancelled) 은 409 로 응답.
+    """
+
+    def post(self, request, job_id):
+        err = _require_login(request)
+        if err:
+            return err
+        try:
+            job = EvalJob.objects.select_related("lecture").get(id=job_id)
+        except (EvalJob.DoesNotExist, ValueError):
+            return _err("job not found", 404)
+        perm_err = _require_lecture_perm(request, job.lecture_id)
+        if perm_err:
+            return perm_err
+        if job.status not in EvalJobStatus.ACTIVE:
+            return _err(f"job already {job.status}", 409)
+
+        now = timezone.now()
+        reason = f"cancelled by user {request.user.username}"
+        updated = EvalJob.objects.filter(
+            id=job_id, status__in=EvalJobStatus.ACTIVE,
+        ).update(
+            status=EvalJobStatus.CANCELLED,
+            finished_at=now,
+            error=reason[:2000],
+        )
+        if not updated:
+            # 동시 전이 — 다시 조회
+            job.refresh_from_db()
+            return _err(f"job already {job.status}", 409)
+
+        EvalJobEvent.objects.create(
+            job_id=job_id,
+            event_type=EvalJobEventType.ERROR,
+            data={"reason": "cancelled", "by_user_id": request.user.id, "by_username": request.user.username},
+        )
+        return _ok({"job_id": str(job_id), "status": EvalJobStatus.CANCELLED})
 
 
 # ─────────────────────────────────────────────────────────────────────
