@@ -155,11 +155,19 @@ def get_contest_dict(contest_id):
     }
 
 
+def _short_err(s):
+    """error 필드를 셀 툴팁용 한 줄로 압축. 비어있으면 None."""
+    if not s:
+        return None
+    return s.split("\n", 1)[0][:100]
+
+
 def _qualitative_short(snapshot_id):
     """EvalQualitative + EvalAIUsage 의 매트릭스용 컴팩트 표현.
 
     사이드카 응답의 QualitativeShort 와 동일 키 (overall, suggested_partial_score,
-    ai_likelihood_score, ai_confidence, has_error).
+    ai_likelihood_score, ai_confidence, has_error). qual_error / ai_error 는
+    프론트엔드 cell tooltip 에 표시할 짧은 미리보기 (첫 줄, max 100자).
     """
     qual = EvalQualitative.objects.filter(snapshot_id=snapshot_id).first()
     aiu = EvalAIUsage.objects.filter(snapshot_id=snapshot_id).first()
@@ -171,6 +179,8 @@ def _qualitative_short(snapshot_id):
         "ai_likelihood_score": aiu.likelihood_score if aiu else None,
         "ai_confidence": aiu.confidence if aiu else EvalConfidence.LOW,
         "has_error": bool((qual and qual.error) or (aiu and aiu.error)),
+        "qual_error": _short_err(qual.error) if qual else None,
+        "ai_error": _short_err(aiu.error) if aiu else None,
     }
 
 

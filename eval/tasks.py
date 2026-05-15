@@ -236,7 +236,7 @@ def _evaluate_pair(snapshot_id, force=False, job_id=None):
                 model=None,
                 temperature=0.2,
                 max_tokens=2048,
-                retries=1,
+                retries=llm_mod.RETRIES_DEFAULT,
             )
             EvalQualitative.objects.update_or_create(
                 snapshot=snap,
@@ -269,7 +269,7 @@ def _evaluate_pair(snapshot_id, force=False, job_id=None):
                 model=None,
                 temperature=0.2,
                 max_tokens=1024,
-                retries=1,
+                retries=llm_mod.RETRIES_DEFAULT,
             )
             EvalAIUsage.objects.update_or_create(
                 snapshot=snap,
@@ -353,17 +353,38 @@ def run_eval_job(job_id):
 
     try:
         _emit(job_id, EvalJobEventType.STAGE, {"name": "snapshot"})
-        snap_ids = snapshot_submissions(job.contest_id, force=job.force)
 
-        if not job.force:
+        if job.mode == "all":
+            # snapshot_submissions(force=True) 가 모든 snapshot 재생성 + 기존 평가 cascade 삭제 후
+            # to_evaluate 리스트 반환.
+            snap_ids = snapshot_submissions(job.contest_id, force=True)
+            pending = list(snap_ids)
+        elif job.mode == "failed":
+            # snapshot_submissions(force=False) 는 "신규 또는 코드 변경된" 것만 반환하므로
+            # 기존 실패 snapshot 을 못 잡는다 → contest 의 모든 snapshot 을 직접 조회.
+            snap_ids = list(
+                EvalSubmissionSnapshot.objects
+                .filter(contest_id=job.contest_id)
+                .values_list("id", flat=True)
+            )
+            failed_qual = set(
+                EvalQualitative.objects.filter(snapshot_id__in=snap_ids)
+                .exclude(error="").values_list("snapshot_id", flat=True)
+            )
+            failed_ai = set(
+                EvalAIUsage.objects.filter(snapshot_id__in=snap_ids)
+                .exclude(error="").values_list("snapshot_id", flat=True)
+            )
+            failed = failed_qual | failed_ai
+            pending = [sid for sid in snap_ids if sid in failed]
+        else:  # "pending" — 신규/코드변경된 snapshot 중 미평가만
+            snap_ids = snapshot_submissions(job.contest_id, force=False)
             already = set(
                 EvalQualitative.objects.filter(snapshot_id__in=snap_ids).values_list("snapshot_id", flat=True)
             ) & set(
                 EvalAIUsage.objects.filter(snapshot_id__in=snap_ids).values_list("snapshot_id", flat=True)
             )
             pending = [sid for sid in snap_ids if sid not in already]
-        else:
-            pending = list(snap_ids)
 
         # n_total 먼저 셋팅 — evaluate_pair 가 counter 증가 시 비교 기준이 됨
         EvalJob.objects.filter(id=job_id).update(n_total=len(pending), n_done=0, n_failed=0)
