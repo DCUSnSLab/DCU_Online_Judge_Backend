@@ -1,23 +1,29 @@
-"""LLM 평가 동시성 제한.
+"""정성평가 동시성 한도 두 단계.
 
-DCUCODE Redis 의 db 5 에 in-flight counter / max 값 보관.
-admin 이 GUI 로 변경하면 즉시 적용 (현재 in-flight 는 계속 실행, 새 actor 부터 한도 영향).
+1) Job-level slot — 동시에 진행 가능한 정성평가 요청(Job) 수
+   in_flight = COUNT(EvalJob WHERE status='running')  (DB-truth)
+   초과 시 QUEUED 로 대기, 진행 중 job 종료 시 promote.
 
-전략: polling-based counter — INCR 후 max 비교, 초과면 DECR + sleep.
-race condition 은 ±1 정도로 자연 수렴 (0.5초 polling).
+2) Pair-level concurrency (Job 내부) — 한 Job 안에서 동시 처리되는 pair 수
+   run_eval_job actor 안의 ThreadPoolExecutor max_workers 가 이 한도를 enforce.
+   별도 Redis counter 없음 — Python OS thread 가 진실 소스라 leak/race 자체 부재.
+
+운영 의미:
+  - max_concurrent_eval_jobs: "동시 trigger 가능한 사용자 수"
+  - pair_workers_per_job: "한 사용자 평가에서 동시 LLM 호출 수"
+  - 시스템 전체 동시 LLM 호출 ≤ max_jobs × pair_workers
+  - dramatiq worker thread 는 RUNNING 인 run_eval_job 수만큼 필요 (각 actor 가 thread 1개 점유)
 """
 from __future__ import annotations
-
-import time
 
 import redis
 from django.conf import settings
 
-from ..models import EvalConfig
+from ..models import EvalConfig, EvalJob, EvalJobStatus
 
 
 _KEY_MAX = "eval:max_concurrent_jobs"
-_KEY_INFLIGHT = "eval:in_flight"
+_KEY_PAIR_WORKERS = "eval:pair_workers_per_job"
 
 # Dramatiq broker 와 다른 DB 번호 사용 — 충돌 회피. cache(1), session(2), dramatiq(4) 와 분리.
 _DB = 5
@@ -28,7 +34,7 @@ def _redis():
 
 
 def get_max() -> int:
-    """현재 동시 평가 한도. Redis 우선, 비어있으면 DB 의 EvalConfig 에서 가져와 캐싱."""
+    """현재 동시 진행 한도. Redis 우선, 비어있으면 DB EvalConfig 에서 복원."""
     r = _redis()
     raw = r.get(_KEY_MAX)
     if raw is not None:
@@ -53,43 +59,38 @@ def set_max(value: int) -> int:
 
 
 def get_in_flight() -> int:
+    """현재 진행 중인 Job 수. DB 가 진실 소스라 별도 동기화/leak 처리 불필요."""
+    return EvalJob.objects.filter(status=EvalJobStatus.RUNNING).count()
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Pair-level (Job 내부) — 한 Job 안에서 동시 LLM 호출 수 제어
+# ─────────────────────────────────────────────────────────────────────
+
+def get_pair_workers() -> int:
+    """한 Job 안에서 동시 처리 가능한 pair 수. Redis 우선, 비어있으면 DB 에서 복원."""
     r = _redis()
-    raw = r.get(_KEY_INFLIGHT)
-    try:
-        return max(0, int(raw or 0))
-    except ValueError:
-        return 0
+    raw = r.get(_KEY_PAIR_WORKERS)
+    if raw is not None:
+        try:
+            return max(1, int(raw))
+        except ValueError:
+            pass
+    cfg = EvalConfig.get_singleton()
+    r.set(_KEY_PAIR_WORKERS, cfg.pair_workers_per_job)
+    return cfg.pair_workers_per_job
 
 
-def reset_in_flight():
-    """비상 시 / 서버 재시작 후 stuck counter 초기화."""
-    _redis().set(_KEY_INFLIGHT, 0)
+def set_pair_workers(value: int) -> int:
+    """pair_workers_per_job 변경 — Redis 갱신 + DB 영구화. 1-16 범위.
 
-
-def acquire(timeout: float = 300.0, poll_interval: float = 0.5) -> bool:
-    """슬롯 한 개 확보. 한도 초과면 short polling.
-
-    반환:
-        True  — slot 확보. 짝맞춰 release() 호출 필수.
-        False — timeout 안에 못 확보.
+    이 값은 다음에 시작되는 run_eval_job 의 ThreadPoolExecutor max_workers 로 사용.
+    이미 RUNNING 인 job 의 thread pool 은 그 job 종료까지 기존 값 유지.
     """
+    value = max(1, min(16, int(value)))
     r = _redis()
-    deadline = time.monotonic() + timeout
-    while True:
-        n_max = get_max()
-        cur = r.incr(_KEY_INFLIGHT)
-        if cur <= n_max:
-            return True
-        # over capacity — rollback
-        r.decr(_KEY_INFLIGHT)
-        if time.monotonic() >= deadline:
-            return False
-        time.sleep(poll_interval)
-
-
-def release():
-    """slot 반환. 음수로 떨어지지 않게 가드."""
-    r = _redis()
-    cur = r.decr(_KEY_INFLIGHT)
-    if cur < 0:
-        r.set(_KEY_INFLIGHT, 0)
+    r.set(_KEY_PAIR_WORKERS, value)
+    cfg = EvalConfig.get_singleton()
+    cfg.pair_workers_per_job = value
+    cfg.save(update_fields=["pair_workers_per_job", "updated_at"])
+    return value

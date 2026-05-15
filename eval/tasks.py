@@ -63,6 +63,7 @@ def _bump_job_counter(job_id, *, success, error_data=None):
 
     F() expression 으로 race-condition 회피. 모두 끝났으면 status=done 으로 마킹.
     error_data 가 주어지면 동시에 ERROR 이벤트 기록 → UI 노출용.
+    DONE 으로 전이되면 슬롯이 비므로 대기 중인 QUEUED job 을 promote 한다.
     """
     if not job_id:
         return
@@ -92,6 +93,47 @@ def _bump_job_counter(job_id, *, success, error_data=None):
         })
     if error_data:
         _emit(job_id, EvalJobEventType.ERROR, error_data)
+    if finished_now:
+        try:
+            promote_next_queued()
+        except Exception:
+            log.exception("promote_next_queued failed after job %s DONE", job_id)
+
+
+def promote_next_queued():
+    """슬롯 가용 시 가장 오래된 QUEUED job 을 RUNNING 으로 전이하고 run_eval_job 발행.
+
+    한 번에 가용 슬롯 수만큼 promote 한다. SELECT FOR UPDATE 로 race 회피.
+    호출 위치: trigger / cancel / job DONE/FAILED 직후.
+    """
+    promoted_ids = []
+    max_n = slots_service.get_max()
+    while True:
+        with transaction.atomic():
+            running = (
+                EvalJob.objects.select_for_update()
+                .filter(status=EvalJobStatus.RUNNING).count()
+            )
+            if running >= max_n:
+                break
+            nxt = (
+                EvalJob.objects.select_for_update(skip_locked=True)
+                .filter(status=EvalJobStatus.QUEUED)
+                .order_by("enqueued_at").first()
+            )
+            if not nxt:
+                break
+            EvalJob.objects.filter(id=nxt.id, status=EvalJobStatus.QUEUED).update(
+                status=EvalJobStatus.RUNNING, started_at=timezone.now()
+            )
+        # 트랜잭션 밖에서 actor 발행
+        try:
+            run_eval_job.send(nxt.id)
+        except Exception as e:
+            log.exception("promote_next_queued: dramatiq send failed job=%s: %s", nxt.id, e)
+            _emit(nxt.id, EvalJobEventType.WARN, {"message": f"dramatiq dispatch failed: {e}"})
+        promoted_ids.append(nxt.id)
+    return promoted_ids
 
 
 def _is_job_active(job_id):
@@ -147,9 +189,9 @@ def _build_task(snapshot):
 # Actors (default queue — supervisord rundramatiq 가 그대로 받음)
 # ─────────────────────────────────────────────────────────────────────
 
-@dramatiq.actor(**DRAMATIQ_WORKER_ARGS(time_limit=PAIR_TIME_LIMIT_MS, max_retries=1, max_age=86400_000))
-def evaluate_pair(snapshot_id, force=False, job_id=None):
-    """1 (학생, 문제) 평가. 정성 + AI 사용 두 호출.
+def _evaluate_pair(snapshot_id, force=False, job_id=None):
+    """1 (학생, 문제) 평가 본문 — actor wrapper + run_eval_job 의 ThreadPoolExecutor
+    둘 다에서 호출. 동시성 한도는 ThreadPoolExecutor max_workers 가 enforce.
 
     호출 실패도 row 는 생성 — error 필드에 사유 기록.
     완료 후 부모 job 의 n_done/n_failed counter 증가 + 모두 끝났으면 status=done.
@@ -157,15 +199,14 @@ def evaluate_pair(snapshot_id, force=False, job_id=None):
     모든 경로(정상/캐치된 LLM 에러/TimeLimit/Unknown)에서 counter 증가가 보장되도록
     최외곽 try/except/finally 로 감싼다. counter 누락 → 영구 RUNNING stuck 방지.
     """
-    # Cancellation pre-check — job 이 CANCELLED/FAILED/DONE 이면 메시지 폐기.
+    # Cancellation pre-check — job 이 CANCELLED/FAILED/DONE 이면 즉시 return.
     # counter 도 건드리지 않음 (cancel 시 별도 정리됨).
     if not _is_job_active(job_id):
-        log.info("evaluate_pair: job %s not active, skip snapshot %s", job_id, snapshot_id)
+        log.info("_evaluate_pair: job %s not active, skip snapshot %s", job_id, snapshot_id)
         return
 
     success = False
     error_data = None
-    slot_acquired = False
     try:
         snap = EvalSubmissionSnapshot.objects.select_related("submission").filter(id=snapshot_id).first()
         if not snap:
@@ -179,14 +220,6 @@ def evaluate_pair(snapshot_id, force=False, job_id=None):
             log.info("evaluate_pair: snapshot %s already evaluated, skip", snapshot_id)
             success = True
             return
-
-        # Redis 기반 slot semaphore — admin 설정한 동시 한도 enforce.
-        # acquire 실패 시 (timeout) 작업 실패로 처리.
-        if not slots_service.acquire(timeout=600.0):
-            log.warning("evaluate_pair: slot acquire timeout for snapshot %s", snapshot_id)
-            error_data = {"snapshot_id": snapshot_id, "reason": "slot acquire timeout"}
-            return
-        slot_acquired = True
 
         task = _build_task(snap)
         client = LLMClient()
@@ -284,12 +317,16 @@ def evaluate_pair(snapshot_id, force=False, job_id=None):
             "exc_message": str(e)[:1000],
         }
     finally:
-        if slot_acquired:
-            try:
-                slots_service.release()
-            except Exception:
-                log.exception("evaluate_pair: slot release failed snap=%s", snapshot_id)
         _bump_job_counter(job_id, success=success, error_data=error_data)
+
+
+@dramatiq.actor(**DRAMATIQ_WORKER_ARGS(time_limit=PAIR_TIME_LIMIT_MS, max_retries=1, max_age=86400_000))
+def evaluate_pair(snapshot_id, force=False, job_id=None):
+    """Legacy actor — broker 에 잔존할 수 있는 옛 메시지 처리용. 새 흐름에서는
+    run_eval_job 의 ThreadPoolExecutor 가 _evaluate_pair 를 직접 호출하므로
+    이 actor 는 dramatiq 큐 monopoly 문제의 원인이 되지 않는다.
+    """
+    _evaluate_pair(snapshot_id, force, job_id)
 
 
 @dramatiq.actor(**DRAMATIQ_WORKER_ARGS(time_limit=3600_000, max_retries=0, max_age=86400_000))
@@ -338,15 +375,42 @@ def run_eval_job(job_id):
                 status=EvalJobStatus.DONE, finished_at=timezone.now()
             )
             _emit(job_id, EvalJobEventType.DONE, {"skipped": True, "n_total": 0})
+            promote_next_queued()
             return
 
-        for sid in pending:
-            evaluate_pair.send(sid, job.force, job_id)
+        # Pair 처리: dramatiq 큐로 fan-out 하면 같은 Job 의 메시지가 큐를 monopoly 해서
+        # 다른 Job 의 run_eval_job 이 thread 풀에 진입 못 함. 그래서 한 Job 안에서는
+        # ThreadPoolExecutor 로 직접 LLM 호출. dramatiq thread 는 1개만 점유 (이 actor).
+        pair_workers = max(1, slots_service.get_pair_workers())
 
-        # Watchdog 예약 — 메시지가 통째로 유실되어도 일정 시간 후 강제 종결.
-        # 예상 완료시간 = ceil(n_total / max_concurrent) × time_limit, 거기에 ×2 safety + 10분 floor.
-        max_concurrent = max(slots_service.get_max(), 1)
-        expected_ms = math.ceil(len(pending) / max_concurrent) * PAIR_TIME_LIMIT_MS
+        def _run_one(sid):
+            # 각 thread 가 자체 DB connection 을 잡기 때문에 종료 시 정리 필요.
+            from django.db import close_old_connections
+            try:
+                _evaluate_pair(sid, job.force, job_id)
+            finally:
+                close_old_connections()
+
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(
+            max_workers=pair_workers,
+            thread_name_prefix=f"eval-pair-{job_id}",
+        ) as executor:
+            futures = []
+            for sid in pending:
+                # 매 submit 직전에 cancel 체크 — 빠른 단축 종료
+                if not _is_job_active(job_id):
+                    break
+                futures.append(executor.submit(_run_one, sid))
+            for f in as_completed(futures):
+                try:
+                    f.result()
+                except Exception:
+                    log.exception("evaluate-pair thread crashed job=%s (counter still bumped by inner finally)", job_id)
+
+        # Watchdog 예약 — actor 자체가 죽어 redeliver 되더라도 일정 시간 후 강제 종결.
+        # 예상 완료시간 = ceil(n_total / pair_workers) × time_limit, 거기에 ×2 safety + 10분 floor.
+        expected_ms = math.ceil(len(pending) / pair_workers) * PAIR_TIME_LIMIT_MS
         watchdog_delay_ms = max(expected_ms * 2, 600_000)
         try:
             finalize_stuck_job.send_with_options(args=(job_id,), delay=watchdog_delay_ms)
@@ -359,6 +423,7 @@ def run_eval_job(job_id):
             status=EvalJobStatus.FAILED, finished_at=timezone.now(), error=str(e)[:2000]
         )
         _emit(job_id, EvalJobEventType.ERROR, {"error": str(e)})
+        promote_next_queued()
 
 
 @dramatiq.actor(**DRAMATIQ_WORKER_ARGS(time_limit=60_000, max_retries=0, max_age=86400_000 * 7))
@@ -388,6 +453,7 @@ def finalize_stuck_job(job_id):
             "note": "watchdog finalized (counter complete)",
             "n_done": job.n_done, "n_failed": job.n_failed, "n_total": job.n_total,
         })
+        promote_next_queued()
         return
 
     # 진짜 메시지 유실 — 누락분을 n_failed 에 가산하고 FAILED 마킹
@@ -405,3 +471,4 @@ def finalize_stuck_job(job_id):
         "missing": missing,
         "n_done": job.n_done, "n_failed": job.n_failed, "n_total": job.n_total,
     })
+    promote_next_queued()

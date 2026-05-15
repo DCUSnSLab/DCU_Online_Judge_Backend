@@ -252,19 +252,21 @@ class QualitativeEvalTriggerView(View):
             EvalJobRequester.objects.get_or_create(job=job, user=request.user)
             joined = True
 
-        # 신규 job 만 actor 발행 (합류는 이미 발행됨)
+        # 신규 job 은 dispatcher 가 슬롯 가용 시 promote (RUNNING 전이 + run_eval_job.send).
+        # 한도 초과 상태면 QUEUED 그대로 유지되고 다른 job 종료 시 자동 promote 됨.
+        # (합류는 기존 RUNNING/QUEUED job 의 흐름을 그대로 따른다.)
         if not joined:
-            # 지연 import — Django 앱 로드 순서 의존
-            from ..tasks import run_eval_job
+            from ..tasks import promote_next_queued
             try:
-                run_eval_job.send(job.id)
+                promote_next_queued()
             except Exception as e:
-                # Dramatiq broker 미가동 시에도 row 는 보존 — 운영팀이 워커 띄우면 재시도
                 EvalJobEvent.objects.create(
                     job=job, event_type=EvalJobEventType.WARN,
-                    data={"message": f"dramatiq dispatch failed: {e}"},
+                    data={"message": f"promote failed: {e}"},
                 )
 
+        # promote 결과 job 이 RUNNING 으로 전이됐을 수 있으므로 status 재조회
+        job.refresh_from_db()
         # 대기열 위치는 단순화: queued job 의 enqueued_at 순위
         queue_position = None
         if job.status == EvalJobStatus.QUEUED:
@@ -439,6 +441,12 @@ class JobCancelView(View):
             event_type=EvalJobEventType.ERROR,
             data={"reason": "cancelled", "by_user_id": request.user.id, "by_username": request.user.username},
         )
+        # 슬롯 해제 → 대기 중 QUEUED job 자동 promote
+        from ..tasks import promote_next_queued
+        try:
+            promote_next_queued()
+        except Exception:
+            pass
         return _ok({"job_id": str(job_id), "status": EvalJobStatus.CANCELLED})
 
 
