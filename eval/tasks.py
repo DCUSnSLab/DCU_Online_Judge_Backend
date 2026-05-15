@@ -205,8 +205,21 @@ def evaluate_pair(snapshot_id, force=False, job_id=None):
         log.info("evaluate_pair: job %s not active, skip snapshot %s", job_id, snapshot_id)
         return
 
+    # Pair-level 슬롯: 한 Job 안에서 동시 처리 pair 수 제한 (pair_workers_per_job).
+    # 한도 초과면 dramatiq thread 즉시 해제하고 delay-requeue. 폴링 wait 으로 thread
+    # 점유하면 다른 Job 의 pair 가 처리 못해 throughput 손실.
+    if job_id is not None and not slots_service.try_acquire_pair_slot(job_id):
+        try:
+            evaluate_pair.send_with_options(
+                args=(snapshot_id, force, job_id), delay=1500,
+            )
+        except Exception:
+            log.exception("evaluate_pair: requeue failed snap=%s job=%s", snapshot_id, job_id)
+        return  # counter 안 건드림 — 재시도 시 처리
+
     success = False
     error_data = None
+    pair_slot_held = job_id is not None
     try:
         snap = EvalSubmissionSnapshot.objects.select_related("submission").filter(id=snapshot_id).first()
         if not snap:
@@ -220,9 +233,6 @@ def evaluate_pair(snapshot_id, force=False, job_id=None):
             log.info("evaluate_pair: snapshot %s already evaluated, skip", snapshot_id)
             success = True
             return
-
-        # 동시성 한도는 부모 Job 단위로 promote_next_queued 가 제어 — pair 단위 lock 없음.
-        # 워커 thread 수가 곧 한 Job 내부 병렬 처리 상한.
 
         task = _build_task(snap)
         client = LLMClient()
@@ -320,6 +330,11 @@ def evaluate_pair(snapshot_id, force=False, job_id=None):
             "exc_message": str(e)[:1000],
         }
     finally:
+        if pair_slot_held:
+            try:
+                slots_service.release_pair_slot(job_id)
+            except Exception:
+                log.exception("evaluate_pair: pair-slot release failed snap=%s job=%s", snapshot_id, job_id)
         _bump_job_counter(job_id, success=success, error_data=error_data)
 
 
@@ -343,6 +358,8 @@ def run_eval_job(job_id):
     EvalJob.objects.filter(id=job_id).update(
         status=EvalJobStatus.RUNNING, started_at=timezone.now()
     )
+    # 이전 실패/SIGKILL 로 남았을 수 있는 pair-level counter 잔재 정리.
+    slots_service.reset_job_inflight(job_id)
     _emit(job_id, EvalJobEventType.STARTED, {"contest_id": job.contest_id})
 
     try:
