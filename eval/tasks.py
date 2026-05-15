@@ -189,9 +189,9 @@ def _build_task(snapshot):
 # Actors (default queue — supervisord rundramatiq 가 그대로 받음)
 # ─────────────────────────────────────────────────────────────────────
 
-@dramatiq.actor(**DRAMATIQ_WORKER_ARGS(time_limit=PAIR_TIME_LIMIT_MS, max_retries=1, max_age=86400_000))
-def evaluate_pair(snapshot_id, force=False, job_id=None):
-    """1 (학생, 문제) 평가. 정성 + AI 사용 두 호출.
+def _evaluate_pair(snapshot_id, force=False, job_id=None):
+    """1 (학생, 문제) 평가 본문 — actor wrapper + run_eval_job 의 ThreadPoolExecutor
+    둘 다에서 호출. 동시성 한도는 ThreadPoolExecutor max_workers 가 enforce.
 
     호출 실패도 row 는 생성 — error 필드에 사유 기록.
     완료 후 부모 job 의 n_done/n_failed counter 증가 + 모두 끝났으면 status=done.
@@ -199,27 +199,14 @@ def evaluate_pair(snapshot_id, force=False, job_id=None):
     모든 경로(정상/캐치된 LLM 에러/TimeLimit/Unknown)에서 counter 증가가 보장되도록
     최외곽 try/except/finally 로 감싼다. counter 누락 → 영구 RUNNING stuck 방지.
     """
-    # Cancellation pre-check — job 이 CANCELLED/FAILED/DONE 이면 메시지 폐기.
+    # Cancellation pre-check — job 이 CANCELLED/FAILED/DONE 이면 즉시 return.
     # counter 도 건드리지 않음 (cancel 시 별도 정리됨).
     if not _is_job_active(job_id):
-        log.info("evaluate_pair: job %s not active, skip snapshot %s", job_id, snapshot_id)
+        log.info("_evaluate_pair: job %s not active, skip snapshot %s", job_id, snapshot_id)
         return
-
-    # Pair-level 슬롯: 한 Job 안에서 동시 처리 pair 수 제한 (pair_workers_per_job).
-    # 한도 초과면 dramatiq thread 즉시 해제하고 delay-requeue. 폴링 wait 으로 thread
-    # 점유하면 다른 Job 의 pair 가 처리 못해 throughput 손실.
-    if job_id is not None and not slots_service.try_acquire_pair_slot(job_id):
-        try:
-            evaluate_pair.send_with_options(
-                args=(snapshot_id, force, job_id), delay=1500,
-            )
-        except Exception:
-            log.exception("evaluate_pair: requeue failed snap=%s job=%s", snapshot_id, job_id)
-        return  # counter 안 건드림 — 재시도 시 처리
 
     success = False
     error_data = None
-    pair_slot_held = job_id is not None
     try:
         snap = EvalSubmissionSnapshot.objects.select_related("submission").filter(id=snapshot_id).first()
         if not snap:
@@ -330,12 +317,16 @@ def evaluate_pair(snapshot_id, force=False, job_id=None):
             "exc_message": str(e)[:1000],
         }
     finally:
-        if pair_slot_held:
-            try:
-                slots_service.release_pair_slot(job_id)
-            except Exception:
-                log.exception("evaluate_pair: pair-slot release failed snap=%s job=%s", snapshot_id, job_id)
         _bump_job_counter(job_id, success=success, error_data=error_data)
+
+
+@dramatiq.actor(**DRAMATIQ_WORKER_ARGS(time_limit=PAIR_TIME_LIMIT_MS, max_retries=1, max_age=86400_000))
+def evaluate_pair(snapshot_id, force=False, job_id=None):
+    """Legacy actor — broker 에 잔존할 수 있는 옛 메시지 처리용. 새 흐름에서는
+    run_eval_job 의 ThreadPoolExecutor 가 _evaluate_pair 를 직접 호출하므로
+    이 actor 는 dramatiq 큐 monopoly 문제의 원인이 되지 않는다.
+    """
+    _evaluate_pair(snapshot_id, force, job_id)
 
 
 @dramatiq.actor(**DRAMATIQ_WORKER_ARGS(time_limit=3600_000, max_retries=0, max_age=86400_000))
@@ -358,8 +349,6 @@ def run_eval_job(job_id):
     EvalJob.objects.filter(id=job_id).update(
         status=EvalJobStatus.RUNNING, started_at=timezone.now()
     )
-    # 이전 실패/SIGKILL 로 남았을 수 있는 pair-level counter 잔재 정리.
-    slots_service.reset_job_inflight(job_id)
     _emit(job_id, EvalJobEventType.STARTED, {"contest_id": job.contest_id})
 
     try:
@@ -389,13 +378,39 @@ def run_eval_job(job_id):
             promote_next_queued()
             return
 
-        for sid in pending:
-            evaluate_pair.send(sid, job.force, job_id)
+        # Pair 처리: dramatiq 큐로 fan-out 하면 같은 Job 의 메시지가 큐를 monopoly 해서
+        # 다른 Job 의 run_eval_job 이 thread 풀에 진입 못 함. 그래서 한 Job 안에서는
+        # ThreadPoolExecutor 로 직접 LLM 호출. dramatiq thread 는 1개만 점유 (이 actor).
+        pair_workers = max(1, slots_service.get_pair_workers())
 
-        # Watchdog 예약 — 메시지가 통째로 유실되어도 일정 시간 후 강제 종결.
-        # 예상 완료시간 = ceil(n_total / max_concurrent) × time_limit, 거기에 ×2 safety + 10분 floor.
-        max_concurrent = max(slots_service.get_max(), 1)
-        expected_ms = math.ceil(len(pending) / max_concurrent) * PAIR_TIME_LIMIT_MS
+        def _run_one(sid):
+            # 각 thread 가 자체 DB connection 을 잡기 때문에 종료 시 정리 필요.
+            from django.db import close_old_connections
+            try:
+                _evaluate_pair(sid, job.force, job_id)
+            finally:
+                close_old_connections()
+
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(
+            max_workers=pair_workers,
+            thread_name_prefix=f"eval-pair-{job_id}",
+        ) as executor:
+            futures = []
+            for sid in pending:
+                # 매 submit 직전에 cancel 체크 — 빠른 단축 종료
+                if not _is_job_active(job_id):
+                    break
+                futures.append(executor.submit(_run_one, sid))
+            for f in as_completed(futures):
+                try:
+                    f.result()
+                except Exception:
+                    log.exception("evaluate-pair thread crashed job=%s (counter still bumped by inner finally)", job_id)
+
+        # Watchdog 예약 — actor 자체가 죽어 redeliver 되더라도 일정 시간 후 강제 종결.
+        # 예상 완료시간 = ceil(n_total / pair_workers) × time_limit, 거기에 ×2 safety + 10분 floor.
+        expected_ms = math.ceil(len(pending) / pair_workers) * PAIR_TIME_LIMIT_MS
         watchdog_delay_ms = max(expected_ms * 2, 600_000)
         try:
             finalize_stuck_job.send_with_options(args=(job_id,), delay=watchdog_delay_ms)
