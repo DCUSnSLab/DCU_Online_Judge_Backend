@@ -10,6 +10,8 @@ from urllib.parse import quote
 
 from django.db import IntegrityError, connection, transaction
 from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -185,6 +187,9 @@ class EvalStatusView(View):
 # Write: trigger / queue / job detail
 # ─────────────────────────────────────────────────────────────────────
 
+_VALID_TRIGGER_MODES = ("pending", "all", "failed")
+
+
 def _job_to_dict(job):
     # select_related("lecture", "contest") 가정 — N+1 회피
     return {
@@ -196,6 +201,7 @@ def _job_to_dict(job):
         "contest_type": job.contest.lecture_contest_type if job.contest_id else None,
         "status": job.status,
         "force": job.force,
+        "mode": job.mode,
         "n_total": job.n_total,
         "n_done": job.n_done,
         "n_failed": job.n_failed,
@@ -211,7 +217,10 @@ def _job_to_dict(job):
 class QualitativeEvalTriggerView(View):
     """POST /api/eval/contests/<cid>/qualitative-eval
 
-    body: {"force": bool}
+    body:
+      {"mode": "pending"|"all"|"failed"}  (권장)
+      {"force": bool}                      (legacy 호환 — mode 미지정 시 사용)
+        force=True → mode=all, force=False → mode=pending
     response: {job_id, n_total, n_to_run, joined_existing, queue_position, slots_in_use, slots_total}
     """
 
@@ -227,7 +236,15 @@ class QualitativeEvalTriggerView(View):
             body = json.loads(request.body or b"{}")
         except json.JSONDecodeError:
             return _err("invalid JSON body", 400)
-        force = bool(body.get("force"))
+
+        raw_mode = body.get("mode")
+        if raw_mode is not None:
+            mode = str(raw_mode).strip().lower()
+            if mode not in _VALID_TRIGGER_MODES:
+                return _err(f"invalid mode (allowed: {', '.join(_VALID_TRIGGER_MODES)})", 400)
+        else:
+            mode = "all" if bool(body.get("force")) else "pending"
+        force = (mode != "pending")  # legacy 필드는 mode 와 동기화해 채움
 
         # 같은 contest 에 active job 이 있는지 확인 → 합류 vs 신규 생성
         joined = False
@@ -238,6 +255,7 @@ class QualitativeEvalTriggerView(View):
                     contest_id=contest_id,
                     status=EvalJobStatus.QUEUED,
                     force=force,
+                    mode=mode,
                 )
                 EvalJobRequester.objects.create(job=job, user=request.user)
         except IntegrityError:
@@ -250,19 +268,21 @@ class QualitativeEvalTriggerView(View):
             EvalJobRequester.objects.get_or_create(job=job, user=request.user)
             joined = True
 
-        # 신규 job 만 actor 발행 (합류는 이미 발행됨)
+        # 신규 job 은 dispatcher 가 슬롯 가용 시 promote (RUNNING 전이 + run_eval_job.send).
+        # 한도 초과 상태면 QUEUED 그대로 유지되고 다른 job 종료 시 자동 promote 됨.
+        # (합류는 기존 RUNNING/QUEUED job 의 흐름을 그대로 따른다.)
         if not joined:
-            # 지연 import — Django 앱 로드 순서 의존
-            from ..tasks import run_eval_job
+            from ..tasks import promote_next_queued
             try:
-                run_eval_job.send(job.id)
+                promote_next_queued()
             except Exception as e:
-                # Dramatiq broker 미가동 시에도 row 는 보존 — 운영팀이 워커 띄우면 재시도
                 EvalJobEvent.objects.create(
                     job=job, event_type=EvalJobEventType.WARN,
-                    data={"message": f"dramatiq dispatch failed: {e}"},
+                    data={"message": f"promote failed: {e}"},
                 )
 
+        # promote 결과 job 이 RUNNING 으로 전이됐을 수 있으므로 status 재조회
+        job.refresh_from_db()
         # 대기열 위치는 단순화: queued job 의 enqueued_at 순위
         queue_position = None
         if job.status == EvalJobStatus.QUEUED:
@@ -275,6 +295,7 @@ class QualitativeEvalTriggerView(View):
 
         return _ok({
             "job_id": str(job.id),
+            "mode": job.mode,
             "n_total": job.n_total,
             "n_already_evaluated": 0,  # 정확한 값은 actor 실행 후 갱신
             "n_to_run": job.n_total,
@@ -322,9 +343,38 @@ class QueueView(View):
         })
 
 
+_VALID_EVENT_TYPES = {v for v, _ in EvalJobEventType.CHOICES}
+
+
+def _parse_event_query(request):
+    """JobDetailView 쿼리스트링 파싱. 잘못된 값은 조용히 무시."""
+    try:
+        limit = int(request.GET.get("limit", 50))
+    except (TypeError, ValueError):
+        limit = 50
+    limit = max(1, min(limit, 500))
+
+    since_raw = (request.GET.get("since") or "").strip()
+    since_dt = parse_datetime(since_raw) if since_raw else None
+
+    types_raw = (request.GET.get("types") or "").strip()
+    types = None
+    if types_raw:
+        wanted = {t.strip().lower() for t in types_raw.split(",") if t.strip()}
+        valid = wanted & _VALID_EVENT_TYPES
+        types = list(valid) if valid else None
+    return limit, since_dt, types
+
+
 @method_decorator(csrf_exempt, name="dispatch")
 class JobDetailView(View):
-    """GET /api/eval/jobs/<jid> — Job 메타 + 최근 이벤트."""
+    """GET /api/eval/jobs/<jid> — Job 메타 + 이벤트.
+
+    쿼리 파라미터:
+      limit=<1..500> (default 50)
+      since=<ISO8601> — 이 시각 이후(>) 이벤트만 (incremental 폴링용)
+      types=<csv> — event_type 화이트리스트 필터 (warn,error 등)
+    """
 
     def get(self, request, job_id):
         err = _require_any_score_perm(request)
@@ -339,14 +389,82 @@ class JobDetailView(View):
             )
         except (EvalJob.DoesNotExist, ValueError):
             return _err("job not found", 404)
-        events = list(
-            EvalJobEvent.objects.filter(job=job).order_by("-ts").values("event_type", "data", "ts")[:50]
-        )
+
+        limit, since_dt, types = _parse_event_query(request)
+        qs = EvalJobEvent.objects.filter(job=job)
+        if since_dt is not None:
+            qs = qs.filter(ts__gt=since_dt)
+        if types:
+            qs = qs.filter(event_type__in=types)
+        # 한 개 더 끌어와서 truncation 여부 판단
+        rows = list(qs.order_by("-ts").values("event_type", "data", "ts")[: limit + 1])
+        truncated = len(rows) > limit
+        events = rows[:limit]
         for e in events:
             e["ts"] = e["ts"].isoformat()
+
+        # 다음 polling 의 since 로 쓰일 max(ts). 응답은 -ts 정렬이라 events[0] 이 가장 최근.
+        last_ts = events[0]["ts"] if events else (since_dt.isoformat() if since_dt else None)
+
         data = _job_to_dict(job)
         data["events"] = events
+        data["events_truncated"] = truncated
+        data["last_ts"] = last_ts
         return _ok(data)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class JobCancelView(View):
+    """POST /api/eval/jobs/<jid>/cancel — 진행 중 job 취소.
+
+    권한: 해당 lecture 의 점수 권한 보유자 (즉 trigger 권한과 동일).
+    효과:
+    - QUEUED/RUNNING → CANCELLED 전이
+    - In-flight evaluate_pair 메시지는 다음 진입 시 _is_job_active 체크에서 자동 skip
+    - watchdog finalize_stuck_job 도 CANCELLED 면 no-op
+    이미 종결된 job(done/failed/cancelled) 은 409 로 응답.
+    """
+
+    def post(self, request, job_id):
+        err = _require_login(request)
+        if err:
+            return err
+        try:
+            job = EvalJob.objects.select_related("lecture").get(id=job_id)
+        except (EvalJob.DoesNotExist, ValueError):
+            return _err("job not found", 404)
+        perm_err = _require_lecture_perm(request, job.lecture_id)
+        if perm_err:
+            return perm_err
+        if job.status not in EvalJobStatus.ACTIVE:
+            return _err(f"job already {job.status}", 409)
+
+        now = timezone.now()
+        reason = f"cancelled by user {request.user.username}"
+        updated = EvalJob.objects.filter(
+            id=job_id, status__in=EvalJobStatus.ACTIVE,
+        ).update(
+            status=EvalJobStatus.CANCELLED,
+            finished_at=now,
+            error=reason[:2000],
+        )
+        if not updated:
+            # 동시 전이 — 다시 조회
+            job.refresh_from_db()
+            return _err(f"job already {job.status}", 409)
+
+        EvalJobEvent.objects.create(
+            job_id=job_id,
+            event_type=EvalJobEventType.ERROR,
+            data={"reason": "cancelled", "by_user_id": request.user.id, "by_username": request.user.username},
+        )
+        # 슬롯 해제 → 대기 중 QUEUED job 자동 promote
+        from ..tasks import promote_next_queued
+        try:
+            promote_next_queued()
+        except Exception:
+            pass
+        return _ok({"job_id": str(job_id), "status": EvalJobStatus.CANCELLED})
 
 
 # ─────────────────────────────────────────────────────────────────────

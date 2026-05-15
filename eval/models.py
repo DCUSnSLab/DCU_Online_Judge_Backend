@@ -189,6 +189,13 @@ class EvalJob(models.Model):
         max_length=16, choices=EvalJobStatus.CHOICES, default=EvalJobStatus.QUEUED, db_index=True
     )
     force = models.BooleanField(default=False)
+    # 평가 모드: pending(미평가만) / all(전체 재평가) / failed(이전 실패분만 재평가)
+    # force boolean 은 legacy 호환용으로 유지 — trigger API 가 mode 미지정 시 force 로 폴백.
+    mode = models.CharField(
+        max_length=16,
+        choices=(("pending", "pending"), ("all", "all"), ("failed", "failed")),
+        default="pending",
+    )
 
     n_total = models.IntegerField(default=0)
     n_done = models.IntegerField(default=0)
@@ -252,8 +259,14 @@ class EvalConfig(models.Model):
     """LLM 정성평가 운영 옵션. 단일 row(id=1)만 사용 (singleton pattern).
 
     런타임에 admin 이 GUI 로 변경 → Redis key 즉시 갱신 → actor 가 다음 acquire 시 반영.
+
+    max_concurrent_eval_jobs: 동시 진행 가능한 정성평가 요청(Job) 수.
+    pair_workers_per_job: 한 Job 안에서 동시 처리되는 pair (LLM 호출) 수.
+    시스템 전체 LLM 동시 호출 = max_concurrent_eval_jobs × pair_workers_per_job 이내.
+    이 값은 dramatiq worker thread 수 이하여야 throughput 손실 없음.
     """
     max_concurrent_eval_jobs = models.IntegerField(default=3)
+    pair_workers_per_job = models.IntegerField(default=2)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
