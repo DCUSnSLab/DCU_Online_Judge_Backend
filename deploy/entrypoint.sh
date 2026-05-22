@@ -76,6 +76,8 @@ addgroup -g 12003 spj
 adduser -u 12000 -S -G spj server
 
 chown -R server:spj $DATA $APP/dist
-find $DATA/test_case -type d -exec chmod 710 {} \;
-find $DATA/test_case -type f -exec chmod 640 {} \;
+# test_case 권한 정리는 background — supervisord 즉시 시작해서 부팅 단축.
+# `+` 는 chmod 한 번에 여러 파일을 인자로 묶어 호출 (fork 비용 ↓).
+( find $DATA/test_case -type d -exec chmod 710 {} + ; \
+  find $DATA/test_case -type f -exec chmod 640 {} + ) &
 exec supervisord -c /app/deploy/supervisord.conf
