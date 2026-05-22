@@ -1,13 +1,13 @@
-"""ADMIN/SUPER_ADMIN/TA_ADMIN 사용자의 SSO require_tfa 일괄 동기화.
+"""ADMIN/SUPER_ADMIN 사용자의 SSO require_tfa 일괄 동기화.
 
-OJ 의 admin_type 이 위 셋 중 하나면 SSO 의 ServiceMembership.require_tfa=True.
-그 외는 False (--include-downgrade 옵션 시).
+OJ 의 admin_type 이 둘 중 하나면 SSO 의 ServiceMembership.require_tfa=True.
+TA_ADMIN 은 제외 (대상 아님).
 
 사용법:
-    python manage.py sync_role_tfa                # admin/교수 → require_tfa=True
+    python manage.py sync_role_tfa                # admin → require_tfa=True
     python manage.py sync_role_tfa --dry-run      # DB 변경 없음. 호출 대상만 출력
     python manage.py sync_role_tfa --include-downgrade
-        # REGULAR_USER 인데 require_tfa=True 인 경우도 같이 False 로 되돌림
+        # TA_ADMIN/REGULAR_USER 인데 require_tfa=True 인 경우 False 로 되돌림
 """
 from __future__ import annotations
 
@@ -17,11 +17,11 @@ from account.models import AdminType, User
 from account.sso_client import set_require_tfa
 
 
-ROLES_REQUIRE_TFA = (AdminType.ADMIN, AdminType.SUPER_ADMIN, AdminType.TA_ADMIN)
+ROLES_REQUIRE_TFA = (AdminType.ADMIN, AdminType.SUPER_ADMIN)
 
 
 class Command(BaseCommand):
-    help = "ADMIN/SUPER_ADMIN/TA_ADMIN 사용자에게 SSO require_tfa=True 일괄 적용."
+    help = "ADMIN/SUPER_ADMIN 사용자에게 SSO require_tfa=True 일괄 적용 (TA_ADMIN 제외)."
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true",
@@ -42,7 +42,7 @@ class Command(BaseCommand):
         )
         total_admin = admins.count()
         self.stdout.write(self.style.NOTICE(
-            f"권한자 {total_admin}명 (ADMIN/SUPER_ADMIN/TA_ADMIN) — require_tfa=True 적용"
+            f"권한자 {total_admin}명 (ADMIN/SUPER_ADMIN) — require_tfa=True 적용"
         ))
 
         ok = fail = 0

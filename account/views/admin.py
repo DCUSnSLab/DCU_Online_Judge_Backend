@@ -25,7 +25,7 @@ from ..sso_client import set_require_tfa
 
 
 # admin_type 이 아래 집합이면 SSO 의 require_tfa=True (2차 인증 강제).
-_ROLES_REQUIRE_TFA = {AdminType.ADMIN, AdminType.SUPER_ADMIN, AdminType.TA_ADMIN}
+_ROLES_REQUIRE_TFA = {AdminType.ADMIN, AdminType.SUPER_ADMIN}
 from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserSerializer, UserSerializer, \
     SimpleSignupSerializer, ContestSignupSerializer
 from ..serializers import ImportUserSeralizer, SignupSerializer
