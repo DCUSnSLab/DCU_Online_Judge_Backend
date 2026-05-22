@@ -12,7 +12,6 @@ OJ 의 admin_type 이 위 셋 중 하나면 SSO 의 ServiceMembership.require_tf
 from __future__ import annotations
 
 from django.core.management.base import BaseCommand
-from django.db.models import Q
 
 from account.models import AdminType, User
 from account.sso_client import set_require_tfa
@@ -38,7 +37,7 @@ class Command(BaseCommand):
         admins = (
             User.objects
             .filter(admin_type__in=ROLES_REQUIRE_TFA)
-            .exclude(Q(sso_sub__isnull=True) | Q(sso_sub=""))
+            .exclude(sso_sub__isnull=True)
             .order_by("admin_type", "username")
         )
         total_admin = admins.count()
@@ -66,7 +65,7 @@ class Command(BaseCommand):
             regulars = (
                 User.objects
                 .exclude(admin_type__in=ROLES_REQUIRE_TFA)
-                .exclude(Q(sso_sub__isnull=True) | Q(sso_sub=""))
+                .exclude(sso_sub__isnull=True)
                 .order_by("username")
             )
             total_down = regulars.count()
