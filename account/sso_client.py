@@ -12,7 +12,7 @@ import logging
 import threading
 import time
 
-import httpx
+import requests
 from django.conf import settings
 
 log = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ def _get_m2m_token() -> str | None:
         if _token_cache["access_token"] and _token_cache["exp"] - 30 > now:
             return _token_cache["access_token"]
         try:
-            r = httpx.post(
+            r = requests.post(
                 f"{settings.SSO_INTERNAL_BASE}/oauth/token",
                 data={
                     "grant_type": "client_credentials",
@@ -64,7 +64,7 @@ def set_require_tfa(sso_sub: str | None, value: bool) -> bool:
         f"/internal/services/{settings.SSO_CLIENT_ID}/members/{sso_sub}"
     )
     try:
-        r = httpx.put(
+        r = requests.put(
             url,
             headers={"Authorization": f"Bearer {token}"},
             json={"require_tfa": value, "status": "ACTIVE"},
