@@ -37,8 +37,10 @@ class User(AbstractBaseUser):
     problem_permission = models.TextField(default=ProblemPermission.NONE)
     reset_password_token = models.TextField(null=True)
     reset_password_token_expire_time = models.DateTimeField(null=True)
-    # SSO auth token
+    # SSO auth token (구 OJ 자체 SSO — 외부 시스템용. dcu-sso 와 무관)
     auth_token = models.TextField(null=True)
+    # dcu-sso users.id 매핑 — OIDC sub. callback 시 채워짐.
+    sso_sub = models.UUIDField(null=True, blank=True, unique=True)
     two_factor_auth = models.BooleanField(default=False)
     tfa_token = models.TextField(null=True)
     session_keys = JSONField(default=list)

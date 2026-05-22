@@ -220,6 +220,21 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=14)
 }
 
+# ---------------------------------------------------------------------
+# dcu-sso 통합 (Phase A — OIDC RP)
+# ---------------------------------------------------------------------
+SSO_LOGIN_ENABLED   = os.environ.get("SSO_LOGIN_ENABLED", "true").lower() in ("1", "true", "yes")
+SSO_ISSUER          = os.environ.get("SSO_ISSUER",         "http://localhost:51000")
+SSO_INTERNAL_BASE   = os.environ.get("SSO_INTERNAL_BASE",  "http://dcu-sso:8000")
+SSO_CLIENT_ID       = os.environ.get("SSO_CLIENT_ID",      "oj")
+SSO_CLIENT_SECRET   = os.environ.get("SSO_CLIENT_SECRET",  "dev-oj-secret")
+SSO_REDIRECT_URI    = os.environ.get("SSO_REDIRECT_URI",   "http://localhost:8000/api/auth/callback")
+SSO_FRONTEND_BASE   = os.environ.get("SSO_FRONTEND_BASE",  "http://localhost:1024")  # OJ frontend
+SSO_JWKS_CACHE_TTL  = int(os.environ.get("SSO_JWKS_CACHE_TTL", "300"))
+SSO_HTTP_TIMEOUT    = int(os.environ.get("SSO_HTTP_TIMEOUT",   "10"))
+# HTTP localhost 개발용 — 운영(HTTPS) 에선 환경변수로 "true"
+SSO_COOKIE_SECURE   = os.environ.get("SSO_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
+
 REDIS_URL = "redis://%s:%s" % (REDIS_CONF["host"], REDIS_CONF["port"])
 
 

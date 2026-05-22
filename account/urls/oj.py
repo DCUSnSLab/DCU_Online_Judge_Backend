@@ -7,6 +7,7 @@ from ..views.oj import (ApplyResetPasswordAPI, ResetPasswordAPI,
                         AvatarUploadAPI, TwoFactorAuthAPI, UserProfileAPI,
                         UserRankAPI, CheckTFARequiredAPI, SessionManagementAPI,getPublicKeyAPI,
                         ProfileProblemDisplayIDRefreshAPI, OpenAPIAppkeyAPI, SSOAPI, SchoolssnCheck, UserProgress, UserEventLogAPI)
+from ..views.oj_sso import OIDCStartAPI, OIDCCallbackAPI, SSOSignupRedirectAPI
 
 from utils.captcha.views import CaptchaAPIView
 
@@ -34,7 +35,12 @@ urlpatterns = [
     re_path(r"^sso?$", SSOAPI.as_view(), name="sso_api"),
     re_path(r"^userprogress?$", UserProgress.as_view(), name="userprogress_api"),
     re_path(r"^get_public_key/?$", getPublicKeyAPI.as_view(), name="get_public_key_api"),
-    re_path(r"^user/event_log/?$", UserEventLogAPI.as_view(), name="user_event_log_api")
+    re_path(r"^user/event_log/?$", UserEventLogAPI.as_view(), name="user_event_log_api"),
+
+    # dcu-sso 통합 (Phase A — 기존 /login 과 병행)
+    re_path(r"^auth/oidc/start/?$", OIDCStartAPI.as_view(),       name="sso_oidc_start"),
+    re_path(r"^auth/callback/?$",   OIDCCallbackAPI.as_view(),    name="sso_oidc_callback"),
+    re_path(r"^auth/signup/?$",     SSOSignupRedirectAPI.as_view(), name="sso_signup_redirect"),
 ]
 
 
