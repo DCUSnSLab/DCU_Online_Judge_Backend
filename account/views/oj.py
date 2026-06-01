@@ -367,7 +367,21 @@ class UserLogoutAPI(APIView):
             # print(contestlog_list)
             # auth.logout(request)
         auth.logout(request)
-        return self.success()
+
+        # SSO end_session 까지 같이 끄도록 URL 동봉. frontend 가 navigate.
+        # SSO_LOGIN_ENABLED=false 면 빈 문자열 — frontend 가 자체 routing.
+        # SSO 의 실제 endpoint 는 /logout (apps/oauth/urls.py path("logout", ...)).
+        sso_logout_url = ""
+        if getattr(settings, "SSO_LOGIN_ENABLED", False):
+            from urllib.parse import urlencode
+            post_logout = getattr(settings, "SSO_FRONTEND_BASE", "")
+            base = f"{settings.SSO_ISSUER}/logout"
+            sso_logout_url = (
+                f"{base}?{urlencode({'post_logout_redirect_uri': post_logout})}"
+                if post_logout else base
+            )
+
+        return self.success({"sso_logout_url": sso_logout_url})
 
 
 class UsernameOrEmailCheck(APIView):

@@ -21,6 +21,11 @@ from problem.models import Problem
 from ..decorators import super_admin_required
 from lecture.models import ta_admin_class
 from ..models import AdminType, ProblemPermission, User, UserProfile
+from ..sso_client import set_require_tfa
+
+
+# admin_type 이 아래 집합이면 SSO 의 require_tfa=True (2차 인증 강제).
+_ROLES_REQUIRE_TFA = {AdminType.ADMIN, AdminType.SUPER_ADMIN}
 from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserSerializer, UserSerializer, \
     SimpleSignupSerializer, ContestSignupSerializer
 from ..serializers import ImportUserSeralizer, SignupSerializer
@@ -166,6 +171,13 @@ class UserAdminAPI(APIView):
 
         # UserProfile.objects.filter(user=user).update(realname=data["realname"])
         User.objects.filter(id=user.id).update(realname=data["realname"])
+
+        # admin_type 이 ADMIN/SUPER_ADMIN/TA_ADMIN 이면 SSO 의 require_tfa=True 동기화.
+        # 트랜잭션 커밋 후 외부 HTTP 호출 — 실패는 sso_client 가 로깅만 (OJ 저장 영향 X).
+        if user.sso_sub:
+            needs_tfa = user.admin_type in _ROLES_REQUIRE_TFA
+            transaction.on_commit(lambda u=user, v=needs_tfa: set_require_tfa(u.sso_sub, v))
+
         return self.success(UserAdminSerializer(user).data)
 
     # @super_admin_required
