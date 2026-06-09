@@ -7,7 +7,7 @@ from ..views.oj import (ApplyResetPasswordAPI, ResetPasswordAPI,
                         AvatarUploadAPI, TwoFactorAuthAPI, UserProfileAPI,
                         UserRankAPI, CheckTFARequiredAPI, SessionManagementAPI,getPublicKeyAPI,
                         ProfileProblemDisplayIDRefreshAPI, OpenAPIAppkeyAPI, SSOAPI, SchoolssnCheck, UserProgress, UserEventLogAPI)
-from ..views.oj_sso import OIDCStartAPI, OIDCCallbackAPI, SSOSignupRedirectAPI
+from ..views.oj_sso import OIDCStartAPI, OIDCCallbackAPI, SSOSignupRedirectAPI, OIDCAccountRedirectAPI
 
 from utils.captcha.views import CaptchaAPIView
 
@@ -41,6 +41,7 @@ urlpatterns = [
     re_path(r"^auth/oidc/start/?$", OIDCStartAPI.as_view(),       name="sso_oidc_start"),
     re_path(r"^auth/callback/?$",   OIDCCallbackAPI.as_view(),    name="sso_oidc_callback"),
     re_path(r"^auth/signup/?$",     SSOSignupRedirectAPI.as_view(), name="sso_signup_redirect"),
+    re_path(r"^auth/oidc/account/?$", OIDCAccountRedirectAPI.as_view(), name="sso_oidc_account"),
 ]
 
 

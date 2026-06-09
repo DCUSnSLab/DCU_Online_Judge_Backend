@@ -128,6 +128,29 @@ class SSOSignupRedirectAPI(APIView):
 
 
 # ---------------------------------------------------------------------
+# /api/auth/oidc/account — SSO 계정 관리(/account) 페이지로 302
+# ---------------------------------------------------------------------
+class OIDCAccountRedirectAPI(APIView):
+    """frontend 의 '계정 설정' → SSO /account 로 redirect.
+
+    비밀번호·이메일·2FA 등 계정 관리는 통합 계정(SSO)에서 일괄 처리.
+    SSO_FRONTEND_BASE 가 있으면 ?return= 으로 동봉해 관리 후 OJ 로 복귀 유도
+    (SSO 가 등록된 RP origin 만 허용 — 미등록이면 복귀 버튼만 안 뜸).
+    """
+
+    authentication_classes = ()
+    permission_classes = ()
+
+    def get(self, request):
+        if not settings.SSO_LOGIN_ENABLED:
+            return self.error("SSO is disabled")
+        base = f"{settings.SSO_ISSUER.rstrip('/')}/account"
+        ret = getattr(settings, "SSO_FRONTEND_BASE", "")
+        url = f"{base}?{urlencode({'return': ret})}" if ret else base
+        return HttpResponseRedirect(url)
+
+
+# ---------------------------------------------------------------------
 # /api/auth/oidc/start
 # ---------------------------------------------------------------------
 class OIDCStartAPI(APIView):
