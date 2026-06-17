@@ -74,38 +74,77 @@ def _ssn_str(s):
 
 
 def _norm_use_qual(use_qual):
-    """use_qual normalize: {group_key: bool} → 그룹키별 True/False (alien 키는 무시)."""
-    out = {g: False for g in GROUP_ORDER}
+    """use_qual normalize: {group_key: mode} → 그룹키별 'off'|'max'|'only' (alien 키는 무시).
+    하위 호환: 값이 boolean True 면 'max' 로 본다 (구버전 프론트).
+    """
+    out = {g: "off" for g in GROUP_ORDER}
     if not isinstance(use_qual, dict):
         return out
     for k, v in use_qual.items():
-        if k in out:
-            out[k] = bool(v)
+        if k not in out:
+            continue
+        if v is True:
+            out[k] = "max"
+        elif isinstance(v, str) and v in ("max", "only"):
+            out[k] = v
+        # 그 외(False, 'off', None, 알 수 없는 값)는 off 유지
     return out
 
 
-def _apply_qual_override(scoreboard, enabled):
-    """enabled=True 이면 testcase.score 를 max(자동, suggested_partial_score) 로 교체.
-    원본 scoreboard dict 를 in-place 수정 (export 1회용 작업이라 무방).
-    qualitative 없는 셀은 그대로.
+def _apply_qual_override(scoreboard, mode):
+    """mode 에 따라 testcase.score 를 정성평가 점수로 교체. 원본 scoreboard dict in-place 수정.
+      'off'  : 변경 없음.
+      'max'  : score = max(자동, suggested_partial_score). qualitative 없으면 그대로.
+      'only' : score = suggested_partial_score. qualitative 없으면 0.
     """
-    if not enabled or not scoreboard:
+    if mode in (None, False, "off") or not scoreboard:
         return scoreboard
     for s in scoreboard.get("students", []):
         for label, cell in (s.get("by_problem") or {}).items():
             if not cell:
                 continue
             tc = cell.get("testcase")
+            if not tc:
+                continue
             qa = cell.get("qualitative")
-            if not tc or not qa:
-                continue
-            sps = qa.get("suggested_partial_score")
-            if sps is None:
-                continue
-            auto = tc.get("score") or 0
-            if sps > auto:
-                tc["score"] = sps
+            sps = qa.get("suggested_partial_score") if qa else None
+            if mode == "max":
+                if sps is not None and sps > (tc.get("score") or 0):
+                    tc["score"] = sps
+            elif mode == "only":
+                tc["score"] = sps if sps is not None else 0
     return scoreboard
+
+
+def _norm_order(order):
+    """order normalize: {group_key: [user_id...]} → {gkey: [int...]} (alien 키 무시).
+    화면 표(그룹 탭)의 표시 순서를 그룹키별 user_id 리스트로 받는다.
+    """
+    out = {}
+    if not isinstance(order, dict):
+        return out
+    for k, v in order.items():
+        if k not in GROUP_LABELS or not isinstance(v, list):
+            continue
+        ids = []
+        for u in v:
+            try:
+                ids.append(int(u))
+            except (TypeError, ValueError):
+                continue
+        out[k] = ids
+    return out
+
+
+def _order_students(student_list, ordered_ids):
+    """student dict 리스트를 ordered_ids(user_id 순)대로 재정렬.
+    목록에 없는 학생은 뒤에 (기존 입력 순서 유지 — stable sort).
+    """
+    if not ordered_ids:
+        return list(student_list)
+    pos = {uid: i for i, uid in enumerate(ordered_ids)}
+    big = len(pos)
+    return sorted(student_list, key=lambda s: pos.get(s["user_id"], big))
 
 
 def _flat_rows_for_contest(scoreboard):
@@ -194,7 +233,8 @@ def write_contest_csv(scoreboard):
     return buf.getvalue().encode("utf-8-sig")  # BOM for Excel CJK
 
 
-def write_lecture_csv(lecture, contests, scoreboards):
+def write_lecture_csv(lecture, contests, scoreboards, order=None):
+    order = order or {}
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow([
@@ -209,7 +249,14 @@ def write_lecture_csv(lecture, contests, scoreboards):
         group = _classify((sb.get("contest") or {}).get("lecture_contest_type"))
         glabel = GROUP_LABELS[group]
         ctitle = (sb.get("contest") or {}).get("title", "")
-        for r in _flat_rows_for_contest(sb):
+        rows = _flat_rows_for_contest(sb)
+        # 화면 표 순서대로 학생 단위 재정렬 (stable → 학생 내 문제 순서 유지).
+        ordered_ids = order.get(group)
+        if ordered_ids:
+            pos = {uid: i for i, uid in enumerate(ordered_ids)}
+            big = len(pos)
+            rows.sort(key=lambda r: pos.get(r["user_id"], big))
+        for r in rows:
             w.writerow([
                 glabel, ctitle, r["realname"], r["username"], r["schoolssn"],
                 r["problem_label"], r["problem_title"], r["problem_total_score"],
@@ -291,13 +338,16 @@ def write_contest_xlsx(scoreboard, weight=None):
     return buf.getvalue()
 
 
-def write_lecture_xlsx(lecture, contests, scoreboards, weights=None, scales=None):
+def write_lecture_xlsx(lecture, contests, scoreboards, weights=None, scales=None, order=None, active_group=None):
     """전체 lecture export.
     weights: {contest_id (int): 환산 만점 (점)}. 시험/대회 그룹의 contest 에만 적용.
     scales:  {group_key: 그룹 전체 환산 만점 (점)}. 비-시험 그룹에만 적용.
+    order:   {group_key: [user_id...]}. 화면 표의 표시 순서 — 해당 그룹 시트를 이 순서로 출력.
+    active_group: 종합 시트 정렬 기준 그룹키 (화면에서 보고 있던 탭). order[active_group] 순서로 종합 시트 출력.
     """
     weights = weights or {}
     scales = scales or {}
+    order = order or {}
     buf = io.BytesIO()
     wb = xlsxwriter.Workbook(buf, {"in_memory": True})
 
@@ -356,7 +406,10 @@ def write_lecture_xlsx(lecture, contests, scoreboards, weights=None, scales=None
             row["by_group"][gkey] += csum
             row["total"] += csum
 
+    # 기본 정렬(총점 내림차순) — order 가 없을 때의 폴백.
     students = sorted(student_idx.values(), key=lambda r: -r["total"])
+    # 종합 시트는 화면에서 보고 있던 그룹 탭(active_group)의 표시 순서를 따른다.
+    comp_students = _order_students(students, order.get(active_group)) if active_group else students
     total_max = sum(contest_max.values())
 
     def _exam_total_conv(s):
@@ -413,7 +466,7 @@ def write_lecture_xlsx(lecture, contests, scoreboards, weights=None, scales=None
         ws.write(2, i, h, fmt_header_conv if is_conv else fmt_header)
 
     row = 3
-    for s in students:
+    for s in comp_students:
         ws.write(row, 0, s["realname"], fmt_center)
         ws.write(row, 1, s["username"], fmt_center)
         ws.write(row, 2, s["schoolssn"], fmt_center)
@@ -476,7 +529,8 @@ def write_lecture_xlsx(lecture, contests, scoreboards, weights=None, scales=None
             group_total_max = scales[gkey]
             wsg.write(0, col, f"전체 환산(/{scales[gkey]:g})", fmt_header_conv)
         conv_total_col = col if group_total_max else None
-        for i, s in enumerate(students):
+        students_g = _order_students(students, order.get(gkey))
+        for i, s in enumerate(students_g):
             r = i + 1
             wsg.write(r, 0, s["realname"], fmt_center)
             wsg.write(r, 1, s["username"], fmt_center)
@@ -542,7 +596,7 @@ def build_contest_export(contest_id, fmt, weights=None, scales=None, use_qual=No
     w_norm = _norm_weights(weights)
     uq_norm = _norm_use_qual(use_qual)
     this_group = _classify((sb.get("contest") or {}).get("lecture_contest_type"))
-    _apply_qual_override(sb, uq_norm.get(this_group, False))
+    _apply_qual_override(sb, uq_norm.get(this_group, "off"))
     this_weight = w_norm.get(int(contest_id), 0)
     if fmt == "csv":
         return title.replace("/", "_"), write_contest_csv(sb), "text/csv; charset=utf-8"
@@ -555,12 +609,13 @@ def build_contest_export(contest_id, fmt, weights=None, scales=None, use_qual=No
     return None, "unsupported format", None
 
 
-def build_lecture_export(lecture_id, fmt, weights=None, scales=None, use_qual=None):
+def build_lecture_export(lecture_id, fmt, weights=None, scales=None, use_qual=None, order=None, active_group=None):
     """lecture 전체 export — 모든 contest 의 scoreboard 합쳐서.
     weights: {contest_id: 환산 만점} — 시험/대회 그룹에 적용.
     scales:  {group_key: 그룹 전체 환산 만점} — 비-시험 그룹에 적용.
-    use_qual: {group_key: bool} — True 인 그룹은 testcase.score 를
-              max(자동, suggested_partial_score) 로 교체 후 합산.
+    use_qual: {group_key: mode} — 'max'/'only' 인 그룹은 testcase.score 를 정성평가로 교체 후 합산.
+    order:    {group_key: [user_id...]} — 화면 표 표시 순서. 각 그룹 시트/CSV 를 이 순서로 출력.
+    active_group: 종합 시트 정렬 기준 그룹키.
     """
     lecture = sb_service.get_lecture_dict(lecture_id)
     if not lecture:
@@ -572,17 +627,19 @@ def build_lecture_export(lecture_id, fmt, weights=None, scales=None, use_qual=No
         sb, err = sb_service.build_scoreboard(c["id"])
         if sb is not None:
             gkey = _classify((sb.get("contest") or {}).get("lecture_contest_type"))
-            _apply_qual_override(sb, uq_norm.get(gkey, False))
+            _apply_qual_override(sb, uq_norm.get(gkey, "off"))
         scoreboards.append(sb)  # err 면 None 으로 (skip)
     title = (lecture.get("title") or f"lecture_{lecture_id}").replace("/", "_")
     w_norm = _norm_weights(weights)
     s_norm = _norm_scales(scales)
+    o_norm = _norm_order(order)
+    ag = active_group if active_group in GROUP_LABELS else None
     if fmt == "csv":
-        return title, write_lecture_csv(lecture, contests, scoreboards), "text/csv; charset=utf-8"
+        return title, write_lecture_csv(lecture, contests, scoreboards, order=o_norm), "text/csv; charset=utf-8"
     elif fmt == "xlsx":
         return (
             title,
-            write_lecture_xlsx(lecture, contests, scoreboards, weights=w_norm, scales=s_norm),
+            write_lecture_xlsx(lecture, contests, scoreboards, weights=w_norm, scales=s_norm, order=o_norm, active_group=ag),
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
     return None, "unsupported format", None

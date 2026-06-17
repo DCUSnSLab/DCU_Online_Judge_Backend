@@ -528,8 +528,11 @@ class LectureExportView(View):
         weights = _parse_json_param(request, "weights")
         scales = _parse_json_param(request, "scales")
         use_qual = _parse_json_param(request, "use_qual")
+        order = _parse_json_param(request, "order")
+        active_group = request.GET.get("active_group") or None
         stem, content, content_type = export_service.build_lecture_export(
-            lecture_id, fmt, weights=weights, scales=scales, use_qual=use_qual
+            lecture_id, fmt, weights=weights, scales=scales, use_qual=use_qual,
+            order=order, active_group=active_group
         )
         if stem is None:
             return _err(content, 404 if "not found" in (content or "").lower() else 400)
