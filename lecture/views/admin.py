@@ -55,6 +55,11 @@ class LectureAPI(APIView):
                 for contest in contests:
                     contest.created_by = proxy_user
                     contest.save()
+                # 개설자 변경 시 문제(Problem)의 created_by 도 함께 이전해야
+                # 새 개설자가 제출 내역을 볼 수 있다 (GEN-657). Problem.created_by 가
+                # 옛 개설자로 남으면 Submission.check_user_permission 에서 권한 미통과 →
+                # 제출 리스트 직렬화(get_show_link)에서 실패해 제출 내역이 안 보임.
+                Problem.objects.filter(contest__lecture=lecture_id).update(created_by=proxy_user)
             ensure_created_by(lecture, request.user)
         except Lecture.DoesNotExist:
             return self.error("no lecture exist")
