@@ -285,6 +285,16 @@ class UserAdminAPI(APIView):
                     us.maxScore = LectureInfo.Info.data[DataType.POINT]
                     cnt += 1
 
+                # Excel export: 페이지네이션 없이 전체 학생을 반환 (현재 페이지만/중복 누적 버그 방지)
+                if request.GET.get("export"):
+                    results = SignupSerializer(ulist, many=True).data
+                    return self.success({
+                        "results": results,
+                        "total": len(results),
+                        "registered_count": registered_count,
+                        "unregistered_count": unregistered_count,
+                    })
+
                 data = self.paginate_data(request, ulist, SignupSerializer)
                 data["registered_count"] = registered_count
                 data["unregistered_count"] = unregistered_count
