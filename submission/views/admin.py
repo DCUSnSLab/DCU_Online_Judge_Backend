@@ -3,6 +3,9 @@ from judge.tasks import judge_task
 # from judge.dispatcher import JudgeDispatcher
 from utils.api import APIView
 from ..models import Submission
+from django.db.models import Count
+from django.db.models.functions import TruncDate
+from datetime import timedelta, date
 
 
 class SubmissionRejudgeAPI(APIView):
@@ -37,3 +40,41 @@ class SubmissionUpdater(APIView):
             #    print(i,sub.id,sub.problem.title)
             i+=1
         return self.success()
+
+
+class SubmissionDataAPI(APIView):
+    def get(self, request):
+        # 날짜별 제출 수 (GEN-579 / GEN-421 이식)
+        today = date.today()
+        if not Submission.objects.exists():
+            return self.success([])
+
+        start_date = Submission.objects.earliest('create_time').create_time.date()
+        date_range = [start_date + timedelta(days=i) for i in range((today - start_date).days + 1)]
+
+        submission_counts = (
+            Submission.objects
+            .annotate(date=TruncDate('create_time'))
+            .values('date')
+            .annotate(submission_count=Count('id'))
+            .order_by('date')
+        )
+        submission_dict = {row['date']: row['submission_count'] for row in submission_counts}
+
+        data = [{
+            "date": single_date.strftime('%Y-%m-%d'),
+            "submission_count": submission_dict.get(single_date, 0),
+        } for single_date in date_range]
+        data.reverse()
+        return self.success(data)
+
+
+class TopSubmittersAPI(APIView):
+    def get(self, request):
+        # 제출 수 상위 50명 (GEN-579 / GEN-421 이식)
+        top_submitters = list(
+            Submission.objects.values("user__realname")
+            .annotate(submission_count=Count("id"))
+            .order_by("-submission_count")[:50]
+        )
+        return self.success(top_submitters)

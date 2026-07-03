@@ -38,7 +38,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from account.auth.sso_jwt import SSOAuthError, verify_id_token
-from account.models import AdminType, User, UserProfile
+from account.models import AdminType, User, UserProfile, UserLoginHistory
 from utils.api import APIView, CSRFExemptAPIView
 
 logger = logging.getLogger(__name__)
@@ -254,6 +254,8 @@ class OIDCCallbackAPI(CSRFExemptAPIView):
         auth.login(request, user)
         user.last_login = now()
         user.save(update_fields=["last_login"])
+        # 로그인 통계 그래프용 (GEN-579). SSO 가 주 로그인 경로이므로 여기서도 기록.
+        UserLoginHistory.objects.create(username=user.username)
 
         # ── 5) SimpleJWT pair 발급 (frontend 가 localStorage 로 이전) ──
         refresh = RefreshToken.for_user(user)

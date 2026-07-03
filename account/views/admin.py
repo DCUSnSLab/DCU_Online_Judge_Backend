@@ -20,7 +20,7 @@ from problem.models import Problem
 
 from ..decorators import super_admin_required
 from lecture.models import ta_admin_class
-from ..models import AdminType, ProblemPermission, User, UserProfile
+from ..models import AdminType, ProblemPermission, User, UserProfile, UserLoginHistory
 from ..sso_client import set_require_tfa
 
 
@@ -35,6 +35,10 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
 import base64
 from Crypto.Random import get_random_bytes
+
+from datetime import date, timedelta
+from django.db.models import Count
+from django.db.models.functions import TruncDate
 
 class PublicContInfoAPI(APIView):
     def get(self, request):
@@ -404,3 +408,30 @@ class GenerateUserAPI(APIView):
             #    duplicate key value violates unique constraint "user_username_key"
             #    DETAIL:  Key (username)=(root11) already exists.
             return self.error(str(e).split("\n")[1])
+
+
+class UserLoginStatsAPI(APIView):
+    def get(self, request):
+        # 로그인 통계 그래프용 — 날짜별 로그인 수 (GEN-579 / GEN-421 이식)
+        today = date.today()
+        if not UserLoginHistory.objects.exists():
+            return self.success([])
+
+        start_date = UserLoginHistory.objects.earliest('login_date').login_date
+        date_range = [start_date + timedelta(days=i) for i in range((today - start_date).days + 1)]
+
+        login_counts = (
+            UserLoginHistory.objects
+            .annotate(date=TruncDate('login_date'))
+            .values('date')
+            .annotate(login_count=Count('username'))
+            .order_by('date')
+        )
+        login_dict = {row['date']: row['login_count'] for row in login_counts}
+
+        data = [{
+            "date": single_date.strftime('%Y-%m-%d'),
+            "login_count": login_dict.get(single_date, 0),
+        } for single_date in date_range]
+        data.reverse()
+        return self.success(data)
