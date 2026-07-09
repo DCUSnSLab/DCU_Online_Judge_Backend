@@ -109,6 +109,12 @@ class LLMKeyAdminAPI(APIView):
             return self.success(LLMApiKeySerializer(key).data)
 
         queryset = LLMApiKey.objects.all().select_related("created_by")
+        # status 필터: revoked=폐기만, active=폐기 제외(활성/만료) (GEN-1143 탭 분리)
+        status = request.GET.get("status")
+        if status == LLMKeyStatus.REVOKED:
+            queryset = queryset.filter(status=LLMKeyStatus.REVOKED)
+        elif status == LLMKeyStatus.ACTIVE:
+            queryset = queryset.exclude(status=LLMKeyStatus.REVOKED)
         if request.GET.get("paging") == "true":
             data = self.paginate_data(request, queryset, LLMApiKeySerializer)
             return self.success(data)
