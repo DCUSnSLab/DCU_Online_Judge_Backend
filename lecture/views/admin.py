@@ -55,6 +55,11 @@ class LectureAPI(APIView):
                 for contest in contests:
                     contest.created_by = proxy_user
                     contest.save()
+                # 개설자 변경 시 문제(Problem)의 created_by 도 함께 이전해야
+                # 새 개설자가 제출 내역을 볼 수 있다 (GEN-657). Problem.created_by 가
+                # 옛 개설자로 남으면 Submission.check_user_permission 에서 권한 미통과 →
+                # 제출 리스트 직렬화(get_show_link)에서 실패해 제출 내역이 안 보임.
+                Problem.objects.filter(contest__lecture=lecture_id).update(created_by=proxy_user)
             ensure_created_by(lecture, request.user)
         except Lecture.DoesNotExist:
             return self.error("no lecture exist")
@@ -78,26 +83,39 @@ class LectureAPI(APIView):
         lectures = Lecture.objects.all().order_by("-id")
         if request.user.is_admin():
             lectures = lectures.filter(created_by=request.user)
-        elif request.user.is_semi_admin(): # 수정필요
-            tauser = ta_admin_class.objects.filter(user=request.user)
-            tauser_lec = ''
-            for lec_list in tauser:
-                extract_lec = lectures.filter(id=lec_list.lecture.id)
-                if tauser_lec == '' and (lec_list.lecture_isallow or lec_list.score_isallow):
-                    tauser_lec = extract_lec
-                elif tauser_lec != '' and (lec_list.lecture_isallow or lec_list.score_isallow):
-                    tauser_lec = tauser_lec.union(extract_lec)
-            lectures = tauser_lec
+        elif request.user.is_semi_admin():  # TA: 권한이 허용된 강의만
+            # union 쿼리셋은 이후 filter/distinct 가 불가하므로 id__in 으로 좁힌다.
+            allowed_ids = [
+                ta.lecture_id for ta in ta_admin_class.objects.filter(user=request.user)
+                if (ta.lecture_isallow or ta.score_isallow)
+            ]
+            lectures = lectures.filter(id__in=allowed_ids)
 
+        # 콤보박스 필터 옵션(연도·교수) — 현재 페이지가 아닌 전체 레코드 기준으로 내려준다.
+        if request.GET.get("get_filters"):
+            years = list(lectures.values_list("year", flat=True).distinct().order_by("-year"))
+            professors = list(
+                lectures.exclude(created_by__realname="")
+                        .values_list("created_by__realname", flat=True)
+                        .distinct().order_by("created_by__realname")
+            )
+            return self.success({"years": years, "professors": professors})
+
+        # 필터링은 전체 레코드 기준(서버사이드) — 현재 페이지에 로드된 행으로 제한되지 않는다.
         keyword = request.GET.get("keyword")
-
         if keyword:
             lectures = lectures.filter(title__contains=keyword)
+        year = request.GET.get("year")
+        if year:
+            lectures = lectures.filter(year=year)
+        semester = request.GET.get("semester")
+        if semester:
+            lectures = lectures.filter(semester=semester)
+        professor = request.GET.get("professor")
+        if professor:
+            lectures = lectures.filter(created_by__realname=professor)
 
-        if lectures == '':
-            return self.success()
-        else:
-            return self.success(self.paginate_data(request, lectures, LectureAdminSerializer))
+        return self.success(self.paginate_data(request, lectures, LectureAdminSerializer))
 
     def delete(self, request):
         lecture_id = request.GET.get("id")
