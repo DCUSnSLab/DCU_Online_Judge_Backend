@@ -21,7 +21,7 @@ from utils.api import APIView, validate_serializer, CSRFExemptAPIView
 from utils.captcha import Captcha
 from utils.shortcuts import rand_str, img2base64, datetime2str
 from ..decorators import login_required
-from ..models import User, UserProfile, AdminType
+from ..models import User, UserProfile, AdminType, UserLoginHistory
 from ..serializers import (ApplyResetPasswordSerializer, ResetPasswordSerializer,
                            UserChangePasswordSerializer, UserLoginSerializer,
                            UserRegisterSerializer, UsernameOrEmailCheckSerializer,
@@ -341,6 +341,7 @@ class UserLoginAPI(CSRFExemptAPIView):
             if not user.two_factor_auth:
                 auth.login(request, user)
                 tokens = self.generate_jwt_tokens(user)
+                self.record_login_history(user)
                 return self.success({"message": "Succeeded", "tokens": tokens})
             # `tfa_code` not in post data
             if user.two_factor_auth and "tfa_code" not in data:
@@ -349,11 +350,16 @@ class UserLoginAPI(CSRFExemptAPIView):
             if OtpAuth(user.tfa_token).valid_totp(data["tfa_code"]):
                 auth.login(request, user)
                 tokens = self.generate_jwt_tokens(user)
+                self.record_login_history(user)
                 return self.success({"message": "Succeeded", "tokens": tokens})
             else:
                 return self.error("Invalid two factor verification code")
         else:
             return self.error("Invalid username or password")
+
+    def record_login_history(self, user):
+        # 로그인 통계 그래프용 (GEN-579). login_date 는 auto_now_add 로 자동 기록.
+        UserLoginHistory.objects.create(username=user.username)
 
 
 class UserLogoutAPI(APIView):

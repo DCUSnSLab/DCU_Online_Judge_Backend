@@ -132,3 +132,11 @@ class UserProfile(models.Model):
 
     class Meta:
         db_table = "user_profile"
+
+
+class UserLoginHistory(models.Model):
+    username = models.CharField(max_length=255, null=False, default="unknown", verbose_name="Username")
+    login_date = models.DateField(auto_now_add=True, verbose_name="Login Date")
+
+    class Meta:
+        db_table = "user_login_history"
